@@ -1,6 +1,6 @@
 import { effect } from './effect';
 import { currentEffect, type ReactiveEffect } from './deps';
-
+import { scheduleEffect } from './effect';
 /**
  * Creates a derived reactive value that is lazily evaluated and cached.
  * * @template T - The type of the value returned by the computed function.
@@ -36,7 +36,7 @@ export function computed<T>(fn: () => T) {
                 if (dep.scheduler) {
                     dep.scheduler();
                 } else {
-                    dep();
+                    scheduleEffect(dep);
                 }
             });
         }

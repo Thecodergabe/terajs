@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { effect } from "../src/reactivity/effect";
 import { state } from "../src/reactivity/state";
 import { computed } from "../src/reactivity/computed";
+import { onCleanup } from "../src/dx/cleanup";
+import { watchEffect } from "../src/dx/watchEffect";
+import { setRuntimeMode } from "../src/dx/runtime";
 
 /**
  * @group Reactivity
@@ -117,6 +120,109 @@ describe("Reactivity Core", () => {
         // Verify count is NO LONGER tracked (Unsubscribed during Branch B run)
         count.set(2);
         expect(calls).toBe(3); // Should NOT increment if cleanup is working
+    });
+    
+    /**
+     * @test Cleanup Execution Order
+     * @description
+     * Ensures that `onCleanup()` callbacks run **before** the next execution
+     * of an effect. This is critical for preventing stale subscriptions and
+     * ensuring dynamic dependency correctness.
+     */
+    it("onCleanup runs before next effect execution", () => {
+        const count = state<number>(0);
+        let cleanupCalls = 0;
+
+        effect(() => {
+            // Register a cleanup that increments the counter
+            onCleanup(() => cleanupCalls++);
+            count.get();
+        });
+
+        // Initial run should NOT trigger cleanup
+        expect(cleanupCalls).toBe(0);
+
+        // First update → cleanup should run once
+        count.set(1);
+        expect(cleanupCalls).toBe(1);
+
+        // Second update → cleanup should run again
+        count.set(2);
+        expect(cleanupCalls).toBe(2);
+    });
+
+    /**
+     * @test watchEffect Re-Execution
+     * @description
+     * Validates that `watchEffect()` automatically tracks dependencies and
+     * re-runs whenever those dependencies change.
+     */
+    it("watchEffect re-runs when dependencies change", () => {
+        const count = state<number>(0);
+        let calls = 0;
+
+        watchEffect(() => {
+            calls++;
+            count.get();
+        });
+
+        // Initial run
+        expect(calls).toBe(1);
+
+        // Dependency update triggers re-run
+        count.set(1);
+        expect(calls).toBe(2);
+    });
+
+    /**
+     * @test watchEffect Disposal
+     * @description
+     * Ensures that the stop function returned by `watchEffect()` correctly
+     * disposes the watcher, preventing any future re-execution.
+     */
+    it("watchEffect stop function prevents further re-runs", () => {
+        const count = state<number>(0);
+        let calls = 0;
+
+        const stop = watchEffect(() => {
+            calls++;
+            count.get();
+        });
+
+        // Initial run
+        expect(calls).toBe(1);
+
+        // Stop the watcher
+        stop();
+
+        // Further updates should NOT trigger re-runs
+        count.set(1);
+        expect(calls).toBe(1);
+    });
+
+    /**
+     * @test SSR Mode Behavior
+     * @description
+     * When the runtime is in `"server"` mode, effects should NOT execute.
+     * This ensures deterministic SSR output and prevents side effects during
+     * server rendering.
+     */
+    it("effects do not run in server mode", () => {
+        setRuntimeMode("server");
+
+        const count = state<number>(0);
+        let calls = 0;
+
+        effect(() => {
+            calls++;
+            count.get();
+        });
+
+        // Effect should NOT run in server mode
+        expect(calls).toBe(0);
+
+        // Reset for other tests
+        setRuntimeMode("client");
     });
 
 });

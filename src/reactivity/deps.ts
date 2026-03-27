@@ -13,7 +13,7 @@ export type ReactiveEffect = {
     deps: Set<ReactiveEffect>[];
     cleanups: (() => void)[];
     scheduler?: () => void;
-    activie?: boolean;
+    active?: boolean;
 };
 
 /**

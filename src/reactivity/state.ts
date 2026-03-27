@@ -1,6 +1,6 @@
 import { currentEffect } from "./deps";
 import type { ReactiveEffect } from "./deps";
-
+import { scheduleEffect } from "./effect";
 /**
  * Creates a reactive state container (Signal).
  * * @template T - The type of the value being tracked.
@@ -57,7 +57,7 @@ export function state<T>(value: T) {
                 if (dep.scheduler) {
                     dep.scheduler();
                 } else {
-                    dep();
+                    scheduleEffect(dep);
                 }
             });
         }
