@@ -76,7 +76,7 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     effectFn.active = true;
 
     /**
-     * 🔥 Component-context integration
+     * Component-context integration
      *
      * If a component is currently rendering, register a disposer
      * so this effect is automatically cleaned up on unmount.

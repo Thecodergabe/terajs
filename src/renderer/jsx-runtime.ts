@@ -3,19 +3,15 @@
  * @description
  * Nebula’s JSX runtime — the bridge between JSX and the fine‑grained DOM renderer.
  *
- * This file defines:
- * - `jsx`  → for elements with a single child
- * - `jsxs` → for elements with multiple children
- * - `Fragment`
- *
- * Nebula does NOT use a virtual DOM. JSX elements are turned directly into:
+ * JSX elements are turned directly into:
  * - DOM nodes
  * - reactive bindings
  * - nested component executions
  *
- * This runtime is intentionally minimal and renderer‑agnostic.
+ * No virtual DOM. No diffing. No component re-renders.
  */
 
+import { unwrap } from "./unwrap";
 import {
     createElement,
     createText,
@@ -38,12 +34,14 @@ import {
 export const Fragment = Symbol("Nebula.Fragment");
 
 /**
- * Normalize a child into a DOM node.
+ * Normalize a JSX child into a DOM node.
  *
  * @param child - Any JSX child value.
  * @returns A DOM node.
  */
 function normalizeChild(child: any): Node {
+    child = unwrap(child);
+
     if (child == null || child === false || child === true) {
         return createText("");
     }
@@ -52,14 +50,12 @@ function normalizeChild(child: any): Node {
         return createText(String(child));
     }
 
-    // Already a DOM node
     if (child instanceof Node) {
         return child;
     }
 
-    // Component function
     if (typeof child === "function") {
-        return child();
+        return normalizeChild(child());
     }
 
     throw new Error("Unsupported JSX child: " + child);
@@ -75,7 +71,6 @@ function applyProps(el: HTMLElement, props: Record<string, any>) {
     for (const key in props) {
         const value = props[key];
 
-        // Children handled separately
         if (key === "children") continue;
 
         // Event handlers: onClick → click
@@ -87,21 +82,15 @@ function applyProps(el: HTMLElement, props: Record<string, any>) {
 
         // Class
         if (key === "class" || key === "className") {
-            if (typeof value === "function") {
-                bindClass(el, value);
-            } else {
-                el.className = value;
-            }
+            if (typeof value === "function") bindClass(el, value);
+            else el.className = unwrap(value);
             continue;
         }
 
         // Style
         if (key === "style") {
-            if (typeof value === "function") {
-                bindStyle(el, value);
-            } else {
-                setStyle(el, value);
-            }
+            if (typeof value === "function") bindStyle(el, value);
+            else setStyle(el, unwrap(value));
             continue;
         }
 
@@ -109,17 +98,13 @@ function applyProps(el: HTMLElement, props: Record<string, any>) {
         if (typeof value === "function") {
             bindProp(el, key, value);
         } else {
-            el.setAttribute(key, value);
+            el.setAttribute(key, unwrap(value));
         }
     }
 }
 
 /**
  * Create a DOM node from JSX.
- *
- * @param type - HTML tag name, Fragment, or component function.
- * @param props - Props object.
- * @returns A DOM node.
  */
 export function jsx(type: any, props: any): Node {
     return createVNode(type, props);
@@ -134,25 +119,17 @@ export function jsxs(type: any, props: any): Node {
 
 /**
  * Core JSX → DOM conversion.
- *
- * @param type - Element type (string, Fragment, or component).
- * @param props - Props object.
- * @returns A DOM node.
  */
 function createVNode(type: any, props: any): Node {
     props = props || {};
 
-    // -------------------------------------------------------------
-    // 1. Fragment
-    // -------------------------------------------------------------
+    // Fragment
     if (type === Fragment) {
         const frag = createFragment();
         const children = props.children;
 
         if (Array.isArray(children)) {
-            for (const child of children) {
-                insert(frag, normalizeChild(child));
-            }
+            for (const child of children) insert(frag, normalizeChild(child));
         } else if (children != null) {
             insert(frag, normalizeChild(children));
         }
@@ -160,16 +137,12 @@ function createVNode(type: any, props: any): Node {
         return frag;
     }
 
-    // -------------------------------------------------------------
-    // 2. Component
-    // -------------------------------------------------------------
+    // Component
     if (typeof type === "function") {
         return type(props);
     }
 
-    // -------------------------------------------------------------
-    // 3. Native DOM element
-    // -------------------------------------------------------------
+    // Native DOM element
     const el = createElement(type);
 
     applyProps(el, props);
@@ -177,9 +150,7 @@ function createVNode(type: any, props: any): Node {
     const children = props.children;
 
     if (Array.isArray(children)) {
-        for (const child of children) {
-            insert(el, normalizeChild(child));
-        }
+        for (const child of children) insert(el, normalizeChild(child));
     } else if (children != null) {
         insert(el, normalizeChild(children));
     }

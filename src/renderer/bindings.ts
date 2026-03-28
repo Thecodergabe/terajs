@@ -3,19 +3,15 @@
  * @description
  * Fine‑grained DOM bindings for Nebula’s reactive renderer.
  *
- * These helpers connect reactive values (signals, memos, derived functions)
- * to DOM updates. They are the glue between Nebula Core’s reactivity and the
- * DOM primitives defined in `dom.ts`.
- *
- * Nebula does NOT use a virtual DOM. Instead:
- * - Each dynamic expression creates a binding.
- * - Each binding registers a reactive effect.
- * - When dependencies change, only the affected DOM nodes update.
+ * These helpers connect reactive expressions (signals, memos, accessors)
+ * to DOM updates. Each binding registers a reactive effect that updates
+ * only the affected DOM node — no virtual DOM, no diffing.
  *
  * This is the same model used by SolidJS and Vue Vapor Mode.
  */
 
 import { effect } from "../reactivity/effect";
+import { unwrap } from "./unwrap";
 import {
     setText,
     setProp,
@@ -30,14 +26,10 @@ import {
  *
  * @param node - The Text node to update.
  * @param compute - A function returning the latest text value.
- *
- * @example
- * const text = createText("");
- * bindText(text, () => count());
  */
-export function bindText(node: Text, compute: () => string): void {
+export function bindText(node: Text, compute: () => any): void {
     effect(() => {
-        setText(node, compute());
+        setText(node, unwrap(compute()));
     });
 }
 
@@ -45,11 +37,8 @@ export function bindText(node: Text, compute: () => string): void {
  * Bind a reactive expression to an element attribute/property.
  *
  * @param el - The element to update.
- * @param name - The attribute name (e.g., "id", "class", "value").
+ * @param name - The attribute name.
  * @param compute - A function returning the latest value.
- *
- * @example
- * bindProp(el, "id", () => props.id);
  */
 export function bindProp(
     el: HTMLElement,
@@ -57,7 +46,7 @@ export function bindProp(
     compute: () => any
 ): void {
     effect(() => {
-        setProp(el, name, compute());
+        setProp(el, name, unwrap(compute()));
     });
 }
 
@@ -66,16 +55,13 @@ export function bindProp(
  *
  * @param el - The element to update.
  * @param compute - A function returning the class string.
- *
- * @example
- * bindClass(el, () => isActive() ? "active" : "");
  */
 export function bindClass(
     el: HTMLElement,
-    compute: () => string
+    compute: () => any
 ): void {
     effect(() => {
-        setClass(el, compute());
+        setClass(el, unwrap(compute()));
     });
 }
 
@@ -84,16 +70,20 @@ export function bindClass(
  *
  * @param el - The element to update.
  * @param compute - A function returning a style object.
- *
- * @example
- * bindStyle(el, () => ({ color: color(), background: bg() }));
  */
 export function bindStyle(
     el: HTMLElement,
-    compute: () => Record<string, string>
+    compute: () => Record<string, any>
 ): void {
     effect(() => {
-        setStyle(el, compute());
+        const styleObj = unwrap(compute());
+        const resolved: Record<string, string> = {};
+
+        for (const key in styleObj) {
+            resolved[key] = unwrap(styleObj[key]);
+        }
+
+        setStyle(el, resolved);
     });
 }
 
@@ -105,9 +95,6 @@ export function bindStyle(
  * @param el - The element to bind to.
  * @param name - Event name (e.g., "click").
  * @param handler - The event handler function.
- *
- * @example
- * bindEvent(el, "click", () => console.log("clicked"));
  */
 export function bindEvent(
     el: HTMLElement,
