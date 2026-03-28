@@ -1,119 +1,151 @@
-import { pushEffect, popEffect, type ReactiveEffect } from './deps';
-import { isServer } from '../dx/runtime';
-import { batch } from '../dx/batch';
-
-let batchDepth = 0;
-const batchQueue = new Set<ReactiveEffect>();
+import { pushEffect, popEffect, type ReactiveEffect, currentEffect } from "./deps";
+import { isServer } from "../dx/runtime";
+import { shouldBatch, queueEffect } from "../dx/batch";
 
 /**
- * Creates a reactive effect that tracks dependencies and re-runs on changes.
- * * @param fn - The side-effect function to execute.
- * @param scheduler - An optional execution strategy. If provided, the effect 
- * is not run immediately and must be triggered manually 
- * (common for computed values or batched updates).
- * @returns The wrapped ReactiveEffect function.
+ * Creates a reactive effect that automatically tracks dependencies and
+ * re-runs whenever those dependencies change.
+ *
+ * Effects form the backbone of Nebula’s fine‑grained reactivity system.
+ * They:
+ * - collect dependencies during execution
+ * - re-run when those dependencies update
+ * - clean up stale subscriptions before each run
+ * - support nested hierarchical effects (children disposed on parent re-run)
+ * - respect SSR mode (no execution on the server)
+ *
+ * @param fn - The user-provided function to execute reactively.
+ * @param scheduler - Optional custom scheduler. If provided, the effect
+ *                    will not run immediately and must be triggered manually.
+ *
+ * @returns The wrapped `ReactiveEffect` function.
+ *
+ * @example
+ * const count = state(0);
+ * effect(() => {
+ *   console.log(count.get());
+ * });
  */
 export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
     /**
-     * The internal wrapper that manages the lifecycle of a single execution.
+     * The internal reactive wrapper. This function:
+     * - cleans up stale deps
+     * - disposes nested child effects
+     * - sets up tracking context
+     * - executes the user function
      */
     const effectFn: ReactiveEffect = () => {
-        // Server-side rendering (SSR) optimization: Skip tracking and execution if we're on the server.
-        if (isServer()) {
-            return;
-        }
+        // SSR: skip execution entirely
+        if (isServer()) return;
 
-        // Cleanup before running to handle dynamic dependencies (e.g., if/else branches).
-        if (effectFn.cleanups) {
-            effectFn.cleanups.forEach(cleanup => cleanup());
+        // Run user-registered cleanup callbacks
+        if (effectFn.cleanups.length) {
+            for (const cleanup of effectFn.cleanups) cleanup();
             effectFn.cleanups.length = 0;
         }
 
-        // 1. Important: Remove this effect from all existing dependency sets 
-        // before re-running to ensure we only track what is currently accessed.
+        // Remove this effect from all dependency sets
         cleanup(effectFn);
-        
-        // 2. Set the global 'currentEffect' context so 'state' getters 
-        // can find this effect.
+
+        // Dispose nested child effects from previous run
+        if (effectFn.children && effectFn.children.length) {
+            for (const child of effectFn.children) {
+                disposeEffect(child);
+            }
+            effectFn.children.length = 0;
+        }
+
+        // Establish this effect as the active tracking context
         pushEffect(effectFn);
-        
+
         try {
-            // 3. Execute the actual user-provided logic.
-            fn(); 
+            fn();
         } finally {
-            // 4. Always restore the previous effect context, even if the user 
-            // code throws an error.
+            // Restore previous effect context
             popEffect();
         }
-    }
+    };
 
-    // Initialize tracking properties
+    // Initialize tracking metadata
     effectFn.deps = [];
     effectFn.cleanups = [];
+    effectFn.children = [];
     effectFn.scheduler = scheduler;
+    effectFn.active = true;
 
-    // Standard effects run immediately on creation. 
-    // Effects with schedulers (like those inside 'computed') wait for a trigger.
+    // Run immediately unless a scheduler is provided
     if (!scheduler) {
         effectFn();
     }
-    
+
     return effectFn;
 }
 
 /**
- * Unsubscribes an effect from all its reactive dependencies.
- * * This is called before every run of the effect to "reset the slate," 
- * allowing the system to handle dynamic conditional branches (e.g. if/else) 
- * without keeping stale subscriptions active.
- * * @param effectFn - The effect to clean up.
+ * Removes an effect from all dependency sets it is currently subscribed to.
+ *
+ * This is called before every re-run to ensure the effect only tracks
+ * dependencies accessed during the *current* execution.
+ *
+ * @param effectFn - The effect to clean up.
  */
 function cleanup(effectFn: ReactiveEffect): void {
     const { deps } = effectFn;
-    
+
     if (deps.length) {
         for (let i = 0; i < deps.length; i++) {
-            // Remove this effect from the Set inside the State/Computed object
             deps[i].delete(effectFn);
         }
-        // Clear the internal array of references
         deps.length = 0;
     }
 }
 
-/** * Schedules an effect to run. If batching is active, the effect is added to the batch queue; 
- * otherwise, it runs immediately.
- * * @param effectFn - The effect function to schedule.
+/**
+ * Fully disposes an effect:
+ * - unsubscribes it from all dependencies
+ * - runs cleanup callbacks
+ * - recursively disposes nested child effects
+ *
+ * This is used internally for nested effect disposal.
+ *
+ * @param effectFn - The effect to dispose.
+ */
+function disposeEffect(effectFn: ReactiveEffect): void {
+    // Remove from dependency sets
+    cleanup(effectFn);
+
+    // Run cleanup callbacks
+    if (effectFn.cleanups.length) {
+        for (const fn of effectFn.cleanups) fn();
+        effectFn.cleanups.length = 0;
+    }
+
+    // Recursively dispose children
+    if (effectFn.children && effectFn.children.length) {
+        for (const child of effectFn.children) {
+            disposeEffect(child);
+        }
+        effectFn.children.length = 0;
+    }
+
+    effectFn.active = false;
+}
+
+/**
+ * Schedules an effect to run.
+ *
+ * If batching is active, the effect is queued and will run once the batch
+ * completes. Otherwise, it executes immediately.
+ *
+ * @param effectFn - The effect to schedule.
  */
 export function scheduleEffect(effectFn: ReactiveEffect): void {
-    if (batchDepth > 0) {
-        batchQueue.add(effectFn);
+    // Prevent infinite loops (effect triggering itself)
+    if (effectFn === currentEffect) return;
+
+    if (shouldBatch()) {
+        queueEffect(effectFn);
     } else {
         effectFn();
     }
-}
-
-/**
- * Starts a batch of updates. During a batch, effects scheduled via 'scheduleEffect' are collected 
- * and only run once at the end of the batch when 'endBatch' is called. This is useful for optimizing 
- * performance by reducing redundant effect executions during multiple state changes.
- * @returns void
- */
-export function startBatch(): void {
-    batchDepth++;
-}
-
-/**
- * Ends a batch of updates. All effects that were scheduled during the batch are executed once, 
- * and the batch queue is cleared. This should be called after 'startBatch' to ensure that all collected effects are properly run.
- * @returns void
- */
-export function endBatch(): void {
-    batchDepth--;
-    if (batchDepth > 0) return;
-
-    const effectsToRun = new Set(batchQueue);
-    batchQueue.clear();
-
-    effectsToRun.forEach(effect => effect());
 }

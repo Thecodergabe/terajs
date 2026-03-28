@@ -1,12 +1,13 @@
-import { state } from "./src/reactivity/state";
+import { signal } from "./src/reactivity/signal";
 import { effect } from "./src/reactivity/effect";
 
-const count = state(0);
+const count = signal(0);
 
 effect(() => {
-    console.log("effect run:", count.get());
+    console.log("effect ran, count =", count());
 });
 
+console.log("initial:", count());
 count.set(1);
 count.set(2);
-count.set(3);
+count.update(n => n + 1);
