@@ -1,93 +1,152 @@
-import { effect } from './effect';
-import { currentEffect, type ReactiveEffect } from './deps';
-import { scheduleEffect } from './effect';
-import { Debug } from '../debug/events';
+import { effect } from "./effect";
+import { currentEffect, type ReactiveEffect } from "./deps";
+import { scheduleEffect } from "./effect";
+
+import {
+  createReactiveMetadata,
+  registerReactiveInstance,
+  updateReactiveValue,
+  emitDebug,
+  addDependency
+} from "../debug";
+
+/**
+ * A lazily evaluated, cached derived reactive value.
+ *
+ * The getter `fn` is wrapped in an internal effect so that:
+ * - its dependencies are tracked
+ * - when those dependencies change, the computed is marked "dirty"
+ * - the value is recomputed on next access
+ *
+ * @typeParam T - The type of the computed value.
+ */
+export interface Computed<T> {
+  /**
+   * Returns the current computed value.
+   *
+   * - Recomputes the value if it is marked as dirty.
+   * - Registers the current effect (if any) as a dependent of this computed.
+   */
+  get(): T;
+}
+
 /**
  * Creates a derived reactive value that is lazily evaluated and cached.
- * * @template T - The type of the value returned by the computed function.
- * @param {() => T} fn - The "getter" function that calculates the derived state.
- * @returns {{ get: () => T }} An object with a `get` method to access the computed value.
+ *
+ * @typeParam T - The type of the value returned by the computed function.
+ * @param fn - The "getter" function that calculates the derived state.
+ * @returns A `Computed<T>` object with a `get()` method to access the value.
  */
-export function computed<T>(fn: () => T) {
-    let value: T;
-    Debug.emit("computed:create", { computed: fn });
-    /**
-     * Cache invalidation flag. 
-     * When true, the value must be re-calculated on the next access.
-     */
-    let dirty = true;
+export function computed<T>(fn: () => T): Computed<T> {
+  let value: T;
 
-    /**
-     * Subscriber set: Tracks which effects depend on this computed value.
-     */
-    const deps = new Set<ReactiveEffect>();
+  const scope = "Computed";
+  const instance = 0;
 
-    /**
-     * Custom Scheduler.
-     * Instead of immediately re-running the effect when a dependency changes,
-     * we simply mark this computed as "dirty" and notify its own subscribers.
-     */
-    const scheduler = () => {
-            Debug.emit("computed:update", {
-                reason: "invalidate",
-                computed: fn
-            });
+  // Metadata + registry entry for this computed
+  const meta = createReactiveMetadata({
+    type: "computed",
+    scope,
+    instance
+  });
 
-            dirty = true;
+  registerReactiveInstance(meta, { scope, instance });
 
-            // Trigger any effects that are watching this computed value
-            const effectsToRun = new Set(deps);
-            effectsToRun.forEach(dep => {
-                if (dep.scheduler) {
-                    dep.scheduler();
-                } else {
-                    scheduleEffect(dep);
-                }
-            });
-        
-    };
+  emitDebug({
+    type: "reactive:created",
+    timestamp: Date.now(),
+    meta
+  });
 
-    /**
-     * Internal runner.
-     * Wraps the getter function in an effect to track its own internal dependencies.
-     * We pass the 'scheduler' so that dependency changes don't cause immediate re-runs,
-     * but instead just trigger our "dirty" logic.
-     */
-    const runner = effect(
-        () => {
-            const oldValue = value;
-            value = fn();
-            dirty = false;
+  /**
+   * Cache invalidation flag.
+   * When true, the value must be re-calculated on the next access.
+   */
+  let dirty = true;
 
-            Debug.emit("computed:update", {
-                reason: "recompute",
-                oldValue,
-                newValue: value,
-                computed: fn
-            });
-        },
-        scheduler
-    );
-    
-    /**
-     * Public accessor for the computed value.
-     * Handles both the lazy evaluation and dependency registration.
-     */
-    function get() {
-        // 1. Lazy Evaluation: Only run the inner function if the cache is stale.
-        if (dirty) {
-            runner();
-        }
+  /**
+   * Subscriber set: tracks which effects depend on this computed value.
+   */
+  const deps = new Set<ReactiveEffect>();
 
-        // 2. Dependency Tracking: If this is called inside another effect,
-        // register that effect as a subscriber to this computed value.
-        if (currentEffect) {
-            deps.add(currentEffect);
-            currentEffect.deps.push(deps);
-        }
+  /**
+   * Custom scheduler.
+   *
+   * Instead of immediately re-running the effect when a dependency changes,
+   * we mark this computed as "dirty" and notify its own subscribers.
+   */
+  const scheduler = () => {
+    dirty = true;
 
-        return value;
+    // Trigger any effects that are watching this computed value
+    const effectsToRun = new Set(deps);
+    effectsToRun.forEach((dep) => {
+      if (dep.scheduler) {
+        dep.scheduler();
+      } else {
+        scheduleEffect(dep);
+      }
+    });
+  };
+
+  /**
+   * Internal runner.
+   *
+   * Wraps the getter function in an effect to track its own internal dependencies.
+   * We pass the `scheduler` so that dependency changes don't cause immediate re-runs,
+   * but instead just trigger our "dirty" logic.
+   */
+  const runner = effect(
+    () => {
+      const oldValue = value;
+      value = fn();
+      dirty = false;
+
+      updateReactiveValue(meta.rid, value);
+
+      emitDebug({
+        type: "computed:recomputed",
+        timestamp: Date.now(),
+        rid: meta.rid
+      });
+
+      // (Optional) you can also emit a richer debug event here if you want
+      // with old/new values via a separate event type.
+    },
+    scheduler
+  );
+
+  /**
+   * Public accessor for the computed value.
+   * Handles both lazy evaluation and dependency registration.
+   */
+  function get(): T {
+    // 1. Lazy evaluation: only run the inner function if the cache is stale.
+    if (dirty) {
+      runner();
     }
 
-    return { get };
+    // 2. Dependency tracking: if this is called inside another effect,
+    // register that effect as a subscriber to this computed value.
+    if (currentEffect) {
+      deps.add(currentEffect);
+      currentEffect.deps.push(deps);
+
+      // Graph edge: effect RID → computed RID
+      const from = (currentEffect as any)._meta?.rid as string | undefined;
+      if (from) {
+        addDependency(from, meta.rid);
+      }
+
+      emitDebug({
+        type: "reactive:read",
+        timestamp: Date.now(),
+        rid: meta.rid
+      });
+    }
+
+    return value;
+  }
+
+  return { get };
 }

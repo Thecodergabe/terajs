@@ -93,6 +93,8 @@ export type DebugEventType =
     | "watch:callback"
     | "watch:cleanup"
     | "watch:stop"
+    | "watchEffect:create"
+    | "watch:dispose"
 
     // watchEffect
     | "watchEffect:create"

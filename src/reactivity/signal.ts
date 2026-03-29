@@ -1,17 +1,40 @@
+/**
+ * @file signal.ts
+ * Core fine‑grained reactive primitive for Nebula.
+ *
+ * Fully integrated with the Nebula Debug Core:
+ * - metadata creation
+ * - reactive registry
+ * - dependency graph
+ * - typed debug events
+ */
+
 import { currentEffect } from "./deps";
 import type { ReactiveEffect } from "./deps";
 import { scheduleEffect } from "./effect";
-import { Debug } from "../debug/events";
+
+import {
+  createReactiveMetadata,
+  registerReactiveInstance,
+  updateReactiveValue,
+  emitDebug,
+  addDependency
+} from "../debug";
+
+import type { ReactiveMetadata } from "../debug/types/metadata";
 
 /**
  * A reactive signal holding a value of type T.
  */
 export interface Signal<T> {
-    (): T;
-    set(value: T): void;
-    update(fn: (value: T) => T): void;
-    _value: T;
-    _dep: Set<ReactiveEffect>;
+  (): T;
+  set(value: T): void;
+  update(fn: (value: T) => T): void;
+
+  /** Internal fields */
+  _value: T;
+  _dep: Set<ReactiveEffect>;
+  _meta: ReactiveMetadata;
 }
 
 /**
@@ -19,55 +42,99 @@ export interface Signal<T> {
  *
  * @param value - The initial value.
  */
-export function signal<T>(value: T): Signal<T> {
-    const sig = function () {
-        if (currentEffect) {
-            sig._dep.add(currentEffect);
-            if (!currentEffect.deps.includes(sig._dep)) {
-                currentEffect.deps.push(sig._dep);
-            }
+export function signal<T>(
+  value: T,
+  options?: {
+    scope?: string;
+    instance?: number;
+    key?: string;
+    file?: string;
+    line?: number;
+    column?: number;
+  }
+): Signal<T> {
+  const scope = options?.scope ?? "UnknownScope";
+  const instance = options?.instance ?? 0;
 
-            Debug.emit("signal:link", {
-                signal: sig,
-                effect: currentEffect
-            });
-        }
+  // Create metadata for this signal
+  const meta: ReactiveMetadata = createReactiveMetadata({
+    type: "ref",
+    scope,
+    instance,
+    key: options?.key,
+    file: options?.file,
+    line: options?.line,
+    column: options?.column
+  });
 
-        Debug.emit("signal:read", {
-            signal: sig,
-            value: sig._value
-        });
-        return sig._value;
-    } as Signal<T>;
+  // Register in the global reactive registry
+  registerReactiveInstance(meta, { scope, instance });
 
+  // Emit creation event
+  emitDebug({
+    type: "reactive:created",
+    timestamp: Date.now(),
+    meta
+  });
 
-    sig._value = value;
-    sig._dep = new Set<ReactiveEffect>();
+  const sig = function () {
+    // Track dependency if inside an effect
+    if (currentEffect) {
+      sig._dep.add(currentEffect);
 
-    Debug.emit("signal:create", {
-        signal: sig,
-        initialValue: value
+      if (!currentEffect.deps.includes(sig._dep)) {
+        currentEffect.deps.push(sig._dep);
+      }
+
+      // Add to dependency graph: effect RID → signal RID
+      const from = (currentEffect as any)._meta?.rid as string | undefined;
+      if (from) {
+        addDependency(from, meta.rid);
+      }
+
+      emitDebug({
+        type: "reactive:read",
+        timestamp: Date.now(),
+        rid: meta.rid
+      });
+    }
+
+    return sig._value;
+  } as Signal<T>;
+
+  sig._value = value;
+  sig._dep = new Set<ReactiveEffect>();
+  sig._meta = meta;
+
+  // Track initial value
+  updateReactiveValue(meta.rid, value);
+
+  sig.set = (next: T) => {
+    const prev = sig._value;
+
+    // IMPORTANT: Only notify dependents when value actually changes
+    if (Object.is(prev, next)) return;
+
+    sig._value = next;
+
+    updateReactiveValue(meta.rid, next);
+
+    emitDebug({
+      type: "reactive:updated",
+      timestamp: Date.now(),
+      rid: meta.rid,
+      prev,
+      next
     });
 
-    sig.set = (v: T) => {
-        if (Object.is(v, sig._value)) return;
-        const oldValue = sig._value;
-        sig._value = v;
+    // Trigger effects
+    const subs = Array.from(sig._dep);
+    for (const eff of subs) {
+      scheduleEffect(eff);
+    }
+  };
 
-        Debug.emit("signal:update", {
-            signal: sig,
-            oldValue,
-            newValue: v
-        });
+  sig.update = (fn) => sig.set(fn(sig._value));
 
-        const subs = Array.from(sig._dep); // snapshot
-        for (const eff of subs) {
-            scheduleEffect(eff);
-        }
-        Debug.emit("signal:update", { signal: sig, value: v });
-    };
-
-    sig.update = (fn) => sig.set(fn(sig._value));
-
-    return sig;
+  return sig;
 }

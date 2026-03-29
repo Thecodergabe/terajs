@@ -20,6 +20,10 @@ import { shouldBatch, queueEffect } from "../dx/batch";
 import { getCurrentContext } from "../renderer/context";
 import { Debug } from "../debug/events";
 
+// NEW: graph + metadata
+import { createReactiveMetadata } from "../debug/core/metadata";
+import { removeDependencyNode } from "../debug/core/dependencyGraph";
+
 /**
  * Creates a reactive effect that:
  * - tracks dependencies during execution
@@ -41,6 +45,17 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
      */
     const effectFn: ReactiveEffect = () => {
         Debug.emit("effect:run", { effect: effectFn });
+
+        // Attach metadata for graph tracking (only once)
+        if (!(effectFn as any)._meta) {
+            const meta = createReactiveMetadata({
+                type: "effect",
+                scope: "Effect",
+                instance: 0
+            });
+            (effectFn as any)._meta = meta;
+        }
+
         if (!effectFn.active || isServer()) return;
 
         // Run user-registered cleanup callbacks
@@ -102,8 +117,15 @@ export function effect(fn: () => void, scheduler?: () => void): ReactiveEffect {
  * @param effectFn - The effect to clean up.
  */
 function cleanup(effectFn: ReactiveEffect): void {
-    const { deps } = effectFn;
     Debug.emit("effect:cleanup", { effect: effectFn });
+
+    // NEW: remove graph edges for this effect
+    const meta = (effectFn as any)._meta;
+    if (meta) {
+        removeDependencyNode(meta.rid);
+    }
+
+    const { deps } = effectFn;
     for (let i = 0; i < deps.length; i++) {
         deps[i].delete(effectFn);
     }
@@ -121,6 +143,7 @@ function cleanup(effectFn: ReactiveEffect): void {
  */
 function disposeEffect(effectFn: ReactiveEffect): void {
     Debug.emit("effect:dispose", { effect: effectFn });
+
     cleanup(effectFn);
 
     if (effectFn.cleanups.length) {
@@ -145,8 +168,9 @@ function disposeEffect(effectFn: ReactiveEffect): void {
  */
 export function scheduleEffect(effectFn: ReactiveEffect): void {
     if (effectFn === currentEffect || !effectFn.active) return;
-    
+
     Debug.emit("effect:schedule", { effect: effectFn });
+
     if (shouldBatch()) {
         queueEffect(effectFn);
     } else {

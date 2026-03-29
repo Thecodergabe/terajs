@@ -39,56 +39,61 @@ import { Debug } from "../debug/events";
  * @returns A `stop()` function that disposes the watcher.
  */
 export function watch<T>(
-    source: () => T,
-    callback: (
-        newValue: T,
-        oldValue: T,
-        onCleanup: (fn: () => void) => void
-    ) => void
+  source: () => T,
+  callback: (
+    newValue: T,
+    oldValue: T,
+    onCleanup: (fn: () => void) => void
+  ) => void
 ): () => void {
-    Debug.emit("watch:create", {
-        source,
-        callback
+  Debug.emit("watch:create", {
+    source,
+    callback
+  });
+
+  let oldValue: T;
+  let initialized = false;
+
+  const stop = watchEffect(() => {
+    const newValue = source();
+
+    Debug.emit("watch:source", {
+      newValue,
+      initialized
     });
 
-    let oldValue: T;
-    let initialized = false;
+    if (!initialized) {
+      initialized = true;
+      oldValue = newValue;
+      return;
+    }
 
-    const stop = watchEffect(() => {
-        const newValue = source();
+    // Only trigger callback when the value actually changes
+    if (Object.is(newValue, oldValue)) {
+      return;
+    }
 
-        Debug.emit("watch:source", {
-            newValue,
-            initialized
-        });
-
-        if (!initialized) {
-            initialized = true;
-            oldValue = newValue;
-            return;
-        }
-
-        Debug.emit("watch:callback", {
-            newValue,
-            oldValue
-        });
-
-        callback(newValue, oldValue, (fn) => {
-            Debug.emit("watch:cleanup", {
-                cleanup: fn
-            });
-            onCleanup(fn);
-        });
-
-        oldValue = newValue;
+    Debug.emit("watch:callback", {
+      newValue,
+      oldValue
     });
 
-    return () => {
-        Debug.emit("watch:stop", {
-            source,
-            callback
-        });
+    callback(newValue, oldValue, (fn) => {
+      Debug.emit("watch:cleanup", {
+        cleanup: fn
+      });
+      onCleanup(fn);
+    });
 
-        stop();
-    };
+    oldValue = newValue;
+  });
+
+  return () => {
+    Debug.emit("watch:stop", {
+      source,
+      callback
+    });
+
+    stop();
+  };
 }

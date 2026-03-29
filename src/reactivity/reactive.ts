@@ -29,7 +29,14 @@
  */
 
 import { signal, type Signal } from "./signal";
-import { Debug } from "../debug/events";
+import {
+  createReactiveMetadata,
+  registerReactiveInstance,
+  updateReactiveValue,
+  emitDebug
+} from "../debug";
+
+import type { ReactiveMetadata } from "../debug/types/metadata";
 
 type AnyObj = Record<string | symbol, any>;
 
@@ -39,21 +46,82 @@ function isObject(value: unknown): value is AnyObj {
 }
 
 /**
+ * Context passed down for metadata (scope/instance/file/etc.).
+ */
+interface WrapContext {
+  scope: string;
+  instance: number;
+  file?: string;
+  line?: number;
+  column?: number;
+}
+
+/**
+ * Creates a signal + metadata + debug integration for a property.
+ *
+ * @typeParam T - The value type.
+ * @param initial - Initial value for the property.
+ * @param ctx - Metadata context (scope, instance, source location).
+ * @param key - Optional property key for better identification.
+ */
+function createTrackedSignal<T>(
+  initial: T,
+  ctx: WrapContext,
+  key?: string
+): Signal<T> {
+  const meta: ReactiveMetadata = createReactiveMetadata({
+    type: "reactive",
+    scope: ctx.scope,
+    instance: ctx.instance,
+    key,
+    file: ctx.file,
+    line: ctx.line,
+    column: ctx.column
+  });
+
+  const sig = signal(initial, {
+    scope: ctx.scope,
+    instance: ctx.instance,
+    key,
+    file: ctx.file,
+    line: ctx.line,
+    column: ctx.column
+  });
+
+  (sig as any)._meta = meta;
+
+  registerReactiveInstance(meta, { scope: ctx.scope, instance: ctx.instance });
+  updateReactiveValue(meta.rid, initial);
+
+  emitDebug({
+    type: "reactive:created",
+    timestamp: Date.now(),
+    meta
+  });
+
+  return sig;
+}
+
+/**
  * Wraps a value in either:
  * - a nested reactive object (if object/array)
- * - a signal (if primitive)
+ * - a tracked signal (if primitive)
+ *
+ * @param value - The value to wrap.
+ * @param ctx - Metadata context.
+ * @param key - Optional property key.
  */
-function wrap(value: any): any {
+function wrap(value: any, ctx: WrapContext, key?: string): any {
   if (isObject(value) || Array.isArray(value)) {
-    return reactive(value);
+    return reactive(value as AnyObj, ctx);
   }
-  return signal(value);
+  return createTrackedSignal(value, ctx, key);
 }
 
 /**
  * A deeply reactive object.
  *
- * @template T - The shape of the original object.
+ * @typeParam T - The shape of the original object.
  */
 export type Reactive<T extends AnyObj> = T;
 
@@ -66,17 +134,65 @@ export type Reactive<T extends AnyObj> = T;
  * - dynamic property addition
  * - dynamic nested object addition
  *
+ * It also ensures that nested reactive objects added later still
+ * participate in dependency tracking, so patterns like:
+ *
+ * ```ts
+ * const obj = reactive({});
+ *
+ * effect(() => {
+ *   obj.nested?.value;
+ * });
+ *
+ * obj.nested = reactive({ value: 1 });
+ * obj.nested.value = 2; // effect runs again
+ * ```
+ *
+ * behave as expected.
+ *
  * @param obj - The source object to wrap.
+ * @param options - Optional metadata for debugging and scoping.
  * @returns A Proxy that exposes reactive reads/writes.
  */
-export function reactive<T extends AnyObj>(obj: T): Reactive<T> {
-  Debug.emit("reactive:create", { source: obj });
+export function reactive<T extends AnyObj>(
+  obj: T,
+  options?: {
+    scope?: string;
+    instance?: number;
+    file?: string;
+    line?: number;
+    column?: number;
+  }
+): Reactive<T> {
+  const ctx: WrapContext = {
+    scope: options?.scope ?? "UnknownScope",
+    instance: options?.instance ?? 0,
+    file: options?.file,
+    line: options?.line,
+    column: options?.column
+  };
+
+  // Root object metadata (for grouping/inspection)
+  const rootMeta: ReactiveMetadata = createReactiveMetadata({
+    type: "reactive",
+    scope: ctx.scope,
+    instance: ctx.instance,
+    file: ctx.file,
+    line: ctx.line,
+    column: ctx.column
+  });
+
+  emitDebug({
+    type: "reactive:created",
+    timestamp: Date.now(),
+    meta: rootMeta
+  });
 
   const store: AnyObj = {};
 
   // Initialize signals or nested reactive objects
   for (const key of Object.keys(obj)) {
-    store[key] = wrap((obj as any)[key]);
+    store[key] = wrap((obj as any)[key], ctx, key);
   }
 
   return new Proxy(store, {
@@ -85,25 +201,23 @@ export function reactive<T extends AnyObj>(obj: T): Reactive<T> {
 
       // Lazily create a signal for missing properties
       if (v === undefined && !(prop in target)) {
-        const sig = signal(undefined);
-        Reflect.set(target, prop, sig, receiver);
-        v = sig;
+        v = wrap(undefined, ctx, String(prop));
+        Reflect.set(target, prop, v, receiver);
       }
 
       // If it's a signal → return its value
       if (typeof v === "function" && "_dep" in v && "_value" in v) {
-        Debug.emit("reactive:get", {
-          target,
-          prop,
-          value: v(),
+        const sig = v as Signal<any>;
+        const value = sig();
+
+        emitDebug({
+          type: "reactive:read",
+          timestamp: Date.now(),
+          rid: (sig as any)._meta?.rid ?? rootMeta.rid
         });
-        return (v as Signal<any>)();
+
+        return value;
       }
-      Debug.emit("reactive:get", {
-        target,
-        prop,
-        value: v,
-      });
 
       return v;
     },
@@ -111,41 +225,34 @@ export function reactive<T extends AnyObj>(obj: T): Reactive<T> {
     set(target, prop, value, receiver) {
       const existing = Reflect.get(target, prop, receiver);
 
-      // Existing signal → update it
+      // Existing signal → update it (preserve nested reactive behavior)
       if (typeof existing === "function" && "_dep" in existing && "_value" in existing) {
-        Debug.emit("reactive:set", {
-          target,
-          prop,
-          oldValue: existing(),
-          newValue: value,
-          signal: existing,
+        const sig = existing as Signal<any>;
+        const prev = sig();
+
+        // If a plain object/array is assigned later, make it reactive
+        if (isObject(value) || Array.isArray(value)) {
+          sig.set(reactive(value as AnyObj, ctx));
+        } else {
+          sig.set(value);
+        }
+
+        updateReactiveValue((sig as any)._meta?.rid ?? rootMeta.rid, sig());
+
+        emitDebug({
+          type: "reactive:updated",
+          timestamp: Date.now(),
+          rid: (sig as any)._meta?.rid ?? rootMeta.rid,
+          prev,
+          next: sig()
         });
 
-        if (isObject(value)) {
-          (existing as Signal<any>).set(reactive(value));
-        } else {
-          (existing as Signal<any>).set(value);
-        }
         return true;
       }
 
       // New property → wrap it and set it
-      const wrapped = wrap(value);
-
-      Debug.emit("reactive:set", {
-        target,
-        prop,
-        oldValue: existing,
-        newValue: wrapped,
-      });
-
+      const wrapped = wrap(value, ctx, String(prop));
       Reflect.set(target, prop, wrapped, receiver);
-
-      // If a lazy signal was created earlier, update it now
-      const lazy = Reflect.get(target, prop, receiver);
-      if (typeof lazy === "function" && "_dep" in lazy && "_value" in lazy) {
-        (lazy as Signal<any>).set(wrapped);
-      }
 
       return true;
     }
