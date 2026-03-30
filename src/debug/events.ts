@@ -109,6 +109,8 @@ export type DebugEventType =
     | "component:context:create"
     | "component:context:cleanup"
     | "component:cleanup:register"
+    | "component:setup:start"
+    | "component:setup:end"
     | "component:render:root"
     | "component:render:start"
     | "component:render:static"

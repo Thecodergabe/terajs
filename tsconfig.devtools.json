@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "nebula", 
+    "isolatedModules": true,
+    "noEmit": false,
+    "outDir": "dist/devtools"
+  },
+  "include": ["src/ui/devtools"]
+}

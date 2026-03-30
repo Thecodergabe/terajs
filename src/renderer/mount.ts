@@ -8,22 +8,24 @@
  *  - Executes the component
  *  - Stores its ComponentContext on the root
  *  - Inserts the resulting DOM node
+ *  - Runs onMounted() lifecycle hooks
  *
  * Unmounting:
+ *  - Runs onUnmounted() lifecycle hooks
  *  - Runs all disposers registered via `onCleanup`
  *  - Clears the DOM
  */
 
 import { insert } from "./dom";
 import { FrameworkComponent, renderComponent } from "./render";
-import type { ComponentContext, Disposer } from "./context";
+import type { ComponentContext } from "../runtime/component/context";
 import { Debug } from "../debug/events";
 
 declare global {
-    interface HTMLElement {
-        /** Internal: component context for the mounted component. */
-        __ctx?: ComponentContext;
-    }
+  interface HTMLElement {
+    /** Internal: component context for the mounted component. */
+    __ctx?: ComponentContext;
+  }
 }
 
 /**
@@ -34,54 +36,94 @@ declare global {
  * @param props - Optional props passed to the component.
  */
 export function mount(
-    component: FrameworkComponent,
-    root: HTMLElement,
-    props?: any
+  component: FrameworkComponent,
+  root: HTMLElement,
+  props?: any
 ): void {
-    Debug.emit("component:mount", {
-        component,
-        root,
-        props
-    });
+  Debug.emit("component:mount", {
+    component,
+    root,
+    props
+  });
 
-    root.innerHTML = "";
+  // Clear root
+  root.innerHTML = "";
 
-    const { node, ctx } = renderComponent(component, props);
+  // Render component
+  const { node, ctx } = renderComponent(component, props);
 
-    root.__ctx = ctx;
+  // Store context on root
+  root.__ctx = ctx;
 
-    insert(root, node);
+  // Insert DOM
+  insert(root, node);
+
+  // Run onMounted lifecycle hooks
+  if (ctx.mounted) {
+    for (const fn of ctx.mounted) {
+      try {
+        fn();
+      } catch (err) {
+        Debug.emit("error:component", {
+          name: ctx.name,
+          instance: ctx.instance,
+          error: err
+        });
+      }
+    }
+  }
 }
 
 /**
  * Unmounts the component currently mounted in the root element.
  *
- * Runs all cleanup functions and clears the DOM.
+ * Runs:
+ *  - onUnmounted lifecycle hooks
+ *  - all cleanup functions registered via onCleanup()
+ *  - clears the DOM
  *
  * @param root - The DOM element to unmount from.
  */
 export function unmount(root: HTMLElement): void {
-    const ctx = root.__ctx;
+  const ctx = root.__ctx;
 
-    Debug.emit("component:unmount", {
-        root,
-        context: ctx
-    });
+  Debug.emit("component:unmount", {
+    root,
+    context: ctx
+  });
 
-    if (ctx) {
-        for (const dispose of ctx.disposers as Disposer[]) {
-            try {
-                Debug.emit("component:dispose", {
-                    disposer: dispose,
-                    context: ctx
-                });
-                dispose();
-            } catch {
-                // swallow user cleanup errors
-            }
+  if (ctx) {
+    // Run onUnmounted lifecycle hooks
+    if (ctx.unmounted) {
+      for (const fn of ctx.unmounted) {
+        try {
+          fn();
+        } catch (err) {
+          Debug.emit("error:component", {
+            name: ctx.name,
+            instance: ctx.instance,
+            error: err
+          });
         }
-        root.__ctx = undefined;
+      }
     }
 
-    root.innerHTML = "";
+    // Run cleanup disposers
+    for (const dispose of ctx.disposers) {
+      try {
+        Debug.emit("component:dispose", {
+          disposer: dispose,
+          context: ctx
+        });
+        dispose();
+      } catch {
+        // swallow user cleanup errors
+      }
+    }
+
+    root.__ctx = undefined;
+  }
+
+  // Clear DOM
+  root.innerHTML = "";
 }

@@ -8,5 +8,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "test.ts", "tests"]
+  "include": ["src", "test.ts", "tests", "tsconfig.devtools.json"],
+  "exclude": ["src/ui/detools"]
 }
