@@ -1,0 +1,14 @@
+{
+  "name": "@nebula/reactivity",
+  "version": "1.0.0",
+  "description": "Nebula's fine-grained reactivity engine",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@nebula/shared": "*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

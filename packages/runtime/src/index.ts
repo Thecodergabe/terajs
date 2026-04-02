@@ -1,0 +1,27 @@
+/**
+ * @file index.ts
+ * @description
+ * Entry point for the @nebula/runtime package.
+ * Coordinates component lifecycle and dependency injection.
+ */
+
+// Component Core
+export { component, onCleanup } from "./component/component";
+export { ComponentContext, getCurrentContext, setCurrentContext, createComponentContext } from "./component/context";
+export type { Disposer } from "./component/context";
+
+// Lifecycle Hooks
+export { onMounted, onUpdated, onUnmounted } from "./component/lifecycle";
+
+// Context / Dependency Injection (The "Nerve System")
+export { provide } from "./context/provide";
+export { inject } from "./context/inject";
+export { 
+  contextStack, 
+  pushContextFrame, 
+  popContextFrame 
+} from "./context/contextStack";
+export type { ContextFrame, ContextKey } from "./context/contextStack";
+
+// Hydration (For SSR/Edge support)
+export { scheduleHydration } from "./hydration";

@@ -1,0 +1,149 @@
+/**
+ * @file signal.ts
+ * Core fine‑grained reactive primitive for Nebula.
+ *
+ * Fully integrated with the Nebula Debug Core:
+ * - metadata creation
+ * - reactive registry
+ * - dependency graph
+ * - typed debug events
+ */
+
+import { currentEffect } from "./deps";
+import type { ReactiveEffect } from "./deps";
+import { scheduleEffect } from "./effect";
+
+import {
+  createReactiveMetadata,
+  registerReactiveInstance,
+  updateReactiveValue,
+  emitDebug,
+  addDependency
+} from "@nebula/shared";
+
+import type { ReactiveMetadata } from "@nebula/shared";
+
+/**
+ * A reactive signal holding a value of type T.
+ */
+export interface Signal<T> {
+  (): T;
+  set(value: T): void;
+  update(fn: (value: T) => T): void;
+
+  /** Internal fields */
+  _value: T;
+  _dep: Set<ReactiveEffect>;
+  _meta: ReactiveMetadata;
+}
+
+/**
+ * Create a reactive signal.
+ *
+ * @param value - The initial value.
+ * @param options - Configuration for debugging and scoping.
+ */
+export function signal<T>(
+  value: T,
+  options?: {
+    scope?: string;
+    instance?: number;
+    key?: string;
+    file?: string;
+    line?: number;
+    column?: number;
+  }
+): Signal<T> {
+  const scope = options?.scope ?? "UnknownScope";
+  const instance = options?.instance ?? 0;
+
+  // Create metadata for this signal
+  const meta: ReactiveMetadata = createReactiveMetadata({
+    type: "ref",
+    scope,
+    instance,
+    key: options?.key,
+    file: options?.file,
+    line: options?.line,
+    column: options?.column
+  });
+
+  // Register in the global reactive registry
+  registerReactiveInstance(meta, { scope, instance });
+
+  // Emit creation event
+  emitDebug({
+    type: "reactive:created",
+    timestamp: Date.now(),
+    meta
+  });
+
+  const sig = function () {
+    // Track dependency if inside an effect
+    if (currentEffect) {
+      sig._dep.add(currentEffect);
+
+      if (!currentEffect.deps.includes(sig._dep)) {
+        currentEffect.deps.push(sig._dep);
+      }
+
+      // Add to dependency graph: effect RID → signal RID
+      const from = (currentEffect as any)._meta?.rid as string | undefined;
+      if (from) {
+        addDependency(from, meta.rid);
+      }
+
+      emitDebug({
+        type: "reactive:read",
+        timestamp: Date.now(),
+        rid: meta.rid
+      });
+    }
+
+    return sig._value;
+  } as Signal<T>;
+
+  sig._value = value;
+  sig._dep = new Set<ReactiveEffect>();
+  sig._meta = meta;
+
+  // Track initial value
+  updateReactiveValue(meta.rid, value);
+
+  /**
+   * Updates the signal's value and notifies all dependents.
+   * * @param next - The new value to set.
+   */
+  sig.set = (next: T) => {
+    const prev = sig._value;
+
+    // IMPORTANT: Only notify dependents when value actually changes
+    if (Object.is(prev, next)) return;
+
+    sig._value = next;
+
+    updateReactiveValue(meta.rid, next);
+
+    emitDebug({
+      type: "reactive:updated",
+      timestamp: Date.now(),
+      rid: meta.rid,
+      prev,
+      next
+    });
+
+    // Trigger effects
+    const subs = Array.from(sig._dep);
+    for (const eff of subs) {
+      scheduleEffect(eff);
+    }
+  };
+
+  /**
+   * Updates the signal's value using a transformation function.
+   * * @param fn - A function that takes the current value and returns a new one.
+   */
+  sig.update = (fn) => sig.set(fn(sig._value));
+
+  return sig;
+}
