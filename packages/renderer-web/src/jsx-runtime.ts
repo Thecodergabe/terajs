@@ -193,3 +193,11 @@ function createVNode(type: any, props: any): Node {
 
     return el;
 }
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}

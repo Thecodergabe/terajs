@@ -9,10 +9,16 @@
     "declaration": true,
     "declarationMap": true,
 
+    "jsx": "react-jsx",
+    "jsxImportSource": ".",
+    
+    "paths": {
+      "./src/jsx-runtime": ["./src/jsx-runtime.ts"]
+    },
     "types": ["vitest/globals"]
   },
 
-  "include": ["src"],
+  "include": ["src/**/*"],
   "exclude": ["dist"],
 
   "references": [
