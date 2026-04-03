@@ -19,7 +19,7 @@
 
 import type { ParsedSFC } from "@nebula/sfc"
 import type { ASTNode } from "@nebula/renderer"
-import type { IRModule, IRNode } from "./irTypes"
+import type { IRModule, IRNode, IRFlags } from "./irTypes"
 import { parseTemplateToAst } from "./parseTemplateToAst"
 
 /**
@@ -42,47 +42,58 @@ export function generateIRModule(sfc: ParsedSFC): IRModule {
  * This is a deep clone with optional flags + loc.
  */
 function normalizeNode(node: ASTNode): IRNode {
-  const base: IRNode = {
+  const base = {
     type: node.type,
     loc: undefined,
-    flags: {}
-  }
+    flags: {} as IRFlags
+  };
 
   switch (node.type) {
     case "text":
-      return { ...base, value: node.value }
+      return {
+        ...base,
+        type: "text",
+        value: node.value
+      };
 
     case "interp":
-      base.flags!.dynamic = true
-      return { ...base, expression: node.expression }
+      return {
+        ...base,
+        type: "interp",
+        expression: node.expression,
+        flags: { dynamic: true }
+      };
 
     case "element":
       return {
         ...base,
+        type: "element",
         tag: node.tag,
         props: node.props.map(p => ({ ...p })),
         children: node.children.map(normalizeNode),
         flags: {
           hasDirectives: node.props.some(p => p.kind === "directive")
         }
-      }
+      };
 
     case "if":
       return {
         ...base,
+        type: "if",
         condition: node.condition,
         then: node.then.map(normalizeNode),
         else: node.else?.map(normalizeNode)
-      }
+      };
 
     case "for":
       return {
         ...base,
+        type: "for",
         each: node.each,
         item: node.item,
         index: node.index,
         body: node.body.map(normalizeNode),
         flags: { hasDirectives: true }
-      }
+      };
   }
 }

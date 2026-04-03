@@ -10,7 +10,6 @@ import { addDependency as addGraphEdge } from "./dependencyGraph";
 /* -------------------------------------------------------------------------- */
 /*                               Event Taxonomy                               */
 /* -------------------------------------------------------------------------- */
-
 export type DebugEventType =
     /* ------------------------------ Reactivity ------------------------------ */
     | "state:create" | "state:get" | "state:set" | "state:link" | "state:update" | "state:read"
@@ -73,7 +72,17 @@ export type DebugEventType =
     /* ------------------------------ JSX Runtime ------------------------------ */
     | "jsx:create" | "jsx:fragment" | "jsx:component" | "jsx:children"
     | "jsx:element" | "jsx:props" | "jsx:normalize"
-    | "lifecycle:warn";
+    | "lifecycle:warn"
+
+    /* ------------------------------ IR Rendering ----------------------------- */
+    | "ir:render:module"
+    | "ir:render:text"
+    | "ir:render:interp"
+    | "ir:render:element"
+    | "ir:render:if"
+    | "ir:render:for"
+    | "ir:render:prop:skip";
+
 
 /* -------------------------------------------------------------------------- */
 /*                               Event Payload                                */

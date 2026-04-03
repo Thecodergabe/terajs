@@ -23,3 +23,9 @@ export * from "./updateKeyedList";
 
 // Internal Helpers
 export * from "./unwrap";
+
+// Hydration API
+export * from "./hydrate";
+
+// IR Renderer (SSR-aligned baseline for client-side rendering)
+export * from "./renderFromIR";

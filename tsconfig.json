@@ -16,10 +16,12 @@
   "include": [],
   "references": [
     { "path": "./packages/shared" },
+    { "path": "./packages/compiler"},
     { "path": "./packages/reactivity" },
     { "path": "./packages/sfc" },
     { "path": "./packages/runtime" },
     { "path": "./packages/renderer" },
+    { "path": "./packages/renderer-ssr"},
     { "path": "./packages/renderer-web" },
     { "path": "./packages/router" },
     { "path": "./packages/ui" }
