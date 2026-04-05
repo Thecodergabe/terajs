@@ -13,7 +13,8 @@
   "dependencies": {
     "@nebula/shared": "*",
     "@nebula/runtime": "*",
-    "@nebula/sfc": "*"
+    "@nebula/sfc": "*",
+    "@nebula/compiler": "*"
   },
 
   "peerDependencies": {

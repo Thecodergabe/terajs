@@ -140,5 +140,7 @@ export interface IRModule {
 
   /** Parsed route overrides from the <route> block, if present. */
   route: RouteOverride | null;
+
+  scopeId?: string; // For scoped styles, if needed
 }
 

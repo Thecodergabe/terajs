@@ -130,7 +130,7 @@ export interface ParsedSFC {
   script: string | { content: string; lang?: string };
 
   /** Raw or parsed contents of the `<style>` block, if present. */
-  style: string | { content: string } | null;
+  style: string | { content: string; scoped?: boolean; lang?: string } | null;
 
   /** Parsed metadata configuration from the `<meta>` block. */
   meta: MetaConfig;

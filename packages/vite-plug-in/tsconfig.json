@@ -18,6 +18,7 @@
   "references": [
     { "path": "../shared" },
     { "path": "../runtime" },
-    { "path": "../sfc" }
+    { "path": "../sfc" },
+    { "path": "../compiler" }
   ]
 }

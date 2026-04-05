@@ -2,62 +2,127 @@ import { ParsedSFC, MetaConfig, RouteOverride } from "./types";
 import { parseMiniYAML } from "./parseMiniYAML";
 
 /**
- * Extracts the inner content of a simple block like `<template>...</template>`.
+ * Extracts a block with attributes and content.
  *
- * @param source - The full SFC source string.
- * @param tag - The tag name to extract (e.g., "template", "script").
- * @returns The trimmed inner content, or null if the block is missing.
+ * Matches patterns like:
+ *   <style scoped lang="scss"> ... </style>
+ *   <script lang="ts"> ... </script>
+ *
+ * @param source - Full SFC source
+ * @param tag - Block tag name (template, script, style, etc.)
+ * @returns Object with { attrs, content } or null if block missing
  */
-function extractBlock(source: string, tag: string): string | null {
-  const open = `<${tag}>`;
-  const close = `</${tag}>`;
-  const start = source.indexOf(open);
-  if (start === -1) return null;
-  const end = source.indexOf(close, start + open.length);
-  if (end === -1) return null;
-  return source.slice(start + open.length, end).trim();
+function extractBlockWithAttributes(
+  source: string,
+  tag: string
+): { attrs: string; content: string } | null {
+  const regex = new RegExp(
+    `<${tag}([^>]*)>([\\s\\S]*?)</${tag}>`,
+    "i"
+  );
+
+  const match = source.match(regex);
+  if (!match) return null;
+
+  return {
+    attrs: match[1] ?? "",
+    content: match[2].trim()
+  };
 }
 
 /**
- * Parses a Nebula SFC++ source string into a fully structured `ParsedSFC` object.
+ * Parses a <template> block.
+ * Currently no attributes are supported, but this is future‑proof.
+ */
+function parseTemplateBlock(source: string): ParsedSFC["template"] {
+  const raw = extractBlockWithAttributes(source, "template");
+  if (!raw) return "";
+  return raw.content;
+}
+
+/**
+ * Parses a <script> block.
+ * Supports: <script>, <script lang="ts">
+ */
+function parseScriptBlock(source: string): ParsedSFC["script"] {
+  const raw = extractBlockWithAttributes(source, "script");
+  if (!raw) return "";
+
+  const langMatch = raw.attrs.match(/\blang=["'](\w+)["']/i);
+  const lang = langMatch?.[1];
+
+  return lang
+    ? { content: raw.content, lang }
+    : raw.content;
+}
+
+/**
+ * Parses a <style> block.
+ * Supports: <style>, <style scoped>, <style lang="scss">
+ */
+function parseStyleBlock(source: string): ParsedSFC["style"] {
+  const raw = extractBlockWithAttributes(source, "style");
+  if (!raw) return null;
+
+  const scoped = /\bscoped\b/i.test(raw.attrs);
+  const langMatch = raw.attrs.match(/\blang=["'](\w+)["']/i);
+  const lang = langMatch?.[1];
+
+  return {
+    content: raw.content,
+    ...(scoped ? { scoped: true } : {}),
+    ...(lang ? { lang } : {})
+  };
+}
+
+/**
+ * Parses a YAML-like block (<meta>, <route>, <ai>).
+ */
+function parseYamlBlock<T = any>(
+  source: string,
+  tag: string
+): T | null {
+  const raw = extractBlockWithAttributes(source, tag);
+  if (!raw) return null;
+  return parseMiniYAML(raw.content) ?? null;
+}
+
+/**
+ * Main SFC parser.
  *
- * This includes:
- * - extracting `<template>`, `<script>`, `<style>`, `<meta>`, and `<route>` blocks
- * - parsing `<meta>` and `<route>` using Nebula's mini YAML-like parser
- *
- * @param source - The full SFC source string.
- * @param filePath - The file path of the SFC, used for routing inference.
- * @returns A fully parsed `ParsedSFC` object.
+ * Produces a fully structured ParsedSFC object with:
+ * - template
+ * - script
+ * - style (with scoped + lang support)
+ * - meta
+ * - routeOverride
+ * - ai
  */
 export function parseSFC(source: string, filePath: string): ParsedSFC {
-  const template = extractBlock(source, "template") ?? "";
-  const script = extractBlock(source, "script") ?? "";
-  const styleRaw = extractBlock(source, "style");
-  const style = styleRaw === null ? null : styleRaw;
+  const template = parseTemplateBlock(source);
+  const script = parseScriptBlock(source);
+  const style = parseStyleBlock(source);
 
+  const meta: MetaConfig = parseYamlBlock(source, "meta") ?? {};
+  const routeOverride: RouteOverride | null = parseYamlBlock(source, "route");
 
-  const metaRaw = extractBlock(source, "meta");
-  const routeRaw = extractBlock(source, "route");
+  const ai = parseYamlBlock(source, "ai") ?? undefined;
 
-  const meta: MetaConfig = parseMiniYAML(metaRaw) ?? {};
-  const routeOverride: RouteOverride | null = parseMiniYAML(routeRaw);
-
-  const aiRaw = extractBlock(source, "ai");
-  const ai = aiRaw ? (parseMiniYAML(aiRaw) ?? {}) : undefined;
-
+  // Normalize AI keywords
   if (ai && typeof ai.keywords === "string") {
     ai.keywords = ai.keywords
       .split(",")
       .map((s: string) => s.trim())
       .filter(Boolean);
   }
+
   return {
     filePath,
     template,
     script,
-    style: style,
-    ai,
+    style,
     meta,
+    ai,
     routeOverride
   };
 }
