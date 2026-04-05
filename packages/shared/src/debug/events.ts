@@ -81,7 +81,18 @@ export type DebugEventType =
     | "ir:render:element"
     | "ir:render:if"
     | "ir:render:for"
-    | "ir:render:prop:skip";
+    | "ir:render:prop:skip"
+    
+    /* ------------------------------ HMR ------------------------------ */
+    | "hmr:register"
+    | "hmr:update:setup"
+    | "hmr:update:ir"
+    | "hmr:update:instance"
+    | "hmr:update:component"
+    
+    /* ------------------------------ SFC ------------------------------ */
+    | "sfc:load"
+    | "sfc:hmr";
 
 
 /* -------------------------------------------------------------------------- */

@@ -41,7 +41,8 @@ export function parseSFC(source: string, filePath: string): ParsedSFC {
   const routeOverride: RouteOverride | null = parseMiniYAML(routeRaw);
 
   const aiRaw = extractBlock(source, "ai");
-  const ai = parseMiniYAML(aiRaw) ?? {};
+  const ai = aiRaw ? (parseMiniYAML(aiRaw) ?? {}) : undefined;
+
 
   return {
     filePath,

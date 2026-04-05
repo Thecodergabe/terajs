@@ -2,6 +2,7 @@
  * @file component.ts
  * @description
  * High-level component wrapper for Nebula.
+ * Now includes optional HMR integration (dev-only).
  */
 
 import { emitDebug as emit, Debug } from "@nebula/shared";
@@ -18,6 +19,9 @@ import {
   setCurrentContext
 } from "./context";
 
+import type { HMRInstance } from "../hmr";
+import { registerHMRComponent } from "../hmr";
+
 /** Global instance counter per component name */
 const instanceCounters = new Map<string, number>();
 
@@ -29,22 +33,24 @@ export function onCleanup(fn: Disposer): void {
   const context = getCurrentContext();
 
   if (effect) {
-    // If we're inside a watch/memo/effect
     effect.cleanups.push(fn);
     return;
   }
 
   if (context) {
-    // If we're in the setup phase of a component
     context.disposers.push(fn);
     return;
   }
 
-  // Fallback for development debugging
   Debug.emit("lifecycle:warn", { message: "onCleanup called without context" });
 }
+
 /**
  * Create a Nebula component wrapper.
+ *
+ * This is the primary runtime entry point for components.
+ * It wires the setup function into Nebula's context system and,
+ * in development, registers the component for HMR.
  */
 export function component<P = any>(
   options: { name?: string; meta?: any },
@@ -52,11 +58,25 @@ export function component<P = any>(
 ) {
   const name = options.name ?? "AnonymousComponent";
 
+  // HMR state (dev-only; tree-shaken in prod)
+  let currentSetup = setup;
+  let currentIR: any = null;
+  const instances = new Set<HMRInstance>();
+
+  // Register with HMR system
+  registerHMRComponent({
+    name,
+    getSetup: () => currentSetup,
+    getIR: () => currentIR,
+    setSetup: (fn) => { currentSetup = fn; },
+    setIR: (ir) => { currentIR = ir; },
+    instances
+  });
+
   return function ComponentWrapper(props?: P) {
     const instance = (instanceCounters.get(name) ?? 0) + 1;
     instanceCounters.set(name, instance);
 
-    // Instrumentation for the Debugger UI
     emit({
       type: "component:mounted",
       scope: name,
@@ -78,11 +98,9 @@ export function component<P = any>(
 
     let out: any;
     try {
-      out = setup(props as P);
+      out = currentSetup(props as P);
     } catch (err) {
-      // Catch and report setup errors to the devtools
       console.error(`[Nebula] Error in component <${name} />:`, err);
-      
       setCurrentContext(null);
       popContextFrame();
       throw err;
@@ -90,6 +108,27 @@ export function component<P = any>(
 
     setCurrentContext(null);
     popContextFrame();
+
+    // HMR instance wrapper
+    const hmrInstance: HMRInstance = {
+      ctx,
+      remount: () => {
+        pushContextFrame();
+        setCurrentContext(ctx);
+        currentSetup(ctx.props);
+        setCurrentContext(null);
+        popContextFrame();
+      },
+      dispose: () => {
+        for (const d of ctx.disposers) d();
+        ctx.disposers.length = 0;
+      },
+      updateIR: (ir) => {
+        currentIR = ir;
+      }
+    };
+
+    instances.add(hmrInstance);
 
     return out;
   };

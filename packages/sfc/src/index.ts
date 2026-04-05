@@ -5,3 +5,6 @@
 
 export * from "./parseSfc";
 export * from "./types";
+export * from "./compileTemplate";
+export * from "./compileScript";
+export * from "./sfcToComponent";

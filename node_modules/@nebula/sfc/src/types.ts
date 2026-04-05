@@ -123,20 +123,22 @@ export interface ParsedSFC {
   /** Absolute or project-relative file path of the SFC. */
   filePath: string;
 
-  /** Raw contents of the `<template>` block. */
-  template: string;
+  /** Raw or parsed contents of the `<template>` block. */
+  template: string | { content: string };
 
-  /** Raw contents of the `<script>` block. */
-  script: string;
+  /** Raw or parsed contents of the `<script>` block. */
+  script: string | { content: string; lang?: string };
 
-  /** Raw contents of the `<style>` block, if present. */
-  style: string | null;
+  /** Raw or parsed contents of the `<style>` block, if present. */
+  style: string | { content: string } | null;
 
   /** Parsed metadata configuration from the `<meta>` block. */
   meta: MetaConfig;
 
+  /** Parsed AI block (optional). */
   ai?: Record<string, any>;
 
   /** Parsed route override configuration from the `<route>` block, if present. */
   routeOverride: RouteOverride | null;
 }
+

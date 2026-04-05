@@ -176,14 +176,25 @@ function resolveHydration(
  * This is consumed by the client renderer to determine how and when
  * to hydrate the server-rendered HTML.
  */
-function renderHydrationMarker(hint: SSRHydrationHint, ai?: Record<string, any>): string {
-  const payload = JSON.stringify({
-    mode: hint.mode,
-    ai: ai ?? null
-  });
+function renderHydrationMarker(
+  hint: SSRHydrationHint,
+  ai?: Record<string, any>
+): string {
 
-  return `<script type="application/nebula-hydration">${payload}</script>`;
+  const payload: {
+    mode: SSRHydrationHint["mode"];
+    ai?: Record<string, any>;
+  } = {
+    mode: hint.mode
+  };
+
+  if (ai !== undefined) {
+    payload.ai = ai;
+  }
+
+  return `<script type="application/nebula-hydration">${JSON.stringify(payload)}</script>`;
 }
+
 
 /**
  * Escape text content for safe HTML output.

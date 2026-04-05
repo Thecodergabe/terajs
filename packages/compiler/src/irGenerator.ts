@@ -2,45 +2,37 @@
  * @file irGenerator.ts
  * @description
  * Converts a ParsedSFC + AST into a full IRModule.
- *
- * Responsibilities:
- * - normalize template AST into IRNode[]
- * - attach source locations (if available)
- * - attach optimization flags (placeholder for future passes)
- * - merge SFC-level meta + route overrides
- *
- * This IR is renderer‑agnostic and safe for:
- * - SSR
- * - hydration
- * - routing
- * - meta systems
- * - devtools
  */
 
-import type { ParsedSFC } from "@nebula/sfc"
-import type { ASTNode } from "@nebula/renderer"
-import type { IRModule, IRNode, IRFlags } from "./irTypes"
-import { parseTemplateToAst } from "./parseTemplateToAst"
+import type { ParsedSFC } from "@nebula/sfc";
+import type { ASTNode } from "@nebula/renderer";
+import type { IRModule, IRNode, IRFlags } from "./irTypes";
+import { parseTemplateToAst } from "./parseTemplateToAst";
 
 /**
  * Generate a full IRModule from a ParsedSFC.
  */
 export function generateIRModule(sfc: ParsedSFC): IRModule {
-  const ast = parseTemplateToAst(sfc.template)
-  const template = ast.map(normalizeNode)
+  // Normalize template into a string
+  const templateSource =
+    typeof sfc.template === "string"
+      ? sfc.template
+      : sfc.template?.content ?? "";
+
+  const ast = parseTemplateToAst(templateSource);
+  const template = ast.map(normalizeNode);
 
   return {
     filePath: sfc.filePath,
     template,
     meta: sfc.meta,
-    ai: sfc.ai,    
+    ai: sfc.ai,
     route: sfc.routeOverride
-  }
+  };
 }
 
 /**
  * Normalize an AST node into an IRNode.
- * This is a deep clone with optional flags + loc.
  */
 function normalizeNode(node: ASTNode): IRNode {
   const base = {
