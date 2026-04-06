@@ -10,11 +10,8 @@ vi.mock("@nebula/shared", () => ({
 describe("Nebula Vite Plugin (integration)", () => {
   it("emits sfc:load when loading a .nbl file", () => {
     const plugin = nebulaPlugin();
-
     vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Hello</template>");
-
     plugin.load("Component.nbl");
-
     expect(Debug.emit).toHaveBeenCalledWith("sfc:load", {
       scope: "Component.nbl"
     });
@@ -22,9 +19,7 @@ describe("Nebula Vite Plugin (integration)", () => {
 
   it("emits sfc:hmr on handleHotUpdate()", () => {
     const plugin = nebulaPlugin();
-
     vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Hello</template>");
-
     const ctx = {
       file: "Component.nbl",
       server: {
@@ -34,9 +29,7 @@ describe("Nebula Vite Plugin (integration)", () => {
         }
       }
     };
-
     plugin.handleHotUpdate(ctx);
-
     expect(Debug.emit).toHaveBeenCalledWith("sfc:hmr", {
       scope: "Component.nbl"
     });
