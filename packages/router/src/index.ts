@@ -12,6 +12,7 @@ export {
 export { buildRouteManifest } from "./manifest";
 
 export { loadRouteMatch } from "./loading";
+export { resolveLoadedRouteMetadata } from "./meta";
 
 export {
   createBrowserHistory,
@@ -21,13 +22,14 @@ export {
 } from "./runtime";
 
 export type { RouteDefinition, RouteLayoutDefinition } from "./builder";
-export type { RouteSourceInput } from "./manifest";
+export type { RouteConfigInput, RouteManifestOptions, RouteSourceInput } from "./manifest";
 export type {
   LoadedLayoutModule,
   LoadedRouteMatch,
   RouteLoadContext,
   RouteModule
 } from "./loading";
+export type { ResolvedRouteMetadata } from "./meta";
 export type {
   GuardContext,
   NavigationGuard,

@@ -6,6 +6,20 @@ import {
   type RouteLayoutDefinition
 } from "./builder";
 
+export interface RouteConfigInput {
+  filePath: string;
+  path?: string;
+  layout?: string;
+  middleware?: string | string[];
+  prerender?: boolean;
+  hydrate?: RouteDefinition["hydrate"];
+  edge?: boolean;
+}
+
+export interface RouteManifestOptions {
+  routeConfigs?: RouteConfigInput[];
+}
+
 export interface RouteSourceInput {
   filePath: string;
   source?: string;
@@ -88,9 +102,44 @@ function parseRouteSource(input: RouteSourceInput): ParsedSFC {
   return parseSFC(input.source, input.filePath);
 }
 
-export function buildRouteManifest(inputs: RouteSourceInput[]): RouteDefinition[] {
+function mergeRouteOverride(
+  parsedSFC: ParsedSFC,
+  routeConfig?: RouteConfigInput
+): ParsedSFC {
+  if (!routeConfig) {
+    return parsedSFC;
+  }
+
+  const configOverride = {
+    path: routeConfig.path,
+    layout: routeConfig.layout,
+    middleware: routeConfig.middleware,
+    prerender: routeConfig.prerender,
+    hydrate: routeConfig.hydrate,
+    edge: routeConfig.edge
+  };
+
+  const routeOverride = {
+    ...configOverride,
+    ...(parsedSFC.routeOverride ?? {})
+  };
+
+  const hasOverride = Object.values(routeOverride).some((value) => value !== undefined);
+  return {
+    ...parsedSFC,
+    routeOverride: hasOverride ? routeOverride : null
+  };
+}
+
+export function buildRouteManifest(
+  inputs: RouteSourceInput[],
+  options: RouteManifestOptions = {}
+): RouteDefinition[] {
   const normalizedInputs = [...inputs].sort((left, right) =>
     normalizeFilePath(left.filePath).localeCompare(normalizeFilePath(right.filePath))
+  );
+  const routeConfigs = new Map(
+    (options.routeConfigs ?? []).map((routeConfig) => [normalizeFilePath(routeConfig.filePath), routeConfig])
   );
 
   const layoutsByDirectory = new Map<string, RouteLayoutDefinition>();
@@ -110,7 +159,10 @@ export function buildRouteManifest(inputs: RouteSourceInput[]): RouteDefinition[
   const manifest = normalizedInputs
     .filter((input) => !isLayoutFile(input.filePath))
     .map((input) => {
-      const parsedSFC = parseRouteSource(input);
+      const parsedSFC = mergeRouteOverride(
+        parseRouteSource(input),
+        routeConfigs.get(normalizeFilePath(input.filePath))
+      );
       const route = buildRouteFromSFC(parsedSFC);
 
       return {

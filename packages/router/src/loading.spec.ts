@@ -58,5 +58,7 @@ describe("loadRouteMatch", () => {
       "ProductsLayout"
     ]);
     expect(loaded.data).toEqual({ id: "42", view: "full" });
+    expect(loaded.resolved.meta).toEqual({});
+    expect(loaded.resolved.route.layouts).toEqual(["root", "products"]);
   });
 });

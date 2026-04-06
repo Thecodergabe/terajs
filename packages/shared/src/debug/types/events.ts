@@ -91,6 +91,14 @@ export interface RouterWarningEvent extends DebugEventBase {
   message: string;
 }
 
+export interface RouteMetaResolvedEvent extends DebugEventBase {
+  type: "route:meta:resolved";
+  to: string;
+  meta: Record<string, unknown>;
+  ai?: Record<string, unknown>;
+  route?: Record<string, unknown>;
+}
+
 export interface RouterErrorEvent extends DebugEventBase {
   type: "error:router";
   message: string;
@@ -112,5 +120,6 @@ export type DebugEvent =
   | ComponentUnmountedEvent
   | DomUpdatedEvent
   | RouteChangedEvent
+  | RouteMetaResolvedEvent
   | RouterWarningEvent
   | RouterErrorEvent;

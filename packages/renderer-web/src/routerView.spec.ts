@@ -30,6 +30,7 @@ async function flush(): Promise<void> {
 describe("createRouteView", () => {
   afterEach(() => {
     document.body.innerHTML = "";
+    document.title = "";
   });
 
   it("renders the current matched page and reacts to navigation", async () => {
@@ -50,6 +51,30 @@ describe("createRouteView", () => {
     await router.navigate("/about");
     await flush();
     expect(root.textContent).toContain("about");
+
+    unmount(root);
+  });
+
+  it("applies resolved route metadata to the document head", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const router = createRouter(
+      [
+        route({
+          path: "/docs",
+          meta: { title: "Docs", description: "Read the docs", keywords: ["terajs", "docs"] },
+          component: async () => ({ default: () => document.createTextNode("docs") })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(document.title).toBe("Docs");
+    expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe("Read the docs");
+    expect(document.head.querySelector('meta[name="keywords"]')?.getAttribute("content")).toBe("terajs, docs");
 
     unmount(root);
   });

@@ -1,5 +1,6 @@
 import { Debug } from "@terajs/shared";
 import type { RouteDefinition } from "./builder";
+import { resolveLoadedRouteMetadata, type ResolvedRouteMetadata } from "./meta";
 import type { RouteMatch } from "./runtime";
 
 export interface RouteLoadContext {
@@ -28,6 +29,7 @@ export interface LoadedRouteMatch<TData = unknown> {
   module: unknown;
   component: unknown;
   layouts: LoadedLayoutModule[];
+  resolved: ResolvedRouteMetadata;
   data?: TData;
 }
 
@@ -88,14 +90,24 @@ export async function loadRouteMatch<TData = unknown>(
       module: routeModule,
       component: hasDefaultExport(routeModule) ? routeModule.default : routeModule,
       layouts: layoutModules,
+      resolved: undefined as unknown as ResolvedRouteMetadata,
       data
     };
+
+    loaded.resolved = resolveLoadedRouteMetadata(loaded);
 
     Debug.emit("route:load:end", {
       to: match.fullPath,
       route: match.route.path,
       layoutCount: layoutModules.length,
-      hasData: data !== undefined
+      hasData: data !== undefined,
+      title: loaded.resolved.meta.title
+    });
+    Debug.emit("route:meta:resolved", {
+      to: match.fullPath,
+      meta: loaded.resolved.meta,
+      ai: loaded.resolved.ai,
+      route: loaded.resolved.route
     });
 
     return loaded;

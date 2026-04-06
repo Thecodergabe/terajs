@@ -4,12 +4,14 @@ import { Debug } from "@terajs/shared";
 import fs from "fs";
 import path from "node:path";
 
-vi.mock("@terajs/shared", () => ({
-  Debug: { emit: vi.fn() }
+vi.mock("./config.js", () => ({
+  getAutoImportDirs: () => [path.resolve(process.cwd(), "packages/devtools/src/components")],
+  getRouteDirs: () => [path.resolve(process.cwd(), "src/routes")],
+  getConfiguredRoutes: () => []
 }));
 
-vi.mock("@terajs/router", () => ({
-  buildRouteManifest: vi.fn()
+vi.mock("@terajs/shared", () => ({
+  Debug: { emit: vi.fn() }
 }));
 
 describe("Terajs Vite Plugin (integration)", () => {
@@ -87,5 +89,32 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("buildRouteManifest");
     expect(code).toContain('filePath: "/src/routes/index.nbl"');
     expect(code).toContain('filePath: "/src/routes/products/[id].nbl"');
+  });
+
+  it("passes config-defined route overrides into the virtual manifest", async () => {
+    const configModule = await import("./config.js");
+    vi.spyOn(configModule, "getConfiguredRoutes").mockReturnValue([
+      {
+        filePath: path.resolve(process.cwd(), "src/routes/docs.nbl"),
+        path: "/learn",
+        middleware: ["docs"],
+        prerender: false
+      }
+    ]);
+
+    vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      const value = String(input);
+      if (value.endsWith("docs.nbl")) return "<template><Docs /></template>";
+      return "<template />";
+    });
+
+    const plugin = terajsPlugin();
+    const code = plugin.load("\0virtual:terajs-routes");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("routeConfigs");
+    expect(code).toContain('path: "/learn"');
+    expect(code).toContain('middleware: ["docs"]');
+    expect(code).toContain('prerender: false');
   });
 });

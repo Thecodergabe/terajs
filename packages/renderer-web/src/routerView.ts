@@ -16,6 +16,7 @@ export interface RouteViewOptions<TData = unknown> {
   loading?: (context: { router: Router; match: RouteMatch }) => Node;
   notFound?: (context: { router: Router; target: string }) => Node;
   error?: (context: { router: Router; target: string; error: unknown }) => Node;
+  applyMeta?: boolean;
 }
 
 function createTextNode(message: string): Node {
@@ -28,6 +29,44 @@ function resolveFrameworkComponent(value: unknown, label: string): FrameworkComp
   }
 
   return value as FrameworkComponent;
+}
+
+function applyResolvedRouteMetadata(loaded: LoadedRouteMatch<unknown>): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const { meta } = loaded.resolved;
+
+  if (typeof meta.title === "string") {
+    document.title = meta.title;
+  }
+
+  syncMetaTag("description", typeof meta.description === "string" ? meta.description : undefined);
+  syncMetaTag(
+    "keywords",
+    Array.isArray(meta.keywords) ? meta.keywords.join(", ") : typeof meta.keywords === "string" ? meta.keywords : undefined
+  );
+}
+
+function syncMetaTag(name: string, content: string | undefined): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  let tag = document.head.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+  if (!content) {
+    tag?.remove();
+    return;
+  }
+
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.setAttribute("name", name);
+    document.head.appendChild(tag);
+  }
+
+  tag.setAttribute("content", content);
 }
 
 function composeLoadedMatch<TData>(
@@ -116,6 +155,10 @@ export function createRouteView<TData = unknown>(
 
         if (token !== navigationToken || currentAbort.signal.aborted) {
           return;
+        }
+
+        if (options.applyMeta !== false) {
+          applyResolvedRouteMetadata(loaded);
         }
 
         mount(composeLoadedMatch(router, loaded), host);

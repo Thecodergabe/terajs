@@ -44,7 +44,7 @@ export type DebugEventType =
 
     /* -------------------------------- Routing ------------------------------- */
     | "route:changed" | "route:navigate:start" | "route:navigate:end" | "route:load:start" | "route:load:end"
-    | "route:redirect" | "route:blocked" | "route:warn" | "error:router"
+    | "route:redirect" | "route:blocked" | "route:warn" | "route:meta:resolved" | "error:router"
 
     /* ------------------------------- Templates ------------------------------ */
     | "template:branch" | "template:fallback" | "template:create" | "template:mount"

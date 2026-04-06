@@ -511,15 +511,33 @@ function collectMetaEntries(events: DevtoolsEvent[]) {
   }>();
 
   for (const event of events) {
-    if (event.type !== "component:mounted") continue;
-    const scope = readString(event.payload, "scope") ?? readString(event.payload, "name") ?? "unknown";
-    const instance = readNumber(event.payload, "instance") ?? readNumber(event.payload, "id") ?? event.timestamp;
-    const meta = readUnknown(event.payload, "meta");
-    const ai = readUnknown(event.payload, "ai");
-    const route = readUnknown(event.payload, "route");
-    if (meta === undefined && ai === undefined && route === undefined) continue;
-    const key = `${scope}#${instance}`;
-    metaMap.set(key, { key, scope, instance, meta, ai, route });
+    if (event.type === "component:mounted") {
+      const scope = readString(event.payload, "scope") ?? readString(event.payload, "name") ?? "unknown";
+      const instance = readNumber(event.payload, "instance") ?? readNumber(event.payload, "id") ?? event.timestamp;
+      const meta = readUnknown(event.payload, "meta");
+      const ai = readUnknown(event.payload, "ai");
+      const route = readUnknown(event.payload, "route");
+      if (meta === undefined && ai === undefined && route === undefined) continue;
+      const key = `${scope}#${instance}`;
+      metaMap.set(key, { key, scope, instance, meta, ai, route });
+      continue;
+    }
+
+    if (event.type === "route:meta:resolved") {
+      const target = readString(event.payload, "to") ?? "current-route";
+      const meta = readUnknown(event.payload, "meta");
+      const ai = readUnknown(event.payload, "ai");
+      const route = readUnknown(event.payload, "route");
+      const key = `route:${target}`;
+      metaMap.set(key, {
+        key,
+        scope: `Route ${target}`,
+        instance: event.timestamp,
+        meta,
+        ai,
+        route
+      });
+    }
   }
 
   return Array.from(metaMap.values());

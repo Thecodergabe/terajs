@@ -7,9 +7,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from './autoImportDirs.js';
+import { getConfiguredRoutes, getRouteDirs } from './config.js';
 import type { Plugin } from "vite";
-
-import { buildRouteManifest } from "@terajs/router";
 import { parseSFC } from "@terajs/sfc";
 import { sfcToComponent } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
@@ -26,13 +25,6 @@ function normalizePath(filePath: string): string {
 function toProjectImportPath(filePath: string): string {
   const relativePath = normalizePath(path.relative(process.cwd(), filePath));
   return relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
-}
-
-function getRouteDirs(): string[] {
-  return [
-    path.resolve(process.cwd(), "src/routes"),
-    path.resolve(process.cwd(), "src/pages")
-  ].filter((dir, index, dirs) => fs.existsSync(dir) && dirs.indexOf(dir) === index);
 }
 
 function readNblFilesRecursively(dir: string): string[] {
@@ -58,6 +50,7 @@ function terajsPlugin(): Plugin {
   // Support multiple auto-import roots
   const autoImportDirs = getAutoImportDirs();
   const routeDirs = getRouteDirs();
+  const configuredRoutes = getConfiguredRoutes();
 
   function pascalCase(str: string) {
     return str
@@ -80,7 +73,10 @@ function terajsPlugin(): Plugin {
   }
 
   function generateRoutesModule() {
-    const routeFiles = routeDirs.flatMap((dir) => readNblFilesRecursively(dir)).sort();
+    const routeFiles = Array.from(new Set([
+      ...routeDirs.flatMap((dir) => readNblFilesRecursively(dir)),
+      ...configuredRoutes.map((route) => route.filePath)
+    ])).sort();
 
     const routeSources = routeFiles.map((filePath) => {
       const importPath = toProjectImportPath(filePath);
@@ -91,12 +87,25 @@ function terajsPlugin(): Plugin {
   }`;
     });
 
+    const routeConfigs = configuredRoutes.map((routeConfig) => `  {
+    filePath: ${JSON.stringify(toProjectImportPath(routeConfig.filePath))},
+    ${routeConfig.path ? `path: ${JSON.stringify(routeConfig.path)},` : ""}
+    ${routeConfig.layout ? `layout: ${JSON.stringify(routeConfig.layout)},` : ""}
+    ${routeConfig.middleware ? `middleware: ${JSON.stringify(routeConfig.middleware)},` : ""}
+    ${typeof routeConfig.prerender === "boolean" ? `prerender: ${JSON.stringify(routeConfig.prerender)},` : ""}
+    ${routeConfig.hydrate ? `hydrate: ${JSON.stringify(routeConfig.hydrate)},` : ""}
+    ${typeof routeConfig.edge === "boolean" ? `edge: ${JSON.stringify(routeConfig.edge)},` : ""}
+  }`);
+
     return [
       `import { buildRouteManifest } from '@terajs/router';`,
       `const routeSources = [`,
       routeSources.join(",\n"),
       `];`,
-      `export const routes = buildRouteManifest(routeSources);`,
+      `const routeConfigs = [`,
+      routeConfigs.join(",\n"),
+      `];`,
+      `export const routes = buildRouteManifest(routeSources, { routeConfigs });`,
       `export default routes;`
     ].join("\n");
   }
