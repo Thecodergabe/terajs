@@ -1,4 +1,5 @@
-import { HydrationMode, MetaConfig, ParsedSFC } from "../../sfc/src/types";
+import type { HydrationMode } from "@terajs/shared";
+import type { MetaConfig, ParsedSFC } from "@terajs/sfc";
 
 /**
  * Fully-resolved route definition used by the router and runtime.

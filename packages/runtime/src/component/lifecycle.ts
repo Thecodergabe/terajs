@@ -1,15 +1,13 @@
-/**
+﻿/**
  * @file lifecycle.ts
  * @description
  * Lifecycle registration utilities for Nebula components.
  */
 
-import { emitDebug as emit } from "@nebula/shared";
+import { emitDebug as emit } from "@terajs/shared";
 import { 
   type ComponentContext,
-  getCurrentContext,
-  setCurrentContext,
-  onCleanup
+  getCurrentContext
  } from "./context";
 
 /**

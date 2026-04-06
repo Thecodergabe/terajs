@@ -1,27 +1,112 @@
-<template>
-  <div>
-    <div class="font-bold mb-2">Signal & Effect Inspector</div>
-    <div class="text-xs text-text/70 mb-2">(Live signals, effects, dependencies, values)</div>
-    <div v-if="reactives.length === 0" class="text-xs text-text/50">No signals/effects found.</div>
-    <ul v-else class="space-y-1">
-      <li v-for="r in reactives" :key="r.meta.rid" class="px-2 py-1 text-xs border-b border-border last:border-0">
-        <span class="font-bold text-primary">[{{ r.meta.type }}]</span>
-        <span class="ml-1">{{ r.meta.key || r.meta.rid }}</span>
-        <span v-if="r.currentValue !== undefined" class="ml-2 text-text/60">= {{ JSON.stringify(r.currentValue) }}</span>
-        <span v-if="r.owner" class="ml-2 text-text/50">({{ r.owner.scope }}#{{ r.owner.instance }})</span>
+﻿<template>
+  <div class="panel">
+    <div class="panel-title">Signal and Effect Inspector</div>
+    <div class="panel-subtitle">Effects run: {{ effectCount() }}</div>
+
+    <div v-if="updateList().length === 0" class="empty-state">No signal updates yet.</div>
+
+    <ul v-if="updateList().length > 0" class="signal-list">
+      <li v-for="sig in updateList()" :key="sig.key" class="signal-item">
+        <span class="signal-key">{{ sig.key }}</span>
+        <span class="signal-preview">= {{ sig.preview }}</span>
       </li>
     </ul>
   </div>
 </template>
+
 <script>
-import { createSignal, onMount } from '@nebula/reactivity'
+import { ref, shallowRef, watchEffect } from '@terajs/reactivity'
 
-const [reactives, setReactives] = createSignal([])
+const signalUpdatesRef = shallowRef({})
+const effectCountRef = ref(0)
 
-onMount(() => {
-  // Poll for updates (replace with event-driven if available)
-  setInterval(() => {
-    setReactives(DevtoolsBridge.getAllReactives ? DevtoolsBridge.getAllReactives() : [])
-  }, 500)
+watchEffect(() => {
+  const events = props.events || []
+  const updates = {}
+  let runs = 0
+
+  events.forEach((event) => {
+    if (event.type === 'signal:update') {
+      const payload = event.payload || {}
+      const key = payload.key || 'unknown'
+      updates[key] = {
+        key,
+        preview: JSON.stringify(payload.value).slice(0, 50)
+      }
+    }
+    if (event.type === 'effect:run') runs += 1
+  })
+
+  signalUpdatesRef.value = updates
+  effectCountRef.value = runs
 })
+
+function updateList() {
+  return Object.values(signalUpdatesRef.value)
+}
+
+function effectCount() {
+  return effectCountRef.value
+}
 </script>
+
+<meta>
+title: Signal Inspector
+</meta>
+
+<ai>
+summary: Tracks signal updates and effect execution counts.
+</ai>
+
+<style scoped>
+.panel-title {
+  margin-bottom: 0.5rem;
+  color: var(--tera-purple, #8A5CFF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.panel-subtitle,
+.signal-preview {
+  color: var(--tera-mist, #B3B3B3);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+}
+
+.empty-state {
+  color: rgba(179, 179, 179, 0.72);
+  font-size: 0.75rem;
+}
+
+.signal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.signal-item {
+  border: 1px solid var(--tera-graphite, #2E2E2E);
+  border-radius: 0.75rem;
+  background: var(--tera-carbon, #1A1A1A);
+  color: var(--tera-cloud, #F5F5F5);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.signal-key {
+  color: var(--tera-cyan, #4FE3FF);
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-weight: 700;
+}
+
+.signal-preview {
+  margin-left: 0.5rem;
+}
+</style>
+

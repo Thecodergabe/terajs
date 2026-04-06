@@ -1,4 +1,4 @@
-// packages/compiler/src/parseTemplateToAst.ts
+﻿// packages/compiler/src/parseTemplateToAst.ts
 
 import type {
   ASTNode,
@@ -8,7 +8,7 @@ import type {
   PropNode,
   IfNode,
   ForNode
-} from "@nebula/renderer";
+} from "@terajs/renderer";
 import { tokenizeTemplate, type Token } from "./templateTokenizer";
 
 export function parseTemplateToAst(template: string): ASTNode[] {
@@ -239,3 +239,4 @@ function parseForExpression(expr: string): { each: string; item: string; index?:
     item: lhs || "item"
   };
 }
+

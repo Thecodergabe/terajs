@@ -1,7 +1,7 @@
-import { currentEffect } from "./deps";
+﻿import { currentEffect } from "./deps";
 import type { ReactiveEffect } from "./deps";
 import { scheduleEffect } from "./effect";
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Creates a reactive state container (Signal).

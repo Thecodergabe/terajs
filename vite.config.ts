@@ -1,5 +1,5 @@
-import nebulaPlugin from '@nebula/vite-plugin';
+import terajsPlugin from '@terajs/vite-plugin';
 
 export default {
-  plugins: [nebulaPlugin()]
+  plugins: [terajsPlugin()]
 };

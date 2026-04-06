@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import type { ParsedSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import type { ParsedSFC } from "@terajs/sfc";
 import { compileTemplateFromSFC } from "./compileTemplate";
 
 describe("compileTemplateFromSFC", () => {
@@ -23,3 +23,4 @@ describe("compileTemplateFromSFC", () => {
     expect(ir.route?.layout).toBe("blog");
   });
 });
+

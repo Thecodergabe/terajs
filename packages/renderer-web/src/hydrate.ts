@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file hydrate.ts
  * @description
  * Client-side hydration entry for Nebula.
@@ -10,8 +10,8 @@
  * - call renderer-web's mount() at the correct time
  */
 
-import { scheduleHydration } from "@nebula/runtime";
-import type { HydrationMode } from "@nebula/sfc";
+import { scheduleHydration } from "@terajs/runtime";
+import type { HydrationMode } from "@terajs/shared";
 import { mount } from "./mount";
 import type { FrameworkComponent } from "./render";
 
@@ -56,3 +56,4 @@ export function hydrateRoot(
     root
   );
 }
+

@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+﻿import { describe, it, expect } from "vitest";
 import { buildRouteFromSFC } from "./index";
-import { ParsedSFC, type MetaConfig } from "@nebula/sfc";
+import { ParsedSFC, type MetaConfig } from "@terajs/sfc";
 
 function mockSFC(overrides: Partial<ParsedSFC>): ParsedSFC {
   return {
@@ -44,3 +44,4 @@ describe("buildRouteFromSFC", () => {
     expect(route.middleware).toEqual(["auth"]);
   });
 });
+

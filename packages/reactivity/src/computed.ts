@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file computed.ts
  * @description
  * A lazily evaluated, cached derived reactive value.
@@ -18,7 +18,7 @@ import {
   registerReactiveInstance,
   updateReactiveValue,
   Debug, // Replaces emitDebug/addDependency
-} from "@nebula/shared";
+} from "@terajs/shared";
 import { addDependency } from "../../shared/src/debug/core/graphRegistry";
 
 /**
@@ -141,7 +141,7 @@ export function computed<T>(fn: () => T): Computed<T> {
       deps.add(currentEffect);
       currentEffect.deps.push(deps);
 
-      // Graph edge: effect RID → computed RID
+      // Graph edge: effect RID -> computed RID
       const from = (currentEffect as any)._meta?.rid as string | undefined;
       if (from) {
         addDependency(from, meta.rid);

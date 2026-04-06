@@ -1,6 +1,6 @@
-# Nebula Reactivity System
+﻿# Nebula Reactivity System
 
-Nebula’s reactivity system is fine-grained, fast, and designed for DX. It powers all state, computed, and effect logic in Nebula apps.
+Nebula's reactivity system is fine-grained, fast, and designed for DX. It powers all state, computed, and effect logic in Nebula apps.
 
 ---
 
@@ -10,7 +10,7 @@ Nebula’s reactivity system is fine-grained, fast, and designed for DX. It powe
 A signal is a reactive value. It tracks reads and notifies dependents on change.
 
 ```ts
-import { signal } from '@nebula/reactivity';
+import { signal } from '@terajs/reactivity';
 
 const count = signal(0);
 
@@ -23,7 +23,7 @@ console.log(count()); // 1
 An effect runs a function whenever its dependencies change.
 
 ```ts
-import { effect } from '@nebula/reactivity';
+import { effect } from '@terajs/reactivity';
 
 effect(() => {
   console.log('Count is', count());
@@ -36,7 +36,7 @@ count.set(2); // logs: Count is 2
 A computed is a lazily-evaluated, cached derived value.
 
 ```ts
-import { computed } from '@nebula/reactivity';
+import { computed } from '@terajs/reactivity';
 
 const double = computed(() => count() * 2);
 console.log(double.get()); // 4 if count is 2
@@ -46,7 +46,7 @@ console.log(double.get()); // 4 if count is 2
 Deeply reactive objects, where each property is a signal.
 
 ```ts
-import { reactive } from '@nebula/reactivity';
+import { reactive } from '@terajs/reactivity';
 
 const user = reactive({ name: 'Gabriel', age: 42 });
 effect(() => console.log(user.name));
@@ -73,7 +73,7 @@ user.name = 'Bro'; // triggers effect
 ## Example: Todo List
 
 ```ts
-import { signal, effect } from '@nebula/reactivity';
+import { signal, effect } from '@terajs/reactivity';
 
 const todos = signal(['Learn Nebula']);
 effect(() => {
@@ -98,3 +98,4 @@ todos.set([...todos(), 'Build something cool']);
 ---
 
 See the source for more advanced patterns and DX utilities.
+

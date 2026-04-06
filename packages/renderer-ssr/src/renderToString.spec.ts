@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import type { IRModule } from "@nebula/compiler";
+﻿import { describe, it, expect } from "vitest";
+import type { IRModule } from "@terajs/compiler";
 import { renderToString } from "./renderToString";
 
 /**
@@ -79,3 +79,4 @@ describe("renderToString", () => {
     expect(hydration.mode).toBe("interaction");
   });
 });
+

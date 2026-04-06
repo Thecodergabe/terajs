@@ -1,7 +1,7 @@
-/**
+﻿/**
  * @file mount.ts
  * @description
- * Mounting and unmounting entry points for Nebula’s component system.
+ * Mounting and unmounting entry points for Nebula's component system.
  *
  * Mounting:
  * - Clears the root
@@ -18,8 +18,8 @@
 
 import { insert } from "./dom";
 import { renderComponent, type FrameworkComponent } from "./render";
-import type { ComponentContext } from "@nebula/runtime";
-import { Debug } from "@nebula/shared";
+import type { ComponentContext } from "@terajs/runtime";
+import { Debug } from "@terajs/shared";
 
 declare global {
   interface HTMLElement {

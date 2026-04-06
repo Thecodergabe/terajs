@@ -1,5 +1,5 @@
-// Shared event bus for Nebula DevTools (runtime <-> overlay)
-import { createSignal } from "@nebula/reactivity";
+﻿// Shared event bus for Nebula DevTools (runtime <-> overlay)
+import { shallowRef } from "@terajs/reactivity";
 
 export interface DevtoolsEvent {
   type: string;
@@ -11,12 +11,13 @@ export interface DevtoolsEvent {
   level?: "info" | "warn" | "error";
 }
 
-const [events, setEvents] = createSignal<DevtoolsEvent[]>([]);
+const eventsRef = shallowRef<DevtoolsEvent[]>([]);
 
 export function pushEvent(event: DevtoolsEvent) {
-  setEvents([...events(), event]);
+  eventsRef.value = [...eventsRef.value, event];
 }
 
 export function useEvents() {
-  return events;
+  return eventsRef;
 }
+

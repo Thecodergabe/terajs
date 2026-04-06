@@ -1,4 +1,4 @@
-import { HydrationMode } from "../../sfc/src/types";
+import type { HydrationMode } from "@terajs/shared";
 
 /**
  * Schedules hydration of a server-rendered component according to the given mode.

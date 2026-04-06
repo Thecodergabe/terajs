@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 
 describe("SFC <style> block", () => {
   it("captures raw CSS content", () => {
@@ -26,3 +26,4 @@ describe("SFC <style> block", () => {
     expect(sfc.style).toBeNull();
   });
 });
+

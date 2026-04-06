@@ -1,11 +1,11 @@
-/**
+﻿/**
  * @file contextStack.ts
  * @description
  * Internal context stack used by Nebula's runtime to support
  * provide() / inject() without prop drilling or compiler magic.
  */
 
-import { emitDebug as emit } from "@nebula/shared";
+import { emitDebug as emit } from "@terajs/shared";
 
 /**
  * Allowed key types for context entries.

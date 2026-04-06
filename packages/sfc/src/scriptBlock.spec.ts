@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 
 describe("SFC <script> block", () => {
   it("parses a simple script block", () => {
@@ -45,3 +45,4 @@ describe("SFC <script> block", () => {
     expect(scriptText).toContain("export const count");
   });
 });
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file astToJsx.ts
  * @description
  * Converts Nebula's platform-agnostic AST into JSX elements
@@ -6,7 +6,7 @@
  */
 
 import { jsx, jsxs, Fragment } from "./jsx-runtime";
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 import type {
   ASTNode,
@@ -15,7 +15,7 @@ import type {
   InterpolationNode,
   IfNode,
   ForNode
-} from "@nebula/renderer";
+} from "@terajs/renderer";
 
 function assertNever(x: never): never {
   throw new Error("Unexpected AST node: " + JSON.stringify(x));
@@ -177,3 +177,4 @@ function capitalize(str: string) {
 function flatten(arr: any[]): any[] {
   return arr.flat(Infinity);
 }
+

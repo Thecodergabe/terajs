@@ -1,9 +1,12 @@
 {
-  "name": "nebula",
+  "name": "terajs",
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "test": "vitest"
+    "build": "npm run clean && tsc -b",
+    "clean": "tsc -b --clean",
+    "test": "vitest",
+    "typecheck": "npm run clean && tsc -b --pretty false"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",

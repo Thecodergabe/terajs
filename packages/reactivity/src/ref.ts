@@ -1,11 +1,11 @@
-/**
+﻿/**
  * @file ref.ts
  * @description
  * Public-facing reactive primitive for Nebula.
  *
- * A `ref()` wraps a primitive value in a fine‑grained `signal()` and exposes
- * a `.value` getter/setter. This mirrors Vue’s ergonomics while maintaining
- * Nebula’s explicit signal semantics.
+ * A `ref()` wraps a primitive value in a fine-grained `signal()` and exposes
+ * a `.value` getter/setter. This mirrors Vue's ergonomics while maintaining
+ * Nebula's explicit signal semantics.
  *
  * `ref()` is ideal for:
  * - primitive values (number, string, boolean)
@@ -26,9 +26,9 @@ import {
   registerReactiveInstance,
   updateReactiveValue,
   Debug
-} from "@nebula/shared";
+} from "@terajs/shared";
 
-import type { ReactiveMetadata } from "@nebula/shared";
+import type { ReactiveMetadata } from "@terajs/shared";
 
 /**
  * A boxed signal exposing a `.value` property.
@@ -36,7 +36,7 @@ import type { ReactiveMetadata } from "@nebula/shared";
  * @typeParam T - The wrapped value type.
  */
 export interface Ref<T> {
-  /** Underlying fine‑grained signal. */
+  /** Underlying fine-grained signal. */
   readonly _sig: Signal<T>;
 
   /**
@@ -51,7 +51,7 @@ export interface Ref<T> {
 /**
  * Creates a reactive reference around a primitive value.
  *
- * This is a thin ergonomic layer over Nebula’s core `signal()`:
+ * This is a thin ergonomic layer over Nebula's core `signal()`:
  * - `.value` reads track dependencies
  * - `.value = x` triggers updates
  * - no deep reactivity is introduced

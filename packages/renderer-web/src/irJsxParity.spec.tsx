@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file irJsxParity.spec.tsx
  * @description
  * Ensures JSX rendering and IR rendering behave identically over time.
@@ -13,9 +13,9 @@ import type {
   IRIfNode,
   IRTextNode,
   IRForNode,
-} from "@nebula/compiler";
+} from "@terajs/compiler";
 
-import { signal } from "@nebula/reactivity";
+import { signal } from "@terajs/reactivity";
 
 const tick = () => Promise.resolve();
 
@@ -23,7 +23,7 @@ function text(node: Node): string {
   return node.textContent || "";
 }
 
-describe("JSX ↔ IR Parity", () => {
+describe("JSX <-> IR Parity", () => {
   /* ---------------------------------------------------------------------- */
   /* INTERPOLATION                                                          */
   /* ---------------------------------------------------------------------- */
@@ -184,3 +184,4 @@ describe("JSX ↔ IR Parity", () => {
     expect(text(irDom)).toBe("345");
   });
 });
+

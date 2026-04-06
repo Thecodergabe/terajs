@@ -1,13 +1,17 @@
 {
-  "name": "@nebula/compiler",
+  "name": "@terajs/compiler",
   "version": "0.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "dependencies": {
-    "@nebula/renderer": "*"
+    "@terajs/renderer": "*"
   }
 }

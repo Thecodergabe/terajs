@@ -17,6 +17,7 @@
 
   "references": [
     { "path": "../shared" },
+    { "path": "../reactivity" },
     { "path": "../sfc" }
   ]
 }

@@ -159,6 +159,69 @@ Use:
 
 Nebula does not enforce or prefer any styling approach.
 
+### Terajs Brand Tokens
+
+For the main website and future marketing surfaces, use this shared Terajs palette:
+
+```css
+:root {
+  --tera-black: #0D0D0D;
+  --tera-carbon: #1A1A1A;
+  --tera-graphite: #2E2E2E;
+  --tera-blue: #3A7BFF;
+  --tera-cyan: #4FE3FF;
+  --tera-purple: #8A5CFF;
+  --tera-mist: #B3B3B3;
+  --tera-cloud: #F5F5F5;
+}
+```
+
+Recommended font stacks:
+
+```css
+font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+font-family: "Space Grotesk", "Inter", sans-serif;
+font-family: "JetBrains Mono", "Fira Code", monospace;
+```
+
+Tailwind usage reference:
+
+```js
+theme: {
+  extend: {
+    colors: {
+      tera: {
+        black: '#0D0D0D',
+        carbon: '#1A1A1A',
+        graphite: '#2E2E2E',
+        blue: '#3A7BFF',
+        cyan: '#4FE3FF',
+        purple: '#8A5CFF',
+        mist: '#B3B3B3',
+        cloud: '#F5F5F5'
+      }
+    },
+    fontFamily: {
+      sans: ['Inter', 'sans-serif'],
+      heading: ['Space Grotesk', 'Inter', 'sans-serif'],
+      code: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      satoshi: ['Satoshi', 'Inter', 'sans-serif']
+    }
+  }
+}
+```
+
+Suggested usage:
+
+- `--tera-black` for dark backgrounds
+- `--tera-carbon` for cards and surfaces
+- `--tera-graphite` for borders and dividers
+- `--tera-blue` for primary actions
+- `--tera-cyan` for hover and interactive emphasis
+- `--tera-purple` for highlights and branded accents
+- `--tera-mist` for muted text
+- `--tera-cloud` for primary foreground text on dark UI
+
 Scoped styles are optional:
 
 ```ts

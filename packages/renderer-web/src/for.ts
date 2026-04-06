@@ -1,7 +1,7 @@
-/**
+﻿/**
  * @file for.ts
  * @description
- * Nebula’s reactive keyed list component.
+ * Nebula's reactive keyed list component.
  *
  * This component is the idiomatic way to render arrays in Nebula.
  * It performs:
@@ -13,10 +13,10 @@
  * It simply re-runs when the array changes and reconciles DOM nodes.
  */
 
-import { effect } from "@nebula/reactivity";
+import { effect } from "@terajs/reactivity";
 import { createFragment, insert, remove } from "./dom";
 import { updateKeyedList, type KeyedItem } from "./updateKeyedList";
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 export interface ForProps<T> {
     /** Reactive getter returning the array to iterate over */

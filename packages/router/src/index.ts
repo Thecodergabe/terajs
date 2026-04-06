@@ -1,7 +1,7 @@
-/**
+﻿/**
  * @file index.ts
  * @description
- * Entry point for the @nebula/router package.
+ * Entry point for the @terajs/router package.
  */
 
 export { 

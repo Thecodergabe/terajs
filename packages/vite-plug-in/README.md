@@ -1,4 +1,4 @@
-# Nebula Vite Plugin
+﻿# Nebula Vite Plugin
 
 This plugin enables Nebula SFC compilation, HMR, and auto-imports for your project.
 
@@ -13,10 +13,10 @@ This plugin enables Nebula SFC compilation, HMR, and auto-imports for your proje
 
 ```js
 // vite.config.js or vite.config.ts
-import nebulaPlugin from '@nebula/vite-plugin';
+import terajsPlugin from '@terajs/vite-plugin';
 
 export default {
-  plugins: [nebulaPlugin()]
+  plugins: [terajsPlugin()]
 };
 ```
 
@@ -35,7 +35,7 @@ You can use `<FancyButton />` in any SFC without importing it.
 
 #### Customizing auto-import directories
 
-Create a `nebula.config.js` in your project root:
+Create a `terajs.config.js` in your project root:
 
 ```js
 module.exports = {
@@ -51,7 +51,7 @@ module.exports = {
 To enable the Nebula DevTools overlay, import and call:
 
 ```js
-import { mountDevtoolsOverlay } from '@nebula/devtools';
+import { mountDevtoolsOverlay } from '@terajs/devtools';
 mountDevtoolsOverlay();
 ```
 
@@ -70,5 +70,6 @@ npx vitest run
 ---
 
 ## Advanced
-- The plugin injects a virtual module `virtual:nebula-auto-imports` for auto-imports.
+- The plugin injects a virtual module `virtual:terajs-auto-imports` for auto-imports.
 - You can extend or override the plugin for custom workflows.
+

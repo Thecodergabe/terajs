@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file runtime.ts
  * @description
  * Tracks whether Nebula is running in client or server mode.
@@ -7,7 +7,7 @@
  * but still allows dependency tracking for hydration.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Represents the current execution environment for the reactive runtime.

@@ -1,13 +1,18 @@
 {
-  "name": "@nebula/devtools",
+  "name": "@terajs/devtools",
   "version": "0.0.1",
   "type": "module",
-  "main": "./src/overlay.ts",
-  "types": "./src/overlay.ts",
+  "main": "./dist/overlay.js",
+  "types": "./dist/overlay.d.ts",
   "exports": {
-    ".": "./src/overlay.ts"
+    ".": {
+      "import": "./dist/overlay.js",
+      "types": "./dist/overlay.d.ts",
+      "default": "./dist/overlay.js"
+    }
   },
   "dependencies": {
-    "@nebula/reactivity": "*"
+    "@terajs/reactivity": "*",
+    "@terajs/shared": "*"
   }
 }

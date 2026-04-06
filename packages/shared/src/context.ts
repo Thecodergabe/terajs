@@ -1,12 +1,24 @@
-/**
- * @file renderer/context.ts
- * @description
- * Renderer integration with the unified ComponentContext.
+﻿/**
+ * @file context.ts
+ * Shared component execution context contract.
  */
 
-import { Debug } from "@nebula/shared"; 
-// Path updated to reach your central runtime types
-import type { ComponentContext, Disposer } from "@nebula/runtime";
+import { Debug } from "./debug/events";
+
+export type Disposer = () => void;
+
+export interface ComponentContext {
+  disposers: Disposer[];
+  props: any;
+  frame: any;
+  name: string;
+  instance: number;
+
+  mounted?: Array<() => void>;
+  updated?: Array<() => void>;
+  unmounted?: Array<() => void>;
+}
+
 let currentContext: ComponentContext | null = null;
 
 export function getCurrentContext(): ComponentContext | null {
@@ -27,6 +39,7 @@ export function createComponentContext(): ComponentContext {
     name: "Unknown",
     instance: 0,
     mounted: [],
+    updated: [],
     unmounted: []
   };
 
@@ -34,3 +47,4 @@ export function createComponentContext(): ComponentContext {
 
   return ctx;
 }
+

@@ -1,23 +1,23 @@
-/**
+﻿/**
  * @file irTypes.ts
  * @description
  * Core Intermediate Representation (IR) types for Nebula's compiler.
  *
- * Nebula's IR is intentionally renderer‑agnostic. It represents:
+ * Nebula's IR is intentionally renderer-agnostic. It represents:
  * - normalized template structure
  * - metadata extracted from <meta> blocks
  * - route overrides extracted from <route> blocks
- * - file‑level context for SSR, hydration, routing, and devtools
+ * - file-level context for SSR, hydration, routing, and devtools
  *
  * This IR is the foundation for:
  * - SSR codegen
- * - client‑side DOM codegen
+ * - client-side DOM codegen
  * - routing + meta transforms
- * - AI‑assisted analysis
+ * - AI-assisted analysis
  * - static optimization passes
  */
 
-import type { MetaConfig, RouteOverride } from "@nebula/sfc"
+import type { MetaConfig, RouteOverride } from "./sfcTypes"
 
 /**
  * IR flags used for static analysis and optimization.
@@ -126,7 +126,7 @@ export type IRNode =
  * - devtools
  */
 export interface IRModule {
-  /** Absolute or project‑relative file path of the SFC. */
+  /** Absolute or project-relative file path of the SFC. */
   filePath: string;
 
   /** Normalized template IR nodes. */
@@ -143,4 +143,5 @@ export interface IRModule {
 
   scopeId?: string; // For scoped styles, if needed
 }
+
 

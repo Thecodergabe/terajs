@@ -1,12 +1,12 @@
-/**
+﻿/**
  * @file compileStyle.ts
  * @description
  * Compiles the <style> block of a ParsedSFC into final CSS,
  * applying scoped rewriting when needed.
  */
 
-import type { ParsedSFC } from "@nebula/sfc";
 import { rewriteScopedCss } from "./rewriteScopedCss";
+import type { ParsedSFC } from "./sfcTypes";
 
 /**
  * Result of compiling an SFC style block.
@@ -62,3 +62,4 @@ export function compileStyle(
     scopeId
   };
 }
+

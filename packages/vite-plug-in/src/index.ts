@@ -1,7 +1,7 @@
 /**
  * @file index.ts
  * @description
- * Vite plugin for Nebula SFC compilation + HMR.
+ * Vite plugin for Terajs SFC compilation + HMR.
  */
 
 import fs from "node:fs";
@@ -9,14 +9,14 @@ import path from "node:path";
 import { getAutoImportDirs } from './autoImportDirs.js';
 import type { Plugin } from "vite";
 
-import { parseSFC } from "@nebula/sfc";
-import { sfcToComponent } from "@nebula/sfc";
-import { Debug } from "@nebula/shared";
+import { parseSFC } from "@terajs/sfc";
+import { sfcToComponent } from "@terajs/sfc";
+import { Debug } from "@terajs/shared";
 
 
-function nebulaPlugin(): Plugin {
+function terajsPlugin(): Plugin {
   // Virtual module id for auto-imports
-  const VIRTUAL_ID = 'virtual:nebula-auto-imports';
+  const VIRTUAL_ID = 'virtual:terajs-auto-imports';
   const RESOLVED_VIRTUAL_ID = '\0' + VIRTUAL_ID;
 
   // Support multiple auto-import roots
@@ -43,7 +43,7 @@ function nebulaPlugin(): Plugin {
   }
 
   return {
-    name: "nebula",
+    name: "terajs",
     enforce: "pre",
 
     resolveId(id) {
@@ -64,7 +64,7 @@ function nebulaPlugin(): Plugin {
       Debug.emit("sfc:load", { scope: id });
 
       // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as NebulaAutoImports from 'virtual:nebula-auto-imports';\n`;
+      const autoImport = `import * as TerajsAutoImports from 'virtual:terajs-auto-imports';\n`;
       let compiled = sfcToComponent(sfc);
       compiled = autoImport + compiled;
       return compiled;
@@ -79,7 +79,7 @@ function nebulaPlugin(): Plugin {
       Debug.emit("sfc:hmr", { scope: ctx.file });
 
       // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as NebulaAutoImports from 'virtual:nebula-auto-imports';\n`;
+      const autoImport = `import * as TerajsAutoImports from 'virtual:terajs-auto-imports';\n`;
       let newModule = sfcToComponent(sfc);
       newModule = autoImport + newModule;
 
@@ -96,4 +96,4 @@ function nebulaPlugin(): Plugin {
   };
 }
 
-export default nebulaPlugin;
+export default terajsPlugin;

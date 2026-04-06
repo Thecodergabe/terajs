@@ -1,8 +1,8 @@
-/**
+﻿/**
  * @file reactive.ts
  * @description
  * Implements deep reactivity for objects and arrays using Nebula's
- * fine‑grained signal system.
+ * fine-grained signal system.
  *
  * Each property becomes its own signal, enabling:
  *
@@ -16,10 +16,10 @@
  * user.address.city = "Portland"; // triggers only that effect
  * ```
  *
- * This avoids the pitfalls of Proxy‑only systems:
+ * This avoids the pitfalls of Proxy-only systems:
  * - no identity issues
  * - no deep Proxy recursion
- * - no over‑tracking
+ * - no over-tracking
  * - no array mutation traps
  *
  * The system also supports *dynamic* deep reactivity:
@@ -34,10 +34,10 @@ import {
   registerReactiveInstance,
   updateReactiveValue,
   Debug
-} from "@nebula/shared";
+} from "@terajs/shared";
 import { analyzeReactivity } from "./analyzer";
 
-import type { ReactiveMetadata } from "@nebula/shared";
+import type { ReactiveMetadata } from "@terajs/shared";
 
 type AnyObj = Record<string | symbol, any>;
 
@@ -215,7 +215,7 @@ export function reactive<T extends AnyObj>(
         Reflect.set(target, prop, v, receiver);
       }
 
-      // If it's a signal → return its value
+      // If it's a signal -> return its value
       if (typeof v === "function" && "_dep" in v && "_value" in v) {
         const sig = v as Signal<any>;
         const value = sig();
@@ -235,7 +235,7 @@ export function reactive<T extends AnyObj>(
     set(target, prop, value, receiver) {
       const existing = Reflect.get(target, prop, receiver);
 
-      // Existing signal → update it (preserve nested reactive behavior)
+      // Existing signal -> update it (preserve nested reactive behavior)
       if (typeof existing === "function" && "_dep" in existing && "_value" in existing) {
         const sig = existing as Signal<any>;
         const prev = sig();
@@ -260,7 +260,7 @@ export function reactive<T extends AnyObj>(
         return true;
       }
 
-      // New property → wrap it and set it
+      // New property -> wrap it and set it
       const wrapped = wrap(value, ctx, String(prop));
       Reflect.set(target, prop, wrapped, receiver);
 

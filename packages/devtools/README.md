@@ -1,7 +1,6 @@
+﻿# Nebula DevTools
 
-# Nebula DevTools
-
-Nebula DevTools provides a live overlay for inspecting your app’s component tree, signals, effects, and runtime events. Built with Nebula SFCs and styled with Tailwind.
+Nebula DevTools provides a live overlay for inspecting your app's component tree, signals, effects, and runtime events. Built with Nebula SFCs and styled with Tailwind.
 
 ---
 
@@ -21,7 +20,7 @@ Nebula DevTools provides a live overlay for inspecting your app’s component tr
 In your app entry point:
 
 ```js
-import { mountDevtoolsOverlay } from '@nebula/devtools';
+import { mountDevtoolsOverlay } from '@terajs/devtools';
 mountDevtoolsOverlay();
 ```
 
@@ -42,11 +41,13 @@ No import needed!
 ## Theming
 Edit `tailwind.config.js` and `src/index.css` to customize colors and theme tokens.
 
+The current Terajs palette is stored in `tailwind.config.js` under `theme.extend.colors.tera` with font stacks in `theme.extend.fontFamily`.
+
 ---
 
 ## Advanced: Customizing auto-imports
 
-Add a `nebula.config.js` to your project root:
+Add a `terajs.config.js` to your project root:
 
 ```js
 module.exports = {
@@ -90,3 +91,4 @@ Run tests with:
 ```
 npx vitest run
 ```
+

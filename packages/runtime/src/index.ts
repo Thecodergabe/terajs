@@ -1,7 +1,7 @@
-/**
+﻿/**
  * @file index.ts
  * @description
- * Entry point for the @nebula/runtime package.
+ * Entry point for the @terajs/runtime package.
  * Coordinates component lifecycle and dependency injection.
  */
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file hmr.ts
  * @description
  * Hot Module Replacement runtime for Nebula.
@@ -7,7 +7,7 @@
  * setup functions and IR modules without full reload.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 import type { ComponentContext } from "./component/context";
 
 export interface HMRInstance {
@@ -123,3 +123,4 @@ export function applyHMRUpdate(
     complete: true
   });
 }
+

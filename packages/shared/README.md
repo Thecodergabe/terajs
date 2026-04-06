@@ -1,6 +1,6 @@
-# Nebula Shared Package
+﻿# Nebula Shared Package
 
-This package provides all shared types, debug/event systems, and the dependency graph for Nebula’s runtime and devtools.
+This package provides all shared types, debug/event systems, and the dependency graph for Nebula's runtime and devtools.
 
 ---
 
@@ -15,7 +15,7 @@ This package provides all shared types, debug/event systems, and the dependency 
 ## Usage Example
 
 ```ts
-import { Debug } from '@nebula/shared';
+import { Debug } from '@terajs/shared';
 
 Debug.on(event => {
   console.log('Debug event:', event);
@@ -29,7 +29,7 @@ Debug.emit('signal:create', { key: 'count' });
 ## Dependency Graph
 
 ```ts
-import { addDependency, getDependencyGraphSnapshot } from '@nebula/shared';
+import { addDependency, getDependencyGraphSnapshot } from '@terajs/shared';
 
 addDependency('A', 'B');
 const graph = getDependencyGraphSnapshot();
@@ -40,7 +40,7 @@ const graph = getDependencyGraphSnapshot();
 ## Devtools Bridge
 
 ```ts
-import { DevtoolsBridge } from '@nebula/shared';
+import { DevtoolsBridge } from '@terajs/shared';
 
 const graph = DevtoolsBridge.getGraph();
 ```
@@ -57,3 +57,4 @@ const graph = DevtoolsBridge.getGraph();
 ---
 
 See the devtools and reactivity docs for more on live inspection and debugging.
+

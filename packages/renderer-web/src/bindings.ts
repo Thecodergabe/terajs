@@ -1,16 +1,16 @@
-/**
+﻿/**
  * @file bindings.ts
  * @description
- * Fine‑grained DOM bindings for Nebula’s reactive renderer.
+ * Fine-grained DOM bindings for Nebula's reactive renderer.
  *
  * These helpers connect reactive expressions (signals, memos, accessors)
  * to DOM updates. Each binding registers a reactive effect that updates
- * only the affected DOM node — no virtual DOM, no diffing.
+ * only the affected DOM node - no virtual DOM, no diffing.
  *
  * This is the same model used by SolidJS and Vue Vapor Mode.
  */
 
-import { effect } from "@nebula/reactivity";
+import { effect } from "@terajs/reactivity";
 import { unwrap } from "./unwrap";
 import {
     setText,
@@ -20,7 +20,7 @@ import {
     addEvent,
     removeEvent,
 } from "./dom";
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Bind a reactive expression to a Text node.
@@ -143,7 +143,7 @@ export function bindStyle(
 /**
  * Bind a static event listener to an element.
  *
- * Events are NOT reactive — the handler is attached once.
+ * Events are NOT reactive - the handler is attached once.
  *
  * @param el - The element to bind to.
  * @param name - Event name (e.g., "click").

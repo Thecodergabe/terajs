@@ -1,19 +1,24 @@
 {
-  "name": "@nebula/renderer-web",
+  "name": "@terajs/renderer-web",
   "version": "0.0.1",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@nebula/shared": "*",
-    "@nebula/runtime": "*",
-    "@nebula/reactivity": "*",
-    "@nebula/renderer": "*"
+    "@terajs/shared": "*",
+    "@terajs/runtime": "*",
+    "@terajs/reactivity": "*",
+    "@terajs/renderer": "*"
   }
 }

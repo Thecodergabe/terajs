@@ -1,20 +1,20 @@
-/**
+﻿/**
  * @file template.ts
  * @description
- * Nebula’s reactive template wrapper.
+ * Nebula's reactive template wrapper.
  *
  * A TemplateFn is a function that returns a DOM Node.
  * It is wrapped in a reactive effect so that whenever any signal it reads
  * changes, the template re-runs and updates the DOM by replacing its root node.
  */
 
-import { effect } from "@nebula/reactivity";
-import { onCleanup } from "@nebula/runtime";
-import { Debug } from "@nebula/shared";
+import { effect } from "@terajs/reactivity";
+import { onCleanup } from "@terajs/runtime";
+import { Debug } from "@terajs/shared";
 
 /**
  * A reactive template function.
- * It is re‑executed whenever any signal it reads changes.
+ * It is re-executed whenever any signal it reads changes.
  */
 export type TemplateFn = () => Node;
 

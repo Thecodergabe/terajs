@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file renderFromIR.ts
  * @description
  * Reactive client-side DOM renderer for Nebula's IR.
@@ -13,7 +13,7 @@ import type {
   IRIfNode,
   IRForNode,
   IRPropNode,
-} from "@nebula/compiler";
+} from "@terajs/compiler";
 
 import {
   createElement,
@@ -31,8 +31,8 @@ import {
   bindEvent,
 } from "./bindings";
 
-import { effect } from "@nebula/reactivity";
-import { Debug } from "@nebula/shared";
+import { effect } from "@terajs/reactivity";
+import { Debug } from "@terajs/shared";
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -290,3 +290,4 @@ function resolveExpr(ctx: any, expr: string): any {
 
   return current;
 }
+

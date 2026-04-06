@@ -1,4 +1,4 @@
-# Nebula Runtime
+﻿# Nebula Runtime
 
 The Nebula runtime coordinates component mounting, context, and the connection between reactivity and the DOM.
 
@@ -8,14 +8,14 @@ The Nebula runtime coordinates component mounting, context, and the connection b
 - Platform-agnostic: works in browser, SSR, and custom renderers
 - Context system for dependency injection
 - Lifecycle hooks for mounting, updating, and disposal
-- Integrates with Nebula’s fine-grained reactivity
+- Integrates with Nebula's fine-grained reactivity
 
 ---
 
 ## Usage Example
 
 ```ts
-import { mount } from '@nebula/runtime';
+import { mount } from '@terajs/runtime';
 import App from './App.nbl';
 
 mount(App, document.getElementById('app'));
@@ -26,7 +26,7 @@ mount(App, document.getElementById('app'));
 ## Context API
 
 ```ts
-import { createComponentContext, getCurrentContext, setCurrentContext } from '@nebula/shared';
+import { createComponentContext, getCurrentContext, setCurrentContext } from '@terajs/shared';
 
 const ctx = createComponentContext();
 setCurrentContext(ctx);
@@ -48,3 +48,4 @@ setCurrentContext(ctx);
 ---
 
 See the devtools and shared package docs for more on debugging and inspection.
+

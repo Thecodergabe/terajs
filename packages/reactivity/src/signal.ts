@@ -1,6 +1,6 @@
-/**
+﻿/**
  * @file signal.ts
- * Core fine‑grained reactive primitive for Nebula.
+ * Core fine-grained reactive primitive for Nebula.
  *
  * Fully integrated with the Nebula Debug Core:
  * - metadata creation
@@ -19,9 +19,9 @@ import {
   updateReactiveValue,
   emitDebug,
   addDependency
-} from "@nebula/shared";
+} from "@terajs/shared";
 
-import type { ReactiveMetadata } from "@nebula/shared";
+import type { ReactiveMetadata } from "@terajs/shared";
 
 /**
  * A reactive signal holding a value of type T.
@@ -87,7 +87,7 @@ export function signal<T>(
         currentEffect.deps.push(sig._dep);
       }
 
-      // Add to dependency graph: effect RID → signal RID
+      // Add to dependency graph: effect RID -> signal RID
       const from = (currentEffect as any)._meta?.rid as string | undefined;
       if (from) {
         addDependency(from, meta.rid);

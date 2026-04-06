@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+﻿import { describe, it, expect } from "vitest";
 import { jsx } from "./jsx-runtime";
 import { template } from "./template";
 import { createText } from "./dom";
-import { signal } from "@nebula/reactivity";
+import { signal } from "@terajs/reactivity";
 
 describe("JSX reactivity", () => {
     it("reactive text children update via template()", () => {
@@ -57,3 +57,4 @@ describe("JSX reactivity", () => {
         expect(el.className).toBe("on");
     });
 });
+

@@ -1,6 +1,6 @@
-/**
+﻿/**
  * @file index.ts
- * @description Entry point for the @nebula/shared package.
+ * @description Entry point for the @terajs/shared package.
  */
 
 // 1. Identity & Metadata
@@ -26,9 +26,11 @@ export * from "./debug/types/events";
 export * from "./debug/types/metadata";
 export * from "./debug/types/registry";
 export * from "./debug/types/graph";
+export * from "./hydration";
 
 export { 
   getCurrentContext, 
   setCurrentContext, 
   createComponentContext, 
 } from "./context";
+export type { ComponentContext, Disposer } from "./context";

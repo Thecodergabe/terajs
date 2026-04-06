@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file deps.ts
  * @description
  * Dependency tracking core for Nebula Reactivity.
@@ -8,7 +8,7 @@
  * for clean disposal and nested tracking.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Represents a reactive side-effect function.

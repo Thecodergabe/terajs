@@ -1,14 +1,18 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
 import { generateIRModule } from "./irGenerator";
 import type { IRModule } from "./irTypes";
+import type { ParsedSFC } from "./sfcTypes";
 
 describe("IRModule Generator (integration)", () => {
   it("generates a minimal IRModule", () => {
-    const sfc = parseSFC(
-      `<template>Hello</template>`,
-      "/pages/index.nbl"
-    );
+    const sfc: ParsedSFC = {
+      filePath: "/pages/index.nbl",
+      template: "Hello",
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
 
     const ir = generateIRModule(sfc);
 
@@ -25,14 +29,17 @@ describe("IRModule Generator (integration)", () => {
   });
 
   it("includes meta from <meta> block", () => {
-    const sfc = parseSFC(
-      `<template></template>
-       <meta>
-         title: Home
-         description: Welcome
-       </meta>`,
-      "/pages/home.nbl"
-    );
+    const sfc: ParsedSFC = {
+      filePath: "/pages/home.nbl",
+      template: "",
+      script: "",
+      style: null,
+      meta: {
+        title: "Home",
+        description: "Welcome"
+      },
+      routeOverride: null
+    };
 
     const ir = generateIRModule(sfc);
 
@@ -41,14 +48,17 @@ describe("IRModule Generator (integration)", () => {
   });
 
   it("includes route overrides from <route> block", () => {
-    const sfc = parseSFC(
-      `<template></template>
-       <route>
-         layout: admin
-         hydrate: visible
-       </route>`,
-      "/pages/admin.nbl"
-    );
+    const sfc: ParsedSFC = {
+      filePath: "/pages/admin.nbl",
+      template: "",
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: {
+        layout: "admin",
+        hydrate: "visible"
+      }
+    };
 
     const ir = generateIRModule(sfc);
 
@@ -57,10 +67,14 @@ describe("IRModule Generator (integration)", () => {
   });
 
   it("normalizes template AST into IRNodes", () => {
-    const sfc = parseSFC(
-      `<template><div>{{ msg }}</div></template>`,
-      "/pages/test.nbl"
-    );
+    const sfc: ParsedSFC = {
+      filePath: "/pages/test.nbl",
+      template: "<div>{{ msg }}</div>",
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
 
     const ir = generateIRModule(sfc);
 
@@ -73,3 +87,4 @@ describe("IRModule Generator (integration)", () => {
     });
   });
 });
+

@@ -10,5 +10,6 @@
   "references": [
     { "path": "../renderer"}
   ],
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["dist"]
 }

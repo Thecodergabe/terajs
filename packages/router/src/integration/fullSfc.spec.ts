@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 import { buildRouteFromSFC } from "../builder";
 
 const full = `
@@ -35,3 +35,4 @@ describe("Full SFC integration", () => {
     expect(route.meta).toBeTypeOf("object");
   });
 });
+

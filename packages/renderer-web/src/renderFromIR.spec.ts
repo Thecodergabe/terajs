@@ -1,7 +1,7 @@
-/**
+﻿/**
  * @file renderFromIR.spec.ts
  * @description
- * Tests for the reactive IR → DOM renderer.
+ * Tests for the reactive IR -> DOM renderer.
  */
 
 import {
@@ -16,14 +16,14 @@ import type {
   IRElementNode,
   IRIfNode,
   IRForNode
-} from "@nebula/compiler";
+} from "@terajs/compiler";
 
-import { signal } from "@nebula/reactivity";
+import { signal } from "@terajs/reactivity";
 
 /** Ensures reactive effects flush before assertions */
 const tick = () => Promise.resolve();
 
-describe("IR → DOM Renderer", () => {
+describe("IR -> DOM Renderer", () => {
 
   /* ---------------------------------------------------------------------- */
   /* TEXT                                                                   */
@@ -249,3 +249,4 @@ describe("IR → DOM Renderer", () => {
     expect(frag.textContent).toBe("AB");
   });
 });
+

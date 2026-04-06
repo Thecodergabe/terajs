@@ -1,12 +1,12 @@
-/**
+﻿/**
  * @file component.ts
  * @description
  * High-level component wrapper for Nebula.
  * Now includes optional HMR integration (dev-only).
  */
 
-import { emitDebug as emit, Debug } from "@nebula/shared";
-import { getCurrentEffect } from "@nebula/reactivity";
+import { emitDebug as emit, Debug } from "@terajs/shared";
+import { getCurrentEffect } from "@terajs/reactivity";
 import {
   pushContextFrame,
   popContextFrame,
@@ -138,3 +138,4 @@ export function component<P = any>(
   Object.defineProperty(ComponentWrapper, "route", { value: options.route, enumerable: false });
   return ComponentWrapper;
 }
+

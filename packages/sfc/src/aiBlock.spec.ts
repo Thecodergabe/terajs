@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 
 describe("SFC <ai> block", () => {
   it("parses simple AI metadata", () => {
@@ -31,3 +31,4 @@ describe("SFC <ai> block", () => {
     expect(sfc.ai?.keywords).toBeUndefined();
   });
 });
+

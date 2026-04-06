@@ -1,8 +1,8 @@
-/**
+﻿/**
  * @file jsx-runtime.ts
  * @description
- * Nebula’s JSX runtime — the bridge between JSX syntax and Nebula’s
- * fine‑grained DOM renderer.
+ * Nebula's JSX runtime - the bridge between JSX syntax and Nebula's
+ * fine-grained DOM renderer.
  *
  * JSX compiles directly into:
  * - Native DOM nodes
@@ -29,7 +29,7 @@ import {
     bindEvent,
 } from "./bindings";
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Special symbol used by JSX to represent a fragment.
@@ -124,7 +124,7 @@ export function jsxs(type: any, props: any): Node {
 }
 
 /**
- * Core JSX → DOM conversion.
+ * Core JSX -> DOM conversion.
  */
 function createVNode(type: any, props: any): Node {
     props = props || {};
@@ -201,3 +201,4 @@ declare global {
     }
   }
 }
+

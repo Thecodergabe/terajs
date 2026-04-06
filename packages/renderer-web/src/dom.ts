@@ -1,13 +1,13 @@
-/**
+﻿/**
  * @file dom.ts
  * @description
- * Platform‑specific DOM operations for Nebula’s renderer.
+ * Platform-specific DOM operations for Nebula's renderer.
  *
  * Nebula does NOT use a virtual DOM. These operations directly mutate the DOM
  * to ensure maximum performance and minimal memory overhead.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 import { unwrap } from "./unwrap"; 
 
 /**

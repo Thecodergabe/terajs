@@ -1,4 +1,4 @@
-# Nebula Compiler
+﻿# Nebula Compiler
 
 The Nebula compiler transforms SFC templates into efficient, platform-agnostic render functions.
 
@@ -14,7 +14,7 @@ The Nebula compiler transforms SFC templates into efficient, platform-agnostic r
 ## Usage Example
 
 ```ts
-import { parseTemplateToAst, compileStyle } from '@nebula/compiler';
+import { parseTemplateToAst, compileStyle } from '@terajs/compiler';
 
 const ast = parseTemplateToAst('<div>{{ count }}</div>');
 const code = compileStyle('.foo { color: red; }');
@@ -30,3 +30,4 @@ const code = compileStyle('.foo { color: red; }');
 ---
 
 See the SFC and devtools docs for more on templates and live inspection.
+

@@ -1,22 +1,4 @@
-/**
- * Hydration strategies supported by Nebula SFC++.
- *
- * These determine when a server-rendered component becomes interactive.
- *
- * - `"eager"` — Hydrate immediately after SSR.
- * - `"visible"` — Hydrate when the component enters the viewport.
- * - `"idle"` — Hydrate when the browser is idle.
- * - `"interaction"` — Hydrate on first user interaction.
- * - `"none"` — Never hydrate; remains static HTML.
- * - `"ai"` — Allow an AI-driven strategy to choose the optimal mode.
- */
-export type HydrationMode =
-  | "eager"
-  | "visible"
-  | "idle"
-  | "interaction"
-  | "none"
-  | "ai";
+import type { HydrationMode } from "@terajs/shared";
 
 /**
  * Optional route overrides declared inside an SFC `<route>` block.

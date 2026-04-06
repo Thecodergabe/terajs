@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file contract.ts
  * @description
  * A contract is a shared reactive object passed explicitly between components.
@@ -7,12 +7,12 @@
  */
 
 import { ref } from "../ref";
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Creates an explicit contract object.
  *
- * This version does **not** auto‑wrap primitives.
+ * This version does **not** auto-wrap primitives.
  * Use this when you want full control over reactivity.
  *
  * @typeParam T - The shape of the contract.

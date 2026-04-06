@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file renderToString.ts
  * @description
  * Nebula's server-side renderer.
@@ -21,7 +21,7 @@ import type {
   IRElementNode,
   IRIfNode,
   IRForNode
-} from "@nebula/compiler";
+} from "@terajs/compiler";
 import type { SSRContext, SSRResult, SSRHydrationHint } from "./types";
 
 /**
@@ -209,3 +209,4 @@ function escapeText(v: string): string {
 function escapeAttr(v: string): string {
   return escapeText(v).replace(/"/g, "&quot;");
 }
+

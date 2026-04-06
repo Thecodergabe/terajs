@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file onCleanup.ts
  * @description
  * Registers cleanup functions for reactive effects.
@@ -10,7 +10,7 @@
  */
 
 import { getCurrentEffect } from "../deps";
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 /**
  * Registers a cleanup function to be executed before the next run of the

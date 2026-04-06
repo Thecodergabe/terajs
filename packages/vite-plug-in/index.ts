@@ -1,3 +1,3 @@
-import nebulaPlugin from './src/index';
+import terajsPlugin from './src/index';
 
-export default nebulaPlugin;
+export default terajsPlugin;

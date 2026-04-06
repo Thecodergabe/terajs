@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file render.ts
  * @description
  * Core component execution pipeline for Nebula.
@@ -18,14 +18,14 @@ import {
     createComponentContext,
     setCurrentContext,
     getCurrentContext,
-} from "@nebula/runtime";
-import type { ComponentContext } from "@nebula/runtime";
+} from "@terajs/runtime";
+import type { ComponentContext } from "@terajs/runtime";
 import { template, type TemplateFn } from "./template";
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
-// ⭐ AST → JSX adapter
+// AST to JSX adapter
 import { renderAst } from "./astToJsx";
-import type { ASTNode } from "@nebula/renderer";
+import type { ASTNode } from "@terajs/renderer";
 
 /**
  * A framework component.
@@ -73,7 +73,7 @@ export function renderComponent(
 
     let node: Node;
 
-    // ⭐ AST support
+    // AST support
     if (isAst(out)) {
         Debug.emit("component:render:template", {
             component,
@@ -83,8 +83,8 @@ export function renderComponent(
         // TemplateFn MUST be () => Node
         // So we close over ctx instead of passing it
         const fn: TemplateFn = () => {
-            const jsx = renderAst(out, ctx); // AST → JSX
-            return jsx;                      // JSX → DOM happens in template()
+            const jsx = renderAst(out, ctx); // AST -> JSX
+            return jsx;                      // JSX -> DOM happens in template()
         };
 
         node = template(fn);
@@ -157,3 +157,4 @@ export function renderIntoRoot(
 function isAst(value: any): value is ASTNode {
     return value && typeof value === "object" && typeof value.type === "string";
 }
+

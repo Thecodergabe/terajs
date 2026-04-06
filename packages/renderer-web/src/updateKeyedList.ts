@@ -1,7 +1,7 @@
-/**
+﻿/**
  * @file updateKeyedList.ts
  * @description
- * A minimal, platform‑agnostic keyed list reconciler for Nebula's fine‑grained renderer.
+ * A minimal, platform-agnostic keyed list reconciler for Nebula's fine-grained renderer.
  *
  * Nebula does NOT use a virtual DOM or tree diffing. Instead, lists are updated
  * reactively: when the underlying array changes, this function receives the old
@@ -17,7 +17,7 @@
  * It is the ONLY diffing Nebula performs.
  */
 
-import { Debug } from "@nebula/shared";
+import { Debug } from "@terajs/shared";
 
 export interface KeyedItem {
     /** Unique identity for the item. Determines DOM preservation. */

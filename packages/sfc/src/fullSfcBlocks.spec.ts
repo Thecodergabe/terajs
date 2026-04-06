@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 
 describe("SFC mixed blocks", () => {
   it("parses template, script, style, ai, and route together", () => {
@@ -55,3 +55,4 @@ describe("SFC mixed blocks", () => {
     expect(sfc.routeOverride?.layout).toBe("main");
   });
 });
+

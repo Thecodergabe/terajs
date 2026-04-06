@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@nebula/sfc";
+﻿import { describe, it, expect } from "vitest";
+import { parseSFC } from "@terajs/sfc";
 import { sfcToComponent } from "./sfcToComponent";
 
 describe("sfcToComponent (integration)", () => {
@@ -34,11 +34,11 @@ describe("sfcToComponent (integration)", () => {
 /**
  * @file compileTemplate.ts
  * @description
- * SFC‑aware template compiler entry point for Nebula.
+ * SFC-aware template compiler entry point for Nebula.
  *
  * This is a thin wrapper around `generateIRModule`, which:
  * - parses the `<template>` block into an AST
- * - normalizes it into renderer‑agnostic IR
+ * - normalizes it into renderer-agnostic IR
  * - attaches meta, ai, and route overrides from the SFC
  *
  * The result is an `IRModule` that can be consumed by:
@@ -49,9 +49,9 @@ describe("sfcToComponent (integration)", () => {
  * - devtools
  */
 
-import type { ParsedSFC } from "@nebula/sfc";
-import type { IRModule } from "@nebula/compiler";
-import { generateIRModule } from "@nebula/compiler";
+import type { ParsedSFC } from "@terajs/sfc";
+import type { IRModule } from "@terajs/compiler";
+import { generateIRModule } from "@terajs/compiler";
 
 /**
  * Compiles a Nebula SFC's `<template>` (plus meta/ai/route)
@@ -63,3 +63,4 @@ import { generateIRModule } from "@nebula/compiler";
 export function compileTemplateFromSFC(sfc: ParsedSFC): IRModule {
   return generateIRModule(sfc);
 }
+

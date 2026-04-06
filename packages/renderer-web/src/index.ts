@@ -1,7 +1,7 @@
-/**
+﻿/**
  * @file index.ts
  * @description
- * Complete entry point for the @nebula/renderer.
+ * Complete entry point for the @terajs/renderer.
  */
 
 // Core Rendering & Mounting
@@ -29,3 +29,4 @@ export * from "./hydrate";
 
 // IR Renderer (SSR-aligned baseline for client-side rendering)
 export * from "./renderFromIR";
+

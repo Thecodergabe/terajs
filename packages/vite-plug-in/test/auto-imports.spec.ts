@@ -1,16 +1,16 @@
-// Test utility for Nebula auto-imports
+// Test utility for Terajs auto-imports
 // Run with: npx vitest run
 import { describe, it, expect } from 'vitest';
-import nebulaPlugin from '../src/index';
+import terajsPlugin from '../src/index';
 import fs from 'node:fs';
 import path from 'node:path';
 
-describe('nebulaPlugin auto-imports', () => {
+describe('terajsPlugin auto-imports', () => {
   it('generates virtual module with all .nbl components', () => {
-    const plugin = nebulaPlugin();
-    const resolved = plugin.resolveId('virtual:nebula-auto-imports');
-    expect(resolved).toBe('\0virtual:nebula-auto-imports');
-    const code = plugin.load('\0virtual:nebula-auto-imports');
+    const plugin = terajsPlugin();
+    const resolved = plugin.resolveId('virtual:terajs-auto-imports');
+    expect(resolved).toBe('\0virtual:terajs-auto-imports');
+    const code = plugin.load('\0virtual:terajs-auto-imports');
     expect(typeof code).toBe('string');
     // Should export all .nbl files in components dir
     const componentsDir = path.resolve(process.cwd(), 'packages/devtools/src/components');

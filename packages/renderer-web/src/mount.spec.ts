@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file mount.test.ts
  * @group Renderer
  * @description
@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import { mount, unmount } from "./mount";
-import { onCleanup } from "@nebula/runtime";
+import { onCleanup } from "@terajs/runtime";
 
 describe("mount() / unmount()", () => {
 
@@ -64,3 +64,4 @@ describe("mount() / unmount()", () => {
     });
 
 });
+

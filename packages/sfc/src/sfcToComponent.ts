@@ -1,17 +1,17 @@
-/**
+﻿/**
  * @file sfcToComponent.ts
  * @description
  * Converts a ParsedSFC into a runnable Nebula component module.
  *
  * This is the final glue step in the SFC pipeline:
- *  - compile <script> → setup() function
- *  - compile <template> → IRModule
+ *  - compile <script> -> setup() function
+ *  - compile <template> -> IRModule
  *  - attach <meta>, <ai>, <route> blocks
- *  - wrap everything in @nebula/runtime's `component()`
+ *  - wrap everything in @terajs/runtime's `component()`
  *  - inject HMR support (dev-only)
  */
 
-import type { ParsedSFC } from "@nebula/sfc";
+import type { ParsedSFC } from "@terajs/sfc";
 import { compileScript } from "./compileScript";
 import { compileTemplateFromSFC } from "./compileTemplate";
 
@@ -26,10 +26,10 @@ export function sfcToComponent(sfc: ParsedSFC): string {
       ? sfc.script
       : sfc.script?.content ?? "";
 
-  // Compile <script> → setup() function
+  // Compile <script> -> setup() function
   const script = compileScript(scriptSource);
 
-  // Compile <template> + meta/ai/route → IRModule
+  // Compile <template> + meta/ai/route -> IRModule
   const ir = compileTemplateFromSFC(sfc);
 
   // Component name defaults to filename
@@ -37,8 +37,8 @@ export function sfcToComponent(sfc: ParsedSFC): string {
 
   // Generate final JS module
   return `
-import { component, applyHMRUpdate } from "@nebula/runtime";
-import { renderIRModuleToFragment } from "@nebula/renderer-web";
+import { component, applyHMRUpdate } from "@terajs/runtime";
+import { renderIRModuleToFragment } from "@terajs/renderer-web";
 
 ${script.setupCode}
 
@@ -77,9 +77,10 @@ export default Comp;
 
 /**
  * Infer a component name from its file path.
- * Example: "/pages/home.nbl" → "Home"
+ * Example: "/pages/home.nbl" -> "Home"
  */
 function inferComponentName(filePath: string): string {
   const base = filePath.split("/").pop() || "Component";
   return base.replace(/\.\w+$/, "").replace(/[^A-Za-z0-9]/g, "") || "Component";
 }
+

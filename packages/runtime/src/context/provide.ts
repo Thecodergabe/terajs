@@ -1,10 +1,10 @@
-/**
+﻿/**
  * @file provide.ts
  * @description
  * Registers a value in the current component's context frame.
  */
 
-import { emitDebug as emit } from "@nebula/shared";
+import { emitDebug as emit } from "@terajs/shared";
 import { contextStack, type ContextKey } from "./contextStack";
 
 /**
