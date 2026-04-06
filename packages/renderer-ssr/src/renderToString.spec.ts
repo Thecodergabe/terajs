@@ -111,5 +111,48 @@ describe("renderToString", () => {
       expect.objectContaining({ to: "/docs", data: { slug: "docs" } })
     );
   });
+
+  it("renders interpolations, conditionals, loops, and bound attrs from scope", () => {
+    const ir = mockIR([
+      {
+        type: "element",
+        tag: "section",
+        props: [
+          { kind: "bind", name: "class", value: "theme" },
+          { kind: "bind", name: "data-count", value: "items.length" }
+        ],
+        children: [
+          { type: "interp", expression: "title" },
+          {
+            type: "if",
+            condition: "showTagline",
+            then: [{ type: "element", tag: "p", props: [], children: [{ type: "interp", expression: "tagline" }] }],
+            else: [{ type: "text", value: "fallback" }]
+          },
+          {
+            type: "for",
+            each: "items",
+            item: "item",
+            body: [{ type: "element", tag: "li", props: [], children: [{ type: "interp", expression: "item" }] }]
+          }
+        ]
+      }
+    ]);
+
+    const { html } = renderToString(ir, {
+      scope: {
+        title: "Docs",
+        theme: ["docs", "guide"],
+        showTagline: true,
+        tagline: "Start here",
+        items: ["one", "two"]
+      }
+    });
+
+    expect(html).toContain('<section class="docs guide" data-count="2">');
+    expect(html).toContain("Docs");
+    expect(html).toContain("<p>Start here</p>");
+    expect(html).toContain("<li>one</li><li>two</li>");
+  });
 });
 

@@ -6,6 +6,7 @@
 
 export { createRouteHydrationSnapshot, loadRouteMatch } from "./loading";
 export { resolveLoadedRouteMetadata } from "./meta";
+export { getRouteDataResourceKey, ROUTE_DATA_RESOURCE_KEY } from "./resourceKeys";
 
 export {
   createBrowserHistory,

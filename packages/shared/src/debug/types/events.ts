@@ -105,6 +105,29 @@ export interface RouterErrorEvent extends DebugEventBase {
   to?: string;
 }
 
+export interface ResourceLoadStartEvent extends DebugEventBase {
+  type: "resource:load:start";
+  source?: unknown;
+  hasInitialValue?: boolean;
+}
+
+export interface ResourceLoadEndEvent extends DebugEventBase {
+  type: "resource:load:end";
+  source?: unknown;
+  state: "ready";
+}
+
+export interface ResourceErrorEvent extends DebugEventBase {
+  type: "resource:error";
+  source?: unknown;
+  error: unknown;
+}
+
+export interface ResourceMutateEvent extends DebugEventBase {
+  type: "resource:mutate";
+  state: "ready";
+}
+
 /**
  * Union of all debug events.
  * * Using these specific types in a switch(event.type) block 
@@ -122,4 +145,8 @@ export type DebugEvent =
   | RouteChangedEvent
   | RouteMetaResolvedEvent
   | RouterWarningEvent
-  | RouterErrorEvent;
+  | RouterErrorEvent
+  | ResourceLoadStartEvent
+  | ResourceLoadEndEvent
+  | ResourceErrorEvent
+  | ResourceMutateEvent;

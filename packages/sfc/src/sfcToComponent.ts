@@ -43,7 +43,9 @@ import { renderIRModuleToFragment } from "@terajs/renderer-web";
 ${script.setupCode}
 
 // IRModule for this component
-let ir = ${JSON.stringify(ir, null, 2)};
+export let ir = ${JSON.stringify(ir, null, 2)};
+
+export { setup };
 
 const Comp = component(
   {

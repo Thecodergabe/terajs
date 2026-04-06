@@ -24,6 +24,12 @@ export interface SSRContext {
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>;
 
+  /** Data scope used to evaluate dynamic IR on the server. */
+  scope?: Record<string, unknown>;
+
+  /** Serialized resources reused by client-side createResource hydration. */
+  resources?: Record<string, unknown>;
+
   /** Serialized route payload used to resume route state on the client. */
   routeSnapshot?: RouteHydrationSnapshot<unknown>;
 }
@@ -67,6 +73,9 @@ export interface SSRResult {
 
   /** AI metadata, if present. This is opaque and passed through from the SFC. */
   ai?: Record<string, any>;
+
+  /** Serialized resources reused by client-side createResource hydration. */
+  resources?: Record<string, unknown>;
 
   /** Serialized route payload used to resume route state on the client. */
   routeSnapshot?: RouteHydrationSnapshot<unknown>;

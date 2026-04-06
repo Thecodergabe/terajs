@@ -24,6 +24,18 @@ import type {
 } from "@terajs/compiler";
 import type { SSRContext, SSRResult, SSRHydrationHint } from "./types";
 
+export interface SSRHtml {
+  __ssrHtml: string;
+}
+
+export function createSSRHtml(html: string): SSRHtml {
+  return { __ssrHtml: html };
+}
+
+export function isSSRHtml(value: unknown): value is SSRHtml {
+  return typeof value === "object" && value !== null && "__ssrHtml" in value;
+}
+
 /**
  * Render a Nebula IRModule to an SSRResult.
  *
@@ -35,13 +47,32 @@ export function renderToString(
   ir: IRModule,
   ctx: Partial<SSRContext> = {}
 ): SSRResult {
-  const body = ir.template.map(renderNode).join("");
+  const body = renderBodyToString(ir, ctx);
   const hydration = resolveHydration(ir, ctx);
-  const marker = renderHydrationMarker(hydration, ctx.ai ?? ir.ai, ctx.routeSnapshot);
+  const marker = renderHydrationMarker(hydration, {
+    ai: ctx.ai ?? ir.ai,
+    resources: ctx.resources,
+    routeSnapshot: ctx.routeSnapshot
+  });
   const html = body + marker;
   const head = renderHead(ir, ctx);
 
-  return { html, head, hydration, ai: ctx.ai ?? ir.ai, routeSnapshot: ctx.routeSnapshot };
+  return {
+    html,
+    head,
+    hydration,
+    ai: ctx.ai ?? ir.ai,
+    resources: ctx.resources,
+    routeSnapshot: ctx.routeSnapshot
+  };
+}
+
+export function renderBodyToString(
+  ir: IRModule,
+  ctx: Partial<SSRContext> = {}
+): string {
+  const scope = ctx.scope ?? {};
+  return ir.template.map((node) => renderNode(node, scope)).join("");
 }
 
 /**
@@ -49,18 +80,18 @@ export function renderToString(
  *
  * @param node - The IR node to render.
  */
-function renderNode(node: IRNode): string {
+function renderNode(node: IRNode, scope: Record<string, unknown>): string {
   switch (node.type) {
     case "text":
       return renderText(node);
     case "interp":
-      return renderInterp(node);
+      return renderInterp(node, scope);
     case "element":
-      return renderElement(node);
+      return renderElement(node, scope);
     case "if":
-      return renderIf(node);
+      return renderIf(node, scope);
     case "for":
-      return renderFor(node);
+      return renderFor(node, scope);
     default:
       return "";
   }
@@ -77,47 +108,98 @@ function renderText(node: IRTextNode): string {
  * Render an interpolation node.
  * SSR does not evaluate expressions yet, so this returns an empty string.
  */
-function renderInterp(_node: IRInterpolationNode): string {
-  return "";
+function renderInterp(node: IRInterpolationNode, scope: Record<string, unknown>): string {
+  const value = resolveExpr(scope, node.expression);
+  if (value == null) {
+    return "";
+  }
+
+  if (isSSRHtml(value)) {
+    return value.__ssrHtml;
+  }
+
+  return escapeText(String(value));
 }
 
 /**
  * Render an element node and its children.
  */
-function renderElement(node: IRElementNode): string {
-  const attrs = renderAttrs(node.props);
-  const children = node.children.map(renderNode).join("");
+function renderElement(node: IRElementNode, scope: Record<string, unknown>): string {
+  const attrs = renderAttrs(node.props, scope);
+  const children = node.children.map((child) => renderNode(child, scope)).join("");
   return `<${node.tag}${attrs}>${children}</${node.tag}>`;
 }
 
 /**
  * Render a v-if node.
  */
-function renderIf(node: IRIfNode): string {
-  if (node.condition) {
-    return node.then.map(renderNode).join("");
+function renderIf(node: IRIfNode, scope: Record<string, unknown>): string {
+  if (resolveExpr(scope, node.condition)) {
+    return node.then.map((child) => renderNode(child, scope)).join("");
   }
-  return node.else?.map(renderNode).join("") ?? "";
+  return node.else?.map((child) => renderNode(child, scope)).join("") ?? "";
 }
 
 /**
  * Render a v-for node.
  * SSR does not evaluate expressions yet; it simply renders the body once.
  */
-function renderFor(node: IRForNode): string {
-  return node.body.map(renderNode).join("");
+function renderFor(node: IRForNode, scope: Record<string, unknown>): string {
+  const value = resolveExpr(scope, node.each);
+  const items = Array.isArray(value) ? value : [];
+
+  return items
+    .map((item, index) => {
+      const childScope = {
+        ...scope,
+        [node.item]: item,
+        [node.index ?? "i"]: index
+      };
+      return node.body.map((child) => renderNode(child, childScope)).join("");
+    })
+    .join("");
 }
 
 /**
  * Render static HTML attributes.
  */
-function renderAttrs(props: any[]): string {
+function renderAttrs(props: any[], scope: Record<string, unknown>): string {
   if (!props.length) return "";
   const parts: string[] = [];
 
   for (const p of props) {
     if (p.kind === "static") {
       parts.push(`${p.name}="${escapeAttr(String(p.value))}"`);
+      continue;
+    }
+
+    if (p.kind === "bind") {
+      const resolved = resolveExpr(scope, String(p.value));
+      if (resolved == null || resolved === false) {
+        continue;
+      }
+
+      if (p.name === "style" && typeof resolved === "object") {
+        const style = Object.entries(resolved as Record<string, unknown>)
+          .map(([key, value]) => `${key}:${String(value)}`)
+          .join(";");
+        if (style) {
+          parts.push(`style="${escapeAttr(style)}"`);
+        }
+        continue;
+      }
+
+      if (p.name === "class" && Array.isArray(resolved)) {
+        parts.push(`class="${escapeAttr(resolved.join(" "))}"`);
+        continue;
+      }
+
+      if (resolved === true) {
+        parts.push(p.name);
+        continue;
+      }
+
+      parts.push(`${p.name}="${escapeAttr(String(resolved))}"`);
     }
   }
 
@@ -127,7 +209,7 @@ function renderAttrs(props: any[]): string {
 /**
  * Render <head> metadata from IR meta + SSR context.
  */
-function renderHead(ir: IRModule, ctx: Partial<SSRContext>): string {
+export function renderHead(ir: IRModule, ctx: Partial<SSRContext>): string {
   const meta = { ...(ir.meta || {}), ...(ctx.meta || {}) };
   const parts: string[] = [];
 
@@ -151,7 +233,7 @@ function renderHead(ir: IRModule, ctx: Partial<SSRContext>): string {
  * - meta.performance.hydrate
  * - SSR context overrides
  */
-function resolveHydration(
+export function resolveHydration(
   ir: IRModule,
   ctx: Partial<SSRContext>
 ): SSRHydrationHint {
@@ -176,26 +258,34 @@ function resolveHydration(
  * This is consumed by the client renderer to determine how and when
  * to hydrate the server-rendered HTML.
  */
-function renderHydrationMarker(
+export function renderHydrationMarker(
   hint: SSRHydrationHint,
-  ai?: Record<string, any>,
-  routeSnapshot?: SSRContext["routeSnapshot"]
+  payloadContext: {
+    ai?: Record<string, any>;
+    resources?: Record<string, unknown>;
+    routeSnapshot?: SSRContext["routeSnapshot"];
+  } = {}
 ): string {
 
   const payload: {
     mode: SSRHydrationHint["mode"];
     ai?: Record<string, any>;
+    resources?: Record<string, unknown>;
     routeSnapshot?: SSRContext["routeSnapshot"];
   } = {
     mode: hint.mode
   };
 
-  if (ai !== undefined) {
-    payload.ai = ai;
+  if (payloadContext.ai !== undefined) {
+    payload.ai = payloadContext.ai;
   }
 
-  if (routeSnapshot !== undefined) {
-    payload.routeSnapshot = routeSnapshot;
+  if (payloadContext.routeSnapshot !== undefined) {
+    payload.routeSnapshot = payloadContext.routeSnapshot;
+  }
+
+  if (payloadContext.resources !== undefined) {
+    payload.resources = payloadContext.resources;
   }
 
   return `<script type="application/nebula-hydration">${JSON.stringify(payload)}</script>`;
@@ -214,5 +304,26 @@ function escapeText(v: string): string {
  */
 function escapeAttr(v: string): string {
   return escapeText(v).replace(/"/g, "&quot;");
+}
+
+function resolveExpr(scope: Record<string, unknown>, expr: string): unknown {
+  if (expr in scope) {
+    const value = scope[expr];
+    return typeof value === "function" ? value() : value;
+  }
+
+  const parts = expr.split(".");
+  let current: unknown = scope;
+
+  for (const part of parts) {
+    if (current == null || typeof current !== "object") {
+      return undefined;
+    }
+
+    const value = (current as Record<string, unknown>)[part];
+    current = typeof value === "function" ? value() : value;
+  }
+
+  return current;
 }
 

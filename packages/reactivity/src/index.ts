@@ -36,3 +36,6 @@ export { contract } from "./dx/contract";
 
 // DX Utilities
 export { memo, markStatic, shallowRef } from "./memo";
+
+// Runtime mode helpers
+export { isServer, setRuntimeMode, type RuntimeMode } from "./dx/runtime";

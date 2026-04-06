@@ -24,4 +24,14 @@ export {
 export type { ContextFrame, ContextKey } from "./context/contextStack";
 
 // Hydration (For SSR/Edge support)
-export { scheduleHydration } from "./hydration";
+export {
+  consumeHydratedResource,
+  getHydratedResource,
+  scheduleHydration,
+  setHydrationState
+} from "./hydration";
+export type { RuntimeHydrationState } from "./hydration";
+
+// Async data
+export { createResource } from "./resource";
+export type { Resource, ResourceState } from "./resource";

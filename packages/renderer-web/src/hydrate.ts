@@ -10,7 +10,7 @@
  * - call renderer-web's mount() at the correct time
  */
 
-import { scheduleHydration } from "@terajs/runtime";
+import { scheduleHydration, setHydrationState } from "@terajs/runtime";
 import type { RouteHydrationSnapshot } from "@terajs/router";
 import type { HydrationMode } from "@terajs/shared";
 import { mount } from "./mount";
@@ -19,6 +19,7 @@ import type { FrameworkComponent } from "./render";
 export interface HydrationPayload {
   mode: HydrationMode | "ai";
   ai?: Record<string, unknown>;
+  resources?: Record<string, unknown>;
   routeSnapshot?: RouteHydrationSnapshot<unknown>;
 }
 
@@ -36,11 +37,14 @@ export function readHydrationPayload(): HydrationPayload {
 
   try {
     const payload = JSON.parse(script.textContent);
-    return {
+    const parsed = {
       mode: payload.mode ?? "eager",
       ai: payload.ai,
+      resources: payload.resources,
       routeSnapshot: payload.routeSnapshot
     };
+    setHydrationState({ resources: parsed.resources });
+    return parsed;
   } catch {
     return { mode: "eager" };
   }

@@ -26,5 +26,7 @@ describe("sfcToComponent", () => {
 
     expect(compileScript).toHaveBeenCalledWith("export function setup() {}");
     expect(out).toContain("function setup()");
+    expect(out).toContain("export let ir =");
+    expect(out).toContain("export { setup };");
   });
 });

@@ -12,6 +12,7 @@
     }
   },
   "dependencies": {
+    "@terajs/reactivity": "*",
     "@terajs/shared": "*",
     "@terajs/sfc": "*"
   }
