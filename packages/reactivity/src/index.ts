@@ -33,3 +33,6 @@ export { dispose } from "./dx/dispose";
 export { watch } from "./dx/watch";
 export { watchEffect } from "./dx/watchEffect";
 export { contract } from "./dx/contract";
+
+// DX Utilities
+export { memo, markStatic, shallowRef } from "./memo";

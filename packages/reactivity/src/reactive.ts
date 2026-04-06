@@ -35,6 +35,7 @@ import {
   updateReactiveValue,
   Debug
 } from "@nebula/shared";
+import { analyzeReactivity } from "./analyzer";
 
 import type { ReactiveMetadata } from "@nebula/shared";
 
@@ -69,6 +70,15 @@ function createTrackedSignal<T>(
   ctx: WrapContext,
   key?: string
 ): Signal<T> {
+  // Platform-agnostic dev check: works in Node, browser, and any bundler
+  // @ts-expect-error: __DEV__ and process may not be typed, but this is safe
+  const isDev = (typeof __DEV__ !== "undefined" && __DEV__)
+    || (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production")
+    || false;
+  if (isDev) {
+    analyzeReactivity(initial, ctx);
+  }
+
   const meta: ReactiveMetadata = createReactiveMetadata({
     type: "reactive",
     scope: ctx.scope,
