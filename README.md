@@ -1,16 +1,16 @@
 # **Nebula**
 
-Nebula is a next‑generation UI framework built on **fine‑grained reactivity**, a **compiler‑powered template system**, and a **developer‑first philosophy**.  
+Nebula is a next-generation UI framework built on **fine-grained reactivity**, a **compiler-powered template system**, and a **developer-first philosophy**.  
 It feels familiar, performs like Solid, reads like Vue, stays flexible like React — without their complexity.
 
 Nebula is:
 
-- **TypeScript‑first, but TypeScript‑optional**  
-- **style‑agnostic**  
-- **platform‑agnostic**  
-- **DX‑driven**  
+- **TypeScript-first, but TypeScript-optional**  
+- **style-agnostic**  
+- **platform-agnostic**  
+- **DX-driven**  
 - **debuggable by design**  
-- **AI‑ready and meta‑aware**  
+- **AI-ready and meta-aware**  
 
 Nebula’s goal is simple:
 
@@ -20,8 +20,8 @@ Nebula’s goal is simple:
 
 # 🚀 Features
 
-## **Fine‑grained reactivity**
-Nebula uses explicit, dependency‑tracked signals:
+## **Fine-grained reactivity**
+Nebula uses explicit, dependency-tracked signals:
 
 - `signal()` for reactive values  
 - `computed()` for derived values  
@@ -29,13 +29,13 @@ Nebula uses explicit, dependency‑tracked signals:
 - deterministic updates  
 - no VDOM  
 - no diffing  
-- no component re‑renders  
+- no component re-renders  
 
 Signals update the DOM directly.
 
 ---
 
-## **Single‑File Components (SFC)**
+## **Single-File Components (SFC)**
 
 Nebula components use a clean, declarative format:
 
@@ -52,12 +52,51 @@ Everything a component needs lives in one place.
 
 ---
 
-## **Compiler‑powered templates**
+## **Auto-imports & DevTools**
+
+- All `.nbl` files in `src/components` (or configured dirs) are globally available in SFCs — no manual imports needed.
+- DevTools overlay: live inspection of components, signals, effects, logs, and issues.
+
+### Example: Using auto-imported components
+
+Suppose you have:
+
+```
+src/components/FancyButton.nbl
+```
+
+You can use `<FancyButton />` in any SFC without importing it.
+
+### Enabling DevTools overlay
+
+In your app entry point:
+
+```js
+import { mountDevtoolsOverlay } from '@nebula/devtools';
+mountDevtoolsOverlay();
+```
+
+### Customizing auto-imports
+
+Add a `nebula.config.js` to your project root:
+
+```js
+module.exports = {
+  autoImportDirs: [
+    'src/components',
+    'packages/devtools/src/components',
+  ]
+};
+```
+
+---
+
+## **Compiler-powered templates**
 
 Nebula includes a full template pipeline:
 
 - tokenizer  
-- parser  
+- parser
 - AST transforms  
 - IR generation  
 - optimized codegen  
