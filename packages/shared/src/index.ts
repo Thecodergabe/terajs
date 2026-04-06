@@ -28,6 +28,7 @@ export * from "./debug/types/registry";
 export * from "./debug/types/graph";
 export * from "./hydration";
 export * from "./routeTypes";
+export * from "./server";
 
 export { 
   getCurrentContext, 

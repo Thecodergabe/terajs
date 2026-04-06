@@ -1,4 +1,5 @@
 import { Debug } from "@terajs/shared";
+import type { ServerContext } from "@terajs/shared";
 import type { RouteDefinition } from "./definition";
 import { resolveLoadedRouteMetadata, type ResolvedRouteMetadata } from "./meta";
 import type { RouteMatch } from "./runtime";
@@ -11,6 +12,7 @@ export interface RouteLoadContext {
   pathname: string;
   fullPath: string;
   signal?: AbortSignal;
+  server?: ServerContext;
 }
 
 export interface RouteModule<TComponent = unknown, TData = unknown> {
@@ -55,6 +57,7 @@ export async function loadRouteMatch<TData = unknown>(
   options: {
     signal?: AbortSignal;
     hydrationSnapshot?: RouteHydrationSnapshot<TData>;
+    serverContext?: ServerContext;
   } = {}
 ): Promise<LoadedRouteMatch<TData>> {
   const hydrationSnapshot = options.hydrationSnapshot?.to === match.fullPath
@@ -98,7 +101,8 @@ export async function loadRouteMatch<TData = unknown>(
         hash: match.hash,
         pathname: match.pathname,
         fullPath: match.fullPath,
-        signal: options.signal
+        signal: options.signal,
+        server: options.serverContext
       });
     }
 

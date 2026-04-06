@@ -74,6 +74,53 @@ describe("executeServerRoute", () => {
     expect(result.type).toBe("redirect");
   });
 
+  it("passes server request context into route loaders", async () => {
+    const result = await executeServerRoute([
+      route({
+        id: "profile",
+        path: "/profile",
+        filePath: "/pages/profile.nbl",
+        component: async () => ({
+          ir: {
+            filePath: "/pages/profile.nbl",
+            template: [
+              {
+                type: "element",
+                tag: "article",
+                props: [],
+                children: [{ type: "interp", expression: "data.viewer" }]
+              }
+            ],
+            meta: { title: "Profile" },
+            route: null
+          },
+          load: ({ server }: { server?: { request?: { headers?: Record<string, string> }; locals?: Record<string, unknown> } }) => ({
+            viewer: `${server?.request?.headers?.authorization}:${String(server?.locals?.tenant)}`
+          })
+        })
+      })
+    ], "/profile", {
+      serverContext: {
+        request: {
+          headers: {
+            authorization: "Bearer token"
+          }
+        },
+        locals: {
+          tenant: "docs"
+        }
+      }
+    });
+
+    expect(result.type).toBe("success");
+    if (result.type !== "success") {
+      throw new Error("Expected success result");
+    }
+
+    expect(result.loaded.data).toEqual({ viewer: "Bearer token:docs" });
+    expect(result.ssr.html).toContain("<article>Bearer token:docs</article>");
+  });
+
   it("composes nested layout IR around the page and serializes route data resources", async () => {
     const result = await executeServerRoute([
       route({

@@ -1,4 +1,5 @@
 import type { IRModule } from "@terajs/compiler";
+import type { ServerContext } from "@terajs/shared";
 import {
   createMemoryHistory,
   createRouteHydrationSnapshot,
@@ -32,6 +33,7 @@ export interface SSRRouteModule<TData = unknown> {
 export interface ExecuteServerRouteOptions<TData = unknown> {
   middleware?: Record<string, NavigationGuard>;
   props?: Record<string, unknown>;
+  serverContext?: ServerContext;
   ssrContext?: Partial<SSRContext>;
 }
 
@@ -82,7 +84,8 @@ function createSSRScope<TData>(
     params: loaded.match.params,
     query: loaded.match.query,
     hash: loaded.match.hash,
-    data: loaded.data
+    data: loaded.data,
+    server: options.serverContext
   };
 
   const setupContext = typeof module.setup === "function"
@@ -167,7 +170,9 @@ export async function executeServerRoute<TData = unknown>(
     return navigation;
   }
 
-  const loaded = await loadRouteMatch<TData>(navigation.match);
+  const loaded = await loadRouteMatch<TData>(navigation.match, {
+    serverContext: options.serverContext
+  });
   const snapshot = createRouteHydrationSnapshot(loaded);
   const routeModule = loaded.module as SSRRouteModule<TData>;
   const routeIR = getRenderableIR(routeModule, createFallbackIR(loaded.match, loaded as LoadedRouteMatch<unknown>));

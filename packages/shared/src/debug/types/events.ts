@@ -128,6 +128,26 @@ export interface ResourceMutateEvent extends DebugEventBase {
   state: "ready";
 }
 
+export interface ServerFunctionInvokeEvent extends DebugEventBase {
+  type: "server:function:invoke";
+  id: string;
+  argsCount: number;
+  transport: false;
+}
+
+export interface ServerFunctionTransportEvent extends DebugEventBase {
+  type: "server:function:transport";
+  id: string;
+  argsCount: number;
+  transport: true;
+}
+
+export interface ServerFunctionErrorEvent extends DebugEventBase {
+  type: "server:function:error";
+  id: string;
+  message: string;
+}
+
 /**
  * Union of all debug events.
  * * Using these specific types in a switch(event.type) block 
@@ -149,4 +169,7 @@ export type DebugEvent =
   | ResourceLoadStartEvent
   | ResourceLoadEndEvent
   | ResourceErrorEvent
-  | ResourceMutateEvent;
+  | ResourceMutateEvent
+  | ServerFunctionInvokeEvent
+  | ServerFunctionTransportEvent
+  | ServerFunctionErrorEvent;

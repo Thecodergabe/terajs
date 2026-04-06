@@ -27,6 +27,7 @@ export type DebugEventType =
     | "watch:create" | "watch:source" | "watch:callback" | "watch:cleanup" | "watch:stop"
     | "watchEffect:create" | "watch:dispose" | "watchEffect:run" | "watchEffect:cleanup" | "watchEffect:stop"
     | "resource:load:start" | "resource:load:end" | "resource:error" | "resource:mutate"
+    | "server:function:invoke" | "server:function:transport" | "server:function:error"
 
     /* ------------------------------- Renderer ------------------------------- */
     | "component:context:get" | "component:context:set" | "component:context:create" | "component:context:cleanup"

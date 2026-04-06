@@ -35,3 +35,18 @@ export type { RuntimeHydrationState } from "./hydration";
 // Async data
 export { createResource } from "./resource";
 export type { Resource, ResourceState } from "./resource";
+
+// Server functions
+export {
+  executeServerFunction,
+  getServerFunctionTransport,
+  server,
+  setServerFunctionTransport
+} from "./server";
+export type {
+  ServerExecutionContext,
+  ServerFunction,
+  ServerFunctionCall,
+  ServerFunctionOptions,
+  ServerFunctionTransport
+} from "./server";
