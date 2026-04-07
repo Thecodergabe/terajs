@@ -1,6 +1,9 @@
-import { effect, signal, type Signal } from "@terajs/reactivity";
+import { effect, getCurrentEffect, signal, type Signal } from "@terajs/reactivity";
 import { Debug } from "@terajs/shared";
+import { onCleanup } from "./component/component";
+import { getCurrentContext } from "./component/context";
 import { consumeHydratedResource } from "./hydration";
+import { registerResourceInvalidation, type ResourceKey } from "./invalidation";
 
 export type ResourceState = "idle" | "pending" | "ready" | "error";
 
@@ -21,6 +24,7 @@ interface ResourceOptions<TData> {
   initialValue?: TData;
   immediate?: boolean;
   hydrateKey?: string;
+  key?: ResourceKey | ResourceKey[];
 }
 
 export function createResource<TData>(
@@ -132,6 +136,13 @@ export function createResource<TSource, TData>(
     });
   } else if (options?.immediate !== false && hydratedValue === undefined) {
     void execute(undefined);
+  }
+
+  if (options?.key) {
+    const unregisterInvalidation = registerResourceInvalidation(options.key, () => execute(currentSource));
+    if (getCurrentEffect() || getCurrentContext()) {
+      onCleanup(unregisterInvalidation);
+    }
   }
 
   return {

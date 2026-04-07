@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { signal, setRuntimeMode } from "@terajs/reactivity";
 import { setHydrationState } from "./hydration";
+import { invalidateResources } from "./invalidation";
 import { createResource } from "./resource";
 
 describe("createResource", () => {
@@ -60,5 +61,23 @@ describe("createResource", () => {
     expect(resource.data()).toBe("from-ssr");
     expect(resource.state()).toBe("ready");
     expect(resource.promise()).toBeNull();
+  });
+
+  it("refetches keyed resources when invalidated", async () => {
+    let version = 0;
+    const resource = createResource(async () => {
+      version += 1;
+      return `post-${version}`;
+    }, {
+      key: "posts"
+    });
+
+    await resource.promise();
+    expect(resource.data()).toBe("post-1");
+
+    await invalidateResources("posts");
+
+    expect(resource.data()).toBe("post-2");
+    expect(resource.state()).toBe("ready");
   });
 });

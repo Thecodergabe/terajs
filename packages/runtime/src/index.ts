@@ -35,11 +35,17 @@ export type { RuntimeHydrationState } from "./hydration";
 // Async data
 export { createResource } from "./resource";
 export type { Resource, ResourceState } from "./resource";
+export {
+  invalidateResources,
+  registerResourceInvalidation
+} from "./invalidation";
+export type { ResourceKey } from "./invalidation";
 
 // Server functions
 export {
   executeServerFunction,
   executeServerFunctionCall,
+  executeServerFunctionCallWithMetadata,
   getServerFunctionTransport,
   hasServerFunction,
   server,
@@ -47,6 +53,7 @@ export {
 } from "./server";
 export type {
   ServerExecutionContext,
+  ServerFunctionExecutionResult,
   ServerFunction,
   ServerFunctionCall,
   ServerFunctionOptions,

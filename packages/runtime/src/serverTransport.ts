@@ -1,6 +1,7 @@
 import { Debug, type ServerContext } from "@terajs/shared";
+import { invalidateResources } from "./invalidation";
 import {
-  executeServerFunctionCall,
+  executeServerFunctionCallWithMetadata,
   type ServerFunctionCall,
   type ServerFunctionTransport
 } from "./server";
@@ -8,6 +9,7 @@ import {
 export interface ServerFunctionSuccessResponse<TResult = unknown> {
   ok: true;
   result: TResult;
+  invalidated?: string[];
 }
 
 export interface ServerFunctionErrorResponse {
@@ -126,6 +128,17 @@ export function createFetchServerFunctionTransport(
         throw new Error(payload.ok ? `Server function request failed with status ${response.status}.` : payload.error.message);
       }
 
+      if (Array.isArray(payload.invalidated) && payload.invalidated.length > 0) {
+        try {
+          await invalidateResources(payload.invalidated);
+        } catch (error) {
+          Debug.emit("resource:error", {
+            source: payload.invalidated,
+            error: error instanceof Error ? error.message : error
+          });
+        }
+      }
+
       return payload.result;
     }
   };
@@ -150,9 +163,9 @@ export async function handleServerFunctionRequest(
       ? await options.context(request, call)
       : (options.context ?? {});
     const context = createServerContextFromRequest(request, baseContext);
-    const result = await executeServerFunctionCall(call, context);
+    const execution = await executeServerFunctionCallWithMetadata(call, context);
 
-    return createJsonResponse({ ok: true, result }, 200);
+    return createJsonResponse({ ok: true, result: execution.result, invalidated: execution.invalidated }, 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server function request failed.";
     const status = message === "Invalid server function payload." ? 400

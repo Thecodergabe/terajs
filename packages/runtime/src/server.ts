@@ -1,5 +1,6 @@
 import { isServer } from "@terajs/reactivity";
 import { Debug, type ServerContext } from "@terajs/shared";
+import { captureInvalidatedResources, type ResourceKey } from "./invalidation";
 
 const serverFunctionHandlerSymbol = Symbol("terajs.serverFunctionHandler");
 
@@ -14,6 +15,11 @@ export interface ServerFunctionCall {
 
 export interface ServerFunctionTransport {
   invoke(call: ServerFunctionCall): Promise<unknown>;
+}
+
+export interface ServerFunctionExecutionResult<TResult = unknown> {
+  result: TResult;
+  invalidated: ResourceKey[];
 }
 
 export interface ServerFunctionOptions {
@@ -69,7 +75,31 @@ async function invokeHandler<TArgs extends unknown[], TResult>(
   });
 
   try {
-    return await handler(...args, { ...context, functionId: id });
+    const execution = await captureInvalidatedResources(() => handler(...args, { ...context, functionId: id }));
+    return execution.result;
+  } catch (error) {
+    Debug.emit("server:function:error", {
+      id,
+      message: error instanceof Error ? error.message : "Server function failed"
+    });
+    throw error;
+  }
+}
+
+async function invokeHandlerWithMetadata<TArgs extends unknown[], TResult>(
+  id: string,
+  handler: ServerFunctionHandler<TArgs, TResult>,
+  context: ServerContext,
+  args: TArgs
+): Promise<ServerFunctionExecutionResult<TResult>> {
+  Debug.emit("server:function:invoke", {
+    id,
+    argsCount: args.length,
+    transport: false
+  });
+
+  try {
+    return await captureInvalidatedResources(() => handler(...args, { ...context, functionId: id }));
   } catch (error) {
     Debug.emit("server:function:error", {
       id,
@@ -144,6 +174,18 @@ export async function executeServerFunctionCall(
   }
 
   return invokeHandler(call.id, handler, context, call.args);
+}
+
+export async function executeServerFunctionCallWithMetadata(
+  call: ServerFunctionCall,
+  context: ServerContext = {}
+): Promise<ServerFunctionExecutionResult> {
+  const handler = serverFunctionRegistry.get(call.id);
+  if (!handler) {
+    throw new Error(`Unknown server function "${call.id}".`);
+  }
+
+  return invokeHandlerWithMetadata(call.id, handler, context, call.args);
 }
 
 export function hasServerFunction(id: string): boolean {

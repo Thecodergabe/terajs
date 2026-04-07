@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { setHydrationState } from "./hydration";
 import { setRuntimeMode } from "@terajs/reactivity";
 import {
+  createResource,
   createFetchServerFunctionTransport,
   createServerFunctionRequestHandler,
+  invalidateResources,
   server,
   type ServerFunctionCall
 } from "./index";
@@ -10,6 +13,7 @@ import {
 describe("server transport", () => {
   afterEach(() => {
     setRuntimeMode("client");
+    setHydrationState({});
   });
 
   it("sends server calls through the configured fetch transport", async () => {
@@ -80,7 +84,36 @@ describe("server transport", () => {
 
     await expect(response.json()).resolves.toEqual({
       ok: true,
-      result: "router:docs:us"
+      result: "router:docs:us",
+      invalidated: []
+    });
+  });
+
+  it("returns invalidated resource keys from server mutations", async () => {
+    setRuntimeMode("server");
+    const updatePost = server(async () => {
+      await invalidateResources(["posts", "dashboard"]);
+      return "updated";
+    }, { id: "updatePost" });
+
+    expect(updatePost.id).toBe("updatePost");
+
+    const handler = createServerFunctionRequestHandler();
+    const response = await handler(new Request("https://terajs.local/_terajs/server", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        id: "updatePost",
+        args: []
+      } satisfies ServerFunctionCall)
+    }));
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      result: "updated",
+      invalidated: ["posts", "dashboard"]
     });
   });
 
@@ -105,5 +138,38 @@ describe("server transport", () => {
         message: 'Unknown server function "missing".'
       }
     });
+  });
+
+  it("applies invalidated resource keys on the client transport", async () => {
+    setRuntimeMode("client");
+    let version = 0;
+    const resource = createResource(async () => {
+      version += 1;
+      return `post-${version}`;
+    }, {
+      key: "posts"
+    });
+
+    await resource.promise();
+    expect(resource.data()).toBe("post-1");
+
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      ok: true,
+      result: "updated",
+      invalidated: ["posts"]
+    }), {
+      status: 200,
+      headers: {
+        "content-type": "application/json"
+      }
+    }));
+
+    const transport = createFetchServerFunctionTransport({
+      endpoint: "/_terajs/server",
+      fetch: fetchMock
+    });
+
+    await expect(transport.invoke({ id: "updatePost", args: [] })).resolves.toBe("updated");
+    expect(resource.data()).toBe("post-2");
   });
 });

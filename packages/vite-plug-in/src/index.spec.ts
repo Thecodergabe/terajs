@@ -109,7 +109,8 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(res.headers.get("content-type")).toBe("application/json");
     expect(res.readJson()).toEqual({
       ok: true,
-      result: "hello Ada"
+      result: "hello Ada",
+      invalidated: []
     });
   });
 

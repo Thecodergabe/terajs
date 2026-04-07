@@ -128,6 +128,12 @@ export interface ResourceMutateEvent extends DebugEventBase {
   state: "ready";
 }
 
+export interface ResourceInvalidateEvent extends DebugEventBase {
+  type: "resource:invalidate";
+  keys: string[];
+  handlerCount: number;
+}
+
 export interface ServerFunctionInvokeEvent extends DebugEventBase {
   type: "server:function:invoke";
   id: string;
@@ -170,6 +176,7 @@ export type DebugEvent =
   | ResourceLoadEndEvent
   | ResourceErrorEvent
   | ResourceMutateEvent
+  | ResourceInvalidateEvent
   | ServerFunctionInvokeEvent
   | ServerFunctionTransportEvent
   | ServerFunctionErrorEvent;
