@@ -137,6 +137,26 @@ function normalizeNode(node: ASTNode, scopeId?: string): IRNode {
       };
     }
 
+    case "portal":
+      return {
+        ...base,
+        type: "portal",
+        target: node.target ? { ...node.target } : undefined,
+        children: node.children.map((child) => normalizeNode(child, scopeId)),
+        flags: {
+          dynamic: node.target?.kind === "bind"
+        }
+      };
+
+    case "slot":
+      return {
+        ...base,
+        type: "slot",
+        name: node.name,
+        fallback: node.fallback.map((child) => normalizeNode(child, scopeId)),
+        flags: { dynamic: true }
+      };
+
     case "if":
       return {
         ...base,

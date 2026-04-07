@@ -6,6 +6,7 @@
     "build": "npm run clean && tsc -b",
     "clean": "tsc -b --clean",
     "test": "vitest",
+    "test:architecture": "vitest --run packages/shared/src/architectureGuardrails.spec.ts",
     "typecheck": "npm run clean && tsc -b --pretty false"
   },
   "devDependencies": {

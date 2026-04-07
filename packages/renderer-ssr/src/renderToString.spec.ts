@@ -154,5 +154,59 @@ describe("renderToString", () => {
     expect(html).toContain("<p>Start here</p>");
     expect(html).toContain("<li>one</li><li>two</li>");
   });
+
+  it("renders slot content and falls back when missing", () => {
+    const ir = mockIR([
+      {
+        type: "element",
+        tag: "section",
+        props: [],
+        children: [
+          {
+            type: "slot",
+            name: "header",
+            fallback: [{ type: "text", value: "Fallback header" }]
+          },
+          {
+            type: "slot",
+            fallback: [{ type: "text", value: "Fallback body" }]
+          }
+        ]
+      }
+    ]);
+
+    const { html } = renderToString(ir, {
+      scope: {
+        slots: {
+          header: () => "Projected header",
+          default: () => "Projected body"
+        }
+      }
+    });
+
+    expect(html).toContain("<section>Projected headerProjected body</section>");
+  });
+
+  it("renders portal children inline during SSR", () => {
+    const ir = mockIR([
+      {
+        type: "portal",
+        target: { kind: "static", name: "to", value: "body" },
+        children: [
+          {
+            type: "element",
+            tag: "div",
+            props: [],
+            children: [{ type: "text", value: "Overlay" }]
+          }
+        ]
+      }
+    ]);
+
+    const { html } = renderToString(ir);
+
+    expect(html).toContain("<div>Overlay</div>");
+    expect(html).not.toContain("<portal>");
+  });
 });
 

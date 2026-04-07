@@ -27,6 +27,9 @@ export * from "./unwrap";
 // Hydration API
 export * from "./hydrate";
 
+// Portal primitive
+export * from "./portal";
+
 // IR Renderer (SSR-aligned baseline for client-side rendering)
 export * from "./renderFromIR";
 

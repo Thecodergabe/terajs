@@ -62,6 +62,8 @@ export type DebugEventType =
     | "template:ast:text"
     | "template:ast:interp"
     | "template:ast:element"
+    | "template:ast:portal"
+    | "template:ast:slot"
     | "template:ast:if"
     | "template:ast:for"
 
@@ -85,6 +87,8 @@ export type DebugEventType =
     | "ir:render:text"
     | "ir:render:interp"
     | "ir:render:element"
+    | "ir:render:portal"
+    | "ir:render:slot"
     | "ir:render:if"
     | "ir:render:for"
     | "ir:render:prop:skip"
@@ -113,11 +117,25 @@ export interface DebugEvent<TType extends DebugEventType = DebugEventType> {
 
 export type DebugHandler = (event: DebugEvent) => void;
 
+interface DevtoolsHook {
+    emit(event: DebugEvent): void;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                               Event Bus Core                               */
 /* -------------------------------------------------------------------------- */
 
 const handlers = new Set<DebugHandler>();
+
+function getGlobalDevtoolsHook(): DevtoolsHook | undefined {
+    if (typeof globalThis !== "object" || globalThis === null) {
+        return undefined;
+    }
+
+    return (globalThis as typeof globalThis & {
+        __TERAJS_DEVTOOLS_HOOK__?: DevtoolsHook;
+    }).__TERAJS_DEVTOOLS_HOOK__;
+}
 
 export const Debug = {
     on(handler: DebugHandler): () => void {
@@ -134,9 +152,9 @@ export const Debug = {
     },
 
     emit<TType extends DebugEventType>(type: TType, payload: any): void {
-        const hasGlobalHook = typeof window !== "undefined" && (window as any).__TERAJS_DEVTOOLS_HOOK__;
+        const hook = getGlobalDevtoolsHook();
         
-        if (handlers.size === 0 && !hasGlobalHook) return;
+        if (handlers.size === 0 && !hook) return;
 
         const event: DebugEvent<TType> = {
             type,
@@ -152,8 +170,8 @@ export const Debug = {
             }
         }
 
-        if (hasGlobalHook) {
-            (window as any).__TERAJS_DEVTOOLS_HOOK__.emit(event);
+        if (hook) {
+            hook.emit(event);
         }
     },
 };

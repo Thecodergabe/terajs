@@ -86,5 +86,32 @@ describe("IRModule Generator (integration)", () => {
       ]
     });
   });
+
+  it("normalizes Portal nodes into portal IR", () => {
+    const sfc: ParsedSFC = {
+      filePath: "/pages/modal.nbl",
+      template: `<Portal :to="overlay"><div>{{ msg }}</div></Portal>`,
+      script: "",
+      style: null,
+      meta: {},
+      routeOverride: null
+    };
+
+    const ir = generateIRModule(sfc);
+
+    expect(ir.template[0]).toMatchObject({
+      type: "portal",
+      target: { kind: "bind", name: "to", value: "overlay" },
+      children: [
+        {
+          type: "element",
+          tag: "div",
+          children: [
+            { type: "interp", expression: "msg" }
+          ]
+        }
+      ]
+    });
+  });
 });
 

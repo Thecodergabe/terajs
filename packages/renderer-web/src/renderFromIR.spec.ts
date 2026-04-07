@@ -14,6 +14,8 @@ import type {
   IRTextNode,
   IRInterpolationNode,
   IRElementNode,
+  IRPortalNode,
+  IRSlotNode,
   IRIfNode,
   IRForNode
 } from "@terajs/compiler";
@@ -218,6 +220,92 @@ describe("IR -> DOM Renderer", () => {
     items.set([3, 4, 5]);
     await tick();
     expect(dom.textContent).toBe("345");
+  });
+
+  it("renders slot content before fallback", () => {
+    const node: IRSlotNode = {
+      type: "slot",
+      name: "default",
+      fallback: [
+        {
+          type: "text",
+          value: "Fallback",
+          loc: undefined,
+          flags: {}
+        } as IRTextNode
+      ],
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+
+    const dom = renderIRNode(node, {
+      slots: {
+        default: () => document.createTextNode("Projected")
+      }
+    })!;
+
+    expect(dom.textContent).toBe("Projected");
+  });
+
+  it("renders slot fallback when no slot is provided", () => {
+    const node: IRSlotNode = {
+      type: "slot",
+      name: "header",
+      fallback: [
+        {
+          type: "text",
+          value: "Fallback",
+          loc: undefined,
+          flags: {}
+        } as IRTextNode
+      ],
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+
+    const dom = renderIRNode(node, {})!;
+    expect(dom.textContent).toBe("Fallback");
+  });
+
+  it("renders portal children into the requested target", () => {
+    const overlay = document.createElement("div");
+    overlay.id = "overlay";
+    document.body.appendChild(overlay);
+
+    const node: IRPortalNode = {
+      type: "portal",
+      target: {
+        kind: "static",
+        name: "to",
+        value: "#overlay"
+      },
+      children: [
+        {
+          type: "element",
+          tag: "div",
+          props: [],
+          children: [
+            {
+              type: "text",
+              value: "Portal body",
+              loc: undefined,
+              flags: {}
+            } as IRTextNode
+          ],
+          loc: undefined,
+          flags: {}
+        } as IRElementNode
+      ],
+      loc: undefined,
+      flags: { dynamic: false }
+    };
+
+    const dom = renderIRNode(node, {})!;
+
+    expect(dom.textContent).toBe("");
+    expect(overlay.textContent).toBe("Portal body");
+
+    overlay.remove();
   });
 
   /* ---------------------------------------------------------------------- */

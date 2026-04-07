@@ -19,6 +19,8 @@ import type {
   IRTextNode,
   IRInterpolationNode,
   IRElementNode,
+  IRPortalNode,
+  IRSlotNode,
   IRIfNode,
   IRForNode
 } from "@terajs/compiler";
@@ -88,6 +90,10 @@ function renderNode(node: IRNode, scope: Record<string, unknown>): string {
       return renderInterp(node, scope);
     case "element":
       return renderElement(node, scope);
+    case "portal":
+      return renderPortal(node, scope);
+    case "slot":
+      return renderSlot(node, scope);
     case "if":
       return renderIf(node, scope);
     case "for":
@@ -128,6 +134,21 @@ function renderElement(node: IRElementNode, scope: Record<string, unknown>): str
   const attrs = renderAttrs(node.props, scope);
   const children = node.children.map((child) => renderNode(child, scope)).join("");
   return `<${node.tag}${attrs}>${children}</${node.tag}>`;
+}
+
+function renderPortal(node: IRPortalNode, scope: Record<string, unknown>): string {
+  return node.children.map((child) => renderNode(child, scope)).join("");
+}
+
+function renderSlot(node: IRSlotNode, scope: Record<string, unknown>): string {
+  const slotName = node.name ?? "default";
+  const slotValue = (scope.slots as Record<string, unknown> | undefined)?.[slotName];
+
+  if (slotValue != null) {
+    return renderSlotValue(slotValue);
+  }
+
+  return node.fallback.map((child) => renderNode(child, scope)).join("");
 }
 
 /**
@@ -325,5 +346,25 @@ function resolveExpr(scope: Record<string, unknown>, expr: string): unknown {
   }
 
   return current;
+}
+
+function renderSlotValue(value: unknown): string {
+  if (typeof value === "function") {
+    return renderSlotValue(value());
+  }
+
+  if (value == null || value === false || value === true) {
+    return "";
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => renderSlotValue(item)).join("");
+  }
+
+  if (isSSRHtml(value)) {
+    return value.__ssrHtml;
+  }
+
+  return escapeText(String(value));
 }
 

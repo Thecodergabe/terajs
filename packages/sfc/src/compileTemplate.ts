@@ -1,36 +1,3 @@
-import { describe, it, expect } from "vitest";
-import { parseSFC } from "@terajs/sfc";
-import { sfcToComponent } from "./sfcToComponent";
-
-describe("sfcToComponent (integration)", () => {
-  it("generates a runnable component module with setup + IR", () => {
-    const sfc = parseSFC(
-      `
-      <template>Hello</template>
-      <script>
-        export function setup() {
-          return { msg: "Hello" }
-        }
-      </script>
-      `,
-      "/components/Test.nbl"
-    );
-
-    const out = sfcToComponent(sfc);
-
-    // Should contain setup() function
-    expect(out).toContain("function setup(");
-
-    // Should contain IR JSON
-    expect(out).toContain(`"template":`);
-
-    // Should contain component wrapper
-    expect(out).toContain("component(");
-
-    // Should contain HMR accept block
-    expect(out).toContain("import.meta.hot.accept");
-  });
-});
 /**
  * @file compileTemplate.ts
  * @description

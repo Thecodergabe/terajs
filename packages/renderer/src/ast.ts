@@ -13,6 +13,8 @@
 /** Base AST node type. */
 export type ASTNode =
   | ElementNode
+  | PortalNode
+  | SlotNode
   | TextNode
   | InterpolationNode
   | IfNode
@@ -51,6 +53,24 @@ export interface ElementNode {
   tag: string;
   props: PropNode[];
   children: ASTNode[];
+}
+
+/**
+ * A portal node.
+ */
+export interface PortalNode {
+  type: "portal";
+  target?: PropNode;
+  children: ASTNode[];
+}
+
+/**
+ * A slot outlet node.
+ */
+export interface SlotNode {
+  type: "slot";
+  name?: string;
+  fallback: ASTNode[];
 }
 
 /**

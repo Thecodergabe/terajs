@@ -74,6 +74,24 @@ export interface IRElementNode extends IRNodeBase {
 }
 
 /**
+ * Portal node in IR.
+ */
+export interface IRPortalNode extends IRNodeBase {
+  type: "portal"
+  target?: IRPropNode
+  children: IRNode[]
+}
+
+/**
+ * Slot outlet node in IR.
+ */
+export interface IRSlotNode extends IRNodeBase {
+  type: "slot"
+  name?: string
+  fallback: IRNode[]
+}
+
+/**
  * v-if node in IR.
  */
 export interface IRIfNode extends IRNodeBase {
@@ -111,6 +129,8 @@ export type IRNode =
   | IRTextNode
   | IRInterpolationNode
   | IRElementNode
+  | IRPortalNode
+  | IRSlotNode
   | IRIfNode
   | IRForNode
 

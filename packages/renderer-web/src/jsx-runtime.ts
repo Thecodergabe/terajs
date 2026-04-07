@@ -65,6 +65,78 @@ function normalizeChild(child: any): Node {
     throw new Error("Unsupported JSX child: " + child);
 }
 
+function flattenChildren(children: any): any[] {
+    if (Array.isArray(children)) {
+        return children.flatMap((child) => flattenChildren(child));
+    }
+
+    return children == null ? [] : [children];
+}
+
+function toSlotFactory(value: any): () => any {
+    return typeof value === "function" ? value : () => value;
+}
+
+function normalizeDefaultChildren(children: any[]): any {
+    if (children.length === 0) {
+        return undefined;
+    }
+
+    if (children.length === 1) {
+        return children[0];
+    }
+
+    return children;
+}
+
+function prepareComponentProps(props: Record<string, any>): Record<string, any> {
+    const nextProps = { ...props };
+    const incomingSlots = nextProps.slots && typeof nextProps.slots === "object"
+        ? nextProps.slots
+        : undefined;
+    const slotEntries: Record<string, any[]> = {};
+    const defaultChildren: any[] = [];
+
+    if (incomingSlots) {
+        for (const key of Object.keys(incomingSlots)) {
+            slotEntries[key] = [incomingSlots[key]];
+        }
+    }
+
+    for (const child of flattenChildren(nextProps.children)) {
+        if (child instanceof Element) {
+            const slotName = child.getAttribute("slot");
+            if (slotName) {
+                child.removeAttribute("slot");
+                (slotEntries[slotName] ??= []).push(child);
+                continue;
+            }
+        }
+
+        defaultChildren.push(child);
+    }
+
+    if (defaultChildren.length > 0 && !slotEntries.default) {
+        slotEntries.default = [normalizeDefaultChildren(defaultChildren)];
+    }
+
+    const slots = Object.keys(slotEntries).length > 0
+        ? Object.fromEntries(
+            Object.entries(slotEntries).map(([key, values]) => {
+                const resolved = values.length === 1 ? values[0] : values;
+                return [key, toSlotFactory(resolved)];
+            })
+        )
+        : undefined;
+
+    nextProps.children = normalizeDefaultChildren(defaultChildren);
+    if (slots) {
+        nextProps.slots = slots;
+    }
+
+    return nextProps;
+}
+
 /**
  * Apply JSX props to a DOM element.
  */
@@ -163,7 +235,7 @@ function createVNode(type: any, props: any): Node {
             props
         });
 
-        return type(props);
+        return type(prepareComponentProps(props));
     }
 
     // Native DOM element

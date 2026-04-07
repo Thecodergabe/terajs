@@ -8,15 +8,27 @@ import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs";
 import { getConfiguredRoutes, getRouteDirs } from "./config";
+import { compileSfcToComponent } from "./compileSfcToComponent";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
-import { sfcToComponent } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
+import {
+  createServerFunctionRequestHandler,
+  type ServerFunctionRequestHandlerOptions
+} from "@terajs/runtime";
 
 const AUTO_IMPORT_VIRTUAL_ID = "virtual:terajs-auto-imports";
 const RESOLVED_AUTO_IMPORT_VIRTUAL_ID = `\0${AUTO_IMPORT_VIRTUAL_ID}`;
 const ROUTES_VIRTUAL_ID = "virtual:terajs-routes";
 const RESOLVED_ROUTES_VIRTUAL_ID = `\0${ROUTES_VIRTUAL_ID}`;
+const DEFAULT_SERVER_FUNCTION_ENDPOINT = "/_terajs/server";
+
+export interface TerajsVitePluginOptions {
+  serverFunctions?: false | {
+    endpoint?: string;
+    context?: ServerFunctionRequestHandlerOptions["context"];
+  };
+}
 
 function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
@@ -46,11 +58,98 @@ function readNblFilesRecursively(dir: string): string[] {
   return files;
 }
 
-function terajsPlugin(): Plugin {
+async function readRequestBody(stream: NodeJS.ReadableStream): Promise<string | undefined> {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of stream) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+
+  if (chunks.length === 0) {
+    return undefined;
+  }
+
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function toRequestUrl(req: { url?: string; headers: { host?: string | string[] } }): string {
+  const host = Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host;
+  return new URL(req.url ?? "/", `http://${host ?? "localhost"}`).toString();
+}
+
+async function toWebRequest(req: {
+  method?: string;
+  url?: string;
+  headers: Record<string, string | string[] | undefined>;
+} & NodeJS.ReadableStream): Promise<Request> {
+  const method = req.method ?? "GET";
+  const body = method === "GET" || method === "HEAD"
+    ? undefined
+    : await readRequestBody(req);
+
+  return new Request(toRequestUrl(req), {
+    method,
+    headers: req.headers as HeadersInit,
+    body
+  });
+}
+
+async function sendWebResponse(
+  res: {
+    statusCode?: number;
+    setHeader(name: string, value: string | string[]): void;
+    end(chunk?: any): void;
+  },
+  response: Response
+): Promise<void> {
+  res.statusCode = response.status;
+  response.headers.forEach((value, key) => {
+    res.setHeader(key, value);
+  });
+
+  const body = await response.arrayBuffer();
+  res.end(Buffer.from(body));
+}
+
+function createServerFunctionMiddleware(options: Exclude<TerajsVitePluginOptions["serverFunctions"], false | undefined>) {
+  const endpoint = options.endpoint ?? DEFAULT_SERVER_FUNCTION_ENDPOINT;
+  const handler = createServerFunctionRequestHandler({
+    context: options.context
+  });
+
+  return async (
+    req: {
+      method?: string;
+      url?: string;
+      headers: Record<string, string | string[] | undefined>;
+    } & NodeJS.ReadableStream,
+    res: {
+      statusCode?: number;
+      setHeader(name: string, value: string | string[]): void;
+      end(chunk?: any): void;
+    },
+    next: () => void
+  ): Promise<void> => {
+    const pathname = new URL(toRequestUrl(req)).pathname;
+    if (pathname !== endpoint) {
+      next();
+      return;
+    }
+
+    const request = await toWebRequest(req);
+    const response = await handler(request);
+    await sendWebResponse(res, response);
+  };
+}
+
+function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   // Support multiple auto-import roots
   const autoImportDirs = getAutoImportDirs();
   const routeDirs = getRouteDirs();
   const configuredRoutes = getConfiguredRoutes();
+  const serverFunctionOptions = options.serverFunctions === false
+    ? false
+    : options.serverFunctions ?? {};
 
   function pascalCase(str: string) {
     return str
@@ -121,6 +220,14 @@ function terajsPlugin(): Plugin {
     name: "terajs",
     enforce: "pre",
 
+    configureServer(server) {
+      if (serverFunctionOptions === false) {
+        return;
+      }
+
+      server.middlewares.use(createServerFunctionMiddleware(serverFunctionOptions));
+    },
+
     resolveId(id) {
       if (id === AUTO_IMPORT_VIRTUAL_ID) return RESOLVED_AUTO_IMPORT_VIRTUAL_ID;
       if (id === ROUTES_VIRTUAL_ID) return RESOLVED_ROUTES_VIRTUAL_ID;
@@ -144,7 +251,7 @@ function terajsPlugin(): Plugin {
 
       // Inject auto-imports at the top of every SFC
       const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-      let compiled = sfcToComponent(sfc);
+      let compiled = compileSfcToComponent(sfc);
       compiled = autoImport + compiled;
       return compiled;
     },
@@ -159,7 +266,7 @@ function terajsPlugin(): Plugin {
 
       // Inject auto-imports at the top of every SFC
       const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-      let newModule = sfcToComponent(sfc);
+      let newModule = compileSfcToComponent(sfc);
       newModule = autoImport + newModule;
 
       // Replace the module in Vite's graph

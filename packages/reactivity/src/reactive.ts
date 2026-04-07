@@ -70,10 +70,15 @@ function createTrackedSignal<T>(
   ctx: WrapContext,
   key?: string
 ): Signal<T> {
+  const globalLocation = typeof globalThis === "object" && globalThis !== null && "location" in globalThis
+    ? (globalThis as typeof globalThis & {
+        location?: { hostname?: unknown };
+      }).location
+    : undefined;
   // Platform-agnostic dev check: works in Node, browser, and any bundler
   // @ts-expect-error: __DEV__ and process may not be typed, but this is safe
   const isDev = (typeof __DEV__ !== "undefined" && __DEV__)
-    || (typeof window !== "undefined" && typeof window !== "undefined" && window?.location?.hostname === "localhost")
+    || globalLocation?.hostname === "localhost"
     || false;
   if (isDev) {
     analyzeReactivity(initial, ctx);

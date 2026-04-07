@@ -10,6 +10,8 @@ import type {
   IRTextNode,
   IRInterpolationNode,
   IRElementNode,
+  IRPortalNode,
+  IRSlotNode,
   IRIfNode,
   IRForNode,
   IRPropNode,
@@ -33,6 +35,7 @@ import {
 
 import { effect } from "@terajs/reactivity";
 import { Debug } from "@terajs/shared";
+import { Portal as WebPortal } from "./portal";
 
 /* -------------------------------------------------------------------------- */
 /*                             PUBLIC ENTRY POINTS                            */
@@ -59,6 +62,10 @@ export function renderIRNode(node: IRNode, ctx: any): Node | null {
       return renderIRInterpolation(node, ctx);
     case "element":
       return renderIRElement(node, ctx);
+    case "portal":
+      return renderIRPortal(node, ctx);
+    case "slot":
+      return renderIRSlot(node, ctx);
     case "if":
       return renderIRIf(node, ctx);
     case "for":
@@ -109,6 +116,37 @@ function renderIRElement(node: IRElementNode, ctx: any): HTMLElement {
   }
 
   return el;
+}
+
+function renderIRPortal(node: IRPortalNode, ctx: any): Node {
+  Debug.emit("ir:render:portal", {
+    hasTarget: node.target != null
+  });
+
+  return WebPortal({
+    to: resolvePortalTarget(node.target, ctx),
+    children: node.children.map((child) => renderIRNode(child, ctx))
+  });
+}
+
+function renderIRSlot(node: IRSlotNode, ctx: any): Node {
+  Debug.emit("ir:render:slot", { name: node.name ?? "default" });
+
+  const slotName = node.name ?? "default";
+  const slotValue = ctx?.slots?.[slotName];
+
+  if (slotValue != null) {
+    return normalizeSlotValue(slotValue);
+  }
+
+  const frag = createFragment();
+  for (const child of node.fallback) {
+    const dom = renderIRNode(child, ctx);
+    if (dom) {
+      insert(frag, dom);
+    }
+  }
+  return frag;
 }
 
 function applyIRProps(el: HTMLElement, props: IRPropNode[], ctx: any): void {
@@ -289,5 +327,41 @@ function resolveExpr(ctx: any, expr: string): any {
   }
 
   return current;
+}
+
+function resolvePortalTarget(target: IRPropNode | undefined, ctx: any): any {
+  if (!target) {
+    return undefined;
+  }
+
+  if (target.kind === "bind") {
+    return resolveExpr(ctx, String(target.value));
+  }
+
+  return target.value;
+}
+
+function normalizeSlotValue(value: any): Node {
+  if (typeof value === "function") {
+    return normalizeSlotValue(value());
+  }
+
+  if (value == null || value === false || value === true) {
+    return createFragment();
+  }
+
+  if (value instanceof Node) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const frag = createFragment();
+    for (const item of value) {
+      insert(frag, normalizeSlotValue(item));
+    }
+    return frag;
+  }
+
+  return createText(String(value));
 }
 

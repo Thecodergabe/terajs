@@ -9,6 +9,9 @@
 import { describe, it, expect } from "vitest";
 import { mount, unmount } from "./mount";
 import { onCleanup } from "@terajs/runtime";
+import { jsx } from "./jsx-runtime";
+import { Portal } from "./portal";
+import { signal } from "@terajs/reactivity";
 
 describe("mount() / unmount()", () => {
 
@@ -61,6 +64,78 @@ describe("mount() / unmount()", () => {
 
         expect(calls).toBe(1);
         expect(root.textContent).toBe("");
+    });
+
+    it("mounts portal children into the document body by default", () => {
+        const root = document.createElement("div");
+
+        const Comp = () => jsx(Portal, {
+            children: jsx("div", {
+                id: "modal",
+                children: "hello"
+            })
+        });
+
+        mount(Comp, root);
+
+        expect(root.textContent).toBe("");
+        expect(document.body.querySelector("#modal")?.textContent).toBe("hello");
+
+        unmount(root);
+
+        expect(document.body.querySelector("#modal")).toBeNull();
+    });
+
+    it("mounts portal children into a selector target", () => {
+        const root = document.createElement("div");
+        const overlay = document.createElement("div");
+        overlay.id = "overlay";
+        document.body.appendChild(overlay);
+
+        const Comp = () => jsx(Portal, {
+            to: "#overlay",
+            children: jsx("div", {
+                id: "tooltip",
+                children: "inside overlay"
+            })
+        });
+
+        mount(Comp, root);
+
+        expect(overlay.querySelector("#tooltip")?.textContent).toBe("inside overlay");
+
+        unmount(root);
+        overlay.remove();
+    });
+
+    it("reconciles portal content across reactive updates", () => {
+        const root = document.createElement("div");
+        const overlay = document.createElement("div");
+        const message = signal("one");
+        overlay.id = "overlay";
+        document.body.appendChild(overlay);
+
+        const Comp = () => () => jsx(Portal, {
+            to: overlay,
+            children: jsx("div", {
+                class: "portal-value",
+                children: message()
+            })
+        });
+
+        mount(Comp, root);
+
+        expect(overlay.textContent).toBe("one");
+        expect(overlay.querySelectorAll(".portal-value")).toHaveLength(1);
+
+        message.set("two");
+
+        expect(overlay.textContent).toBe("two");
+        expect(overlay.querySelectorAll(".portal-value")).toHaveLength(1);
+
+        unmount(root);
+        expect(overlay.textContent).toBe("");
+        overlay.remove();
     });
 
 });
