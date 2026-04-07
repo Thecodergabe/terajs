@@ -149,6 +149,91 @@ Terajs's role is the app-layer boundary between the UI and server-owned logic, n
 
 ---
 
+## **Current web app primitives**
+
+The web stack now has the main pieces needed for a real site build:
+
+- route loading with `createRouteView(...)`
+- route-shell loading states with `keepPreviousDuringLoading` and `pending`
+- router-aware links with prefetch and pending state via `Link(...)`
+- enhanced forms via `Form(...)`
+- mutation helpers via `SubmitButton(...)` and `FormStatus(...)`
+- route data revalidation via keyed invalidation
+
+### Example: Web route shell + enhanced form
+
+```ts
+import { createRouter, createMemoryHistory, getRouteDataResourceKey } from "@terajs/router";
+import { invalidateResources } from "@terajs/runtime";
+import {
+  createRouteView,
+  Form,
+  FormStatus,
+  Link,
+  SubmitButton
+} from "@terajs/renderer-web";
+
+let profileName = "Ada";
+
+const router = createRouter([
+  {
+    id: "home",
+    path: "/",
+    filePath: "/pages/index.nbl",
+    layout: null,
+    middleware: [],
+    prerender: true,
+    hydrate: "eager",
+    edge: false,
+    meta: {},
+    layouts: [],
+    component: async () => ({
+      default: () => Link({ to: "/settings", children: "Settings" })
+    })
+  },
+  {
+    id: "settings",
+    path: "/settings",
+    filePath: "/pages/settings.nbl",
+    layout: null,
+    middleware: [],
+    prerender: true,
+    hydrate: "eager",
+    edge: false,
+    meta: { title: "Settings" },
+    layouts: [],
+    component: async () => ({
+      default: ({ data }) => Form({
+        action: async ({ values }) => {
+          profileName = String(values.name);
+          await invalidateResources(getRouteDataResourceKey("settings"));
+          return "saved";
+        },
+        children: [
+          document.createTextNode(`Profile: ${data.name}`),
+          Object.assign(document.createElement("input"), { name: "name", value: data.name }),
+          SubmitButton({ children: "Save" }),
+          FormStatus({ idle: "idle", pending: "saving" })
+        ]
+      }),
+      load: async () => ({ name: profileName })
+    })
+  }
+], {
+  history: createMemoryHistory("/")
+});
+
+const App = createRouteView(router, {
+  loading: ({ match }) => document.createTextNode(`loading:${match.fullPath}`),
+  pending: ({ match }) => document.createTextNode(`shell:${match.fullPath}`),
+  keepPreviousDuringLoading: true
+});
+```
+
+This is the current center of gravity for Terajs on the web: route-driven loading, trusted mutations, and reactive UI primitives without bringing in a VDOM layer.
+
+---
+
 ## **Style-agnostic**
 
 Terajs does not enforce or prefer any styling approach.
