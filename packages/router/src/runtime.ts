@@ -21,6 +21,15 @@ export interface RouterHistory {
   listen?(listener: (path: string) => void): () => void;
 }
 
+export type RouterNavigationSource = "history" | "push" | "replace" | "none";
+
+export interface RouterNavigationState {
+  pending: boolean;
+  from: RouteMatch | null;
+  to: string | null;
+  source: RouterNavigationSource | null;
+}
+
 export interface Router {
   readonly routes: RouteDefinition[];
   readonly history: RouterHistory;
@@ -28,7 +37,9 @@ export interface Router {
   stop(): void;
   resolve(target: string): RouteMatch | null;
   getCurrentRoute(): RouteMatch | null;
+  getNavigationState(): RouterNavigationState;
   subscribe(listener: (match: RouteMatch | null) => void): () => void;
+  subscribeNavigation(listener: (state: RouterNavigationState) => void): () => void;
   navigate(target: string): Promise<NavigationResult>;
   replace(target: string): Promise<NavigationResult>;
 }
@@ -256,14 +267,33 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
   const history = options.history ?? createMemoryHistory();
   const middleware = options.middleware ?? {};
   const listeners = new Set<(match: RouteMatch | null) => void>();
+  const navigationListeners = new Set<(state: RouterNavigationState) => void>();
 
   let currentRoute: RouteMatch | null = null;
   let stopListening: (() => void) | null = null;
+  let pendingTransitions = 0;
+  let navigationState: RouterNavigationState = {
+    pending: false,
+    from: null,
+    to: null,
+    source: null
+  };
 
   function notify(): void {
     for (const listener of listeners) {
       listener(currentRoute);
     }
+  }
+
+  function notifyNavigation(): void {
+    for (const listener of navigationListeners) {
+      listener(navigationState);
+    }
+  }
+
+  function setNavigationState(nextState: RouterNavigationState): void {
+    navigationState = nextState;
+    notifyNavigation();
   }
 
   const router: Router = {
@@ -284,10 +314,17 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
     },
     resolve: (target) => matchRoute(routes, target),
     getCurrentRoute: () => currentRoute,
+    getNavigationState: () => navigationState,
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
+      };
+    },
+    subscribeNavigation: (listener) => {
+      navigationListeners.add(listener);
+      return () => {
+        navigationListeners.delete(listener);
       };
     },
     navigate: (target) => transitionTo(target, "push", false),
@@ -296,11 +333,18 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
 
   async function transitionTo(
     target: string,
-    historyMode: "none" | "push" | "replace",
+    historyMode: RouterNavigationSource,
     fromHistory: boolean
   ): Promise<NavigationResult> {
     const from = currentRoute;
     const parsedTarget = parseTarget(target);
+    pendingTransitions += 1;
+    setNavigationState({
+      pending: true,
+      from,
+      to: parsedTarget.fullPath,
+      source: fromHistory ? "history" : historyMode
+    });
 
     Debug.emit("route:navigate:start", {
       from: from?.fullPath ?? null,
@@ -308,98 +352,110 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
       source: fromHistory ? "history" : historyMode
     });
 
-    const nextRoute = router.resolve(target);
+    try {
+      const nextRoute = router.resolve(target);
 
-    if (!nextRoute) {
-      if (fromHistory && from) {
-        history.replace(from.fullPath);
-      }
+      if (!nextRoute) {
+        if (fromHistory && from) {
+          history.replace(from.fullPath);
+        }
 
-      Debug.emit("error:router", {
-        message: `No route matched ${parsedTarget.fullPath}`,
-        from: from?.fullPath ?? null,
-        to: parsedTarget.fullPath
-      });
+        Debug.emit("error:router", {
+          message: `No route matched ${parsedTarget.fullPath}`,
+          from: from?.fullPath ?? null,
+          to: parsedTarget.fullPath
+        });
 
-      return {
-        type: "not-found",
-        from,
-        to: parsedTarget.fullPath
-      };
-    }
-
-    const middlewareResult = await runMiddleware(middleware, nextRoute, from, router);
-
-    if (middlewareResult === false) {
-      if (fromHistory && from) {
-        history.replace(from.fullPath);
-      }
-
-      Debug.emit("route:blocked", {
-        from: from?.fullPath ?? null,
-        to: nextRoute.fullPath,
-        middleware: nextRoute.route.middleware
-      });
-
-      Debug.emit("route:warn", {
-        message: `Navigation blocked for ${nextRoute.fullPath}`,
-        from: from?.fullPath ?? null,
-        to: nextRoute.fullPath
-      });
-
-      return {
-        type: "blocked",
-        from,
-        to: nextRoute.fullPath
-      };
-    }
-
-    if (typeof middlewareResult === "string") {
-      Debug.emit("route:redirect", {
-        from: from?.fullPath ?? null,
-        to: nextRoute.fullPath,
-        redirectTo: middlewareResult
-      });
-
-      const redirectResult = await transitionTo(middlewareResult, "replace", false);
-      if (redirectResult.type === "success") {
         return {
-          type: "redirect",
+          type: "not-found",
           from,
-          to: nextRoute.fullPath,
-          redirectedTo: redirectResult.match
+          to: parsedTarget.fullPath
         };
       }
 
-      return redirectResult;
+      const middlewareResult = await runMiddleware(middleware, nextRoute, from, router);
+
+      if (middlewareResult === false) {
+        if (fromHistory && from) {
+          history.replace(from.fullPath);
+        }
+
+        Debug.emit("route:blocked", {
+          from: from?.fullPath ?? null,
+          to: nextRoute.fullPath,
+          middleware: nextRoute.route.middleware
+        });
+
+        Debug.emit("route:warn", {
+          message: `Navigation blocked for ${nextRoute.fullPath}`,
+          from: from?.fullPath ?? null,
+          to: nextRoute.fullPath
+        });
+
+        return {
+          type: "blocked",
+          from,
+          to: nextRoute.fullPath
+        };
+      }
+
+      if (typeof middlewareResult === "string") {
+        Debug.emit("route:redirect", {
+          from: from?.fullPath ?? null,
+          to: nextRoute.fullPath,
+          redirectTo: middlewareResult
+        });
+
+        const redirectResult = await transitionTo(middlewareResult, "replace", false);
+        if (redirectResult.type === "success") {
+          return {
+            type: "redirect",
+            from,
+            to: nextRoute.fullPath,
+            redirectedTo: redirectResult.match
+          };
+        }
+
+        return redirectResult;
+      }
+
+      if (historyMode === "push") {
+        history.push(nextRoute.fullPath);
+      } else if (historyMode === "replace") {
+        history.replace(nextRoute.fullPath);
+      }
+
+      currentRoute = nextRoute;
+      Debug.emit("route:changed", {
+        from: from?.fullPath ?? null,
+        to: nextRoute.fullPath,
+        params: nextRoute.params,
+        query: nextRoute.query,
+        route: nextRoute.route.path
+      });
+      Debug.emit("route:navigate:end", {
+        from: from?.fullPath ?? null,
+        to: nextRoute.fullPath,
+        source: fromHistory ? "history" : historyMode
+      });
+      notify();
+
+      return {
+        type: "success",
+        from,
+        match: nextRoute
+      };
+    } finally {
+      pendingTransitions = Math.max(0, pendingTransitions - 1);
+      if (pendingTransitions === 0) {
+        setNavigationState({
+          pending: false,
+          from: null,
+          to: null,
+          source: null
+        });
+      }
     }
-
-    if (historyMode === "push") {
-      history.push(nextRoute.fullPath);
-    } else if (historyMode === "replace") {
-      history.replace(nextRoute.fullPath);
-    }
-
-    currentRoute = nextRoute;
-    Debug.emit("route:changed", {
-      from: from?.fullPath ?? null,
-      to: nextRoute.fullPath,
-      params: nextRoute.params,
-      query: nextRoute.query,
-      route: nextRoute.route.path
-    });
-    Debug.emit("route:navigate:end", {
-      from: from?.fullPath ?? null,
-      to: nextRoute.fullPath,
-      source: fromHistory ? "history" : historyMode
-    });
-    notify();
-
-    return {
-      type: "success",
-      from,
-      match: nextRoute
-    };
   }
 
   return router;

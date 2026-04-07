@@ -2,7 +2,9 @@ import { Debug } from "@terajs/shared";
 import type { ServerContext } from "@terajs/shared";
 import type { RouteDefinition } from "./definition";
 import { resolveLoadedRouteMetadata, type ResolvedRouteMetadata } from "./meta";
-import type { RouteMatch } from "./runtime";
+import type { RouteMatch, Router } from "./runtime";
+
+const prefetchedRouteMatches = new Map<string, Promise<LoadedRouteMatch<unknown>>>();
 
 export interface RouteLoadContext {
   route: RouteDefinition;
@@ -58,11 +60,20 @@ export async function loadRouteMatch<TData = unknown>(
     signal?: AbortSignal;
     hydrationSnapshot?: RouteHydrationSnapshot<TData>;
     serverContext?: ServerContext;
+    preferPrefetched?: boolean;
   } = {}
 ): Promise<LoadedRouteMatch<TData>> {
   const hydrationSnapshot = options.hydrationSnapshot?.to === match.fullPath
     ? options.hydrationSnapshot
     : undefined;
+
+  if (!hydrationSnapshot && options.preferPrefetched !== false) {
+    const prefetched = prefetchedRouteMatches.get(match.fullPath);
+    if (prefetched) {
+      prefetchedRouteMatches.delete(match.fullPath);
+      return prefetched as Promise<LoadedRouteMatch<TData>>;
+    }
+  }
 
   Debug.emit("route:load:start", {
     to: match.fullPath,
@@ -157,4 +168,44 @@ export function createRouteHydrationSnapshot<TData = unknown>(
     data: loaded.data,
     resolved: loaded.resolved
   };
+}
+
+export function prefetchRouteMatch<TData = unknown>(
+  match: RouteMatch
+): Promise<LoadedRouteMatch<TData>> {
+  const existing = prefetchedRouteMatches.get(match.fullPath);
+  if (existing) {
+    return existing as Promise<LoadedRouteMatch<TData>>;
+  }
+
+  const pending = loadRouteMatch<TData>(match, {
+    preferPrefetched: false
+  }).catch((error) => {
+    prefetchedRouteMatches.delete(match.fullPath);
+    throw error;
+  });
+
+  prefetchedRouteMatches.set(match.fullPath, pending as Promise<LoadedRouteMatch<unknown>>);
+  return pending;
+}
+
+export function clearPrefetchedRouteMatches(target?: string): void {
+  if (target) {
+    prefetchedRouteMatches.delete(target);
+    return;
+  }
+
+  prefetchedRouteMatches.clear();
+}
+
+export async function prefetchRoute<TData = unknown>(
+  router: Router,
+  target: string
+): Promise<LoadedRouteMatch<TData> | null> {
+  const match = router.resolve(target);
+  if (!match) {
+    return null;
+  }
+
+  return prefetchRouteMatch<TData>(match);
 }

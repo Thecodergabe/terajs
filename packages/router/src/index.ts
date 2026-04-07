@@ -4,7 +4,13 @@
  * Entry point for the @terajs/router package.
  */
 
-export { createRouteHydrationSnapshot, loadRouteMatch } from "./loading";
+export {
+  clearPrefetchedRouteMatches,
+  createRouteHydrationSnapshot,
+  loadRouteMatch,
+  prefetchRoute,
+  prefetchRouteMatch
+} from "./loading";
 export { resolveLoadedRouteMetadata } from "./meta";
 export {
   getRouteDataResourceKey,
@@ -32,6 +38,8 @@ export type {
   GuardContext,
   NavigationGuard,
   NavigationResult,
+  RouterNavigationSource,
+  RouterNavigationState,
   RouteMatch,
   RouteParams,
   RouteQuery,

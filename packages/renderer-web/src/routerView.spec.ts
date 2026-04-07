@@ -8,6 +8,7 @@ import {
 } from "@terajs/router";
 import { invalidateResources } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
+import { Link } from "./link";
 import { mount, unmount } from "./mount";
 import { createRouteView } from "./routerView";
 
@@ -304,6 +305,41 @@ describe("createRouteView", () => {
     await flush();
 
     expect(root.textContent).toContain("page failed");
+
+    unmount(root);
+  });
+
+  it("provides router context to route descendants", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const router = createRouter(
+      [
+        route({
+          id: "docs",
+          path: "/docs",
+          component: async () => ({
+            default: () => Link({ to: "/about", children: "About" })
+          })
+        }),
+        route({
+          id: "about",
+          path: "/about",
+          component: async () => ({
+            default: () => document.createTextNode("about")
+          })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    root.querySelector("a")?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    await flush();
+
+    expect(router.getCurrentRoute()?.fullPath).toBe("/about");
+    expect(root.textContent).toContain("about");
 
     unmount(root);
   });

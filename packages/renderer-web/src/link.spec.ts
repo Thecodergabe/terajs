@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryHistory, createRouter, type RouteDefinition } from "@terajs/router";
+import { component } from "@terajs/runtime";
 
 import { Link } from "./link";
 import { mount, unmount } from "./mount";
+import { withRouterContext } from "./routerContext";
 
 function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
@@ -97,5 +99,119 @@ describe("Link", () => {
     expect(externalAnchor.getAttribute("href")).toBe("https://example.com");
 
     unmount(externalRoot);
+  });
+
+  it("uses router context when no router prop is provided", async () => {
+    const root = document.createElement("div");
+    const router = createRouter([
+      route({ path: "/" }),
+      route({ id: "docs", path: "/docs" })
+    ], {
+      history: createMemoryHistory("/")
+    });
+
+    const App = component({ name: "App" }, () => () => withRouterContext(router, () => Link({ to: "/docs", children: "Docs" })));
+
+    await router.start();
+    mount(App, root);
+
+    const anchor = root.querySelector("a") as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    await flush();
+
+    expect(router.getCurrentRoute()?.fullPath).toBe("/docs");
+
+    unmount(root);
+  });
+
+  it("updates active classes and aria-current as navigation changes", async () => {
+    const root = document.createElement("div");
+    const router = createRouter([
+      route({ path: "/" }),
+      route({ id: "docs", path: "/docs" }),
+      route({ id: "docs-api", path: "/docs/api" })
+    ], {
+      history: createMemoryHistory("/")
+    });
+
+    const App = component({ name: "App" }, () => () => withRouterContext(router, () => Link({
+      to: "/docs",
+      activeClass: "active",
+      inactiveClass: "idle",
+      children: "Docs"
+    })));
+
+    await router.start();
+    mount(App, root);
+
+    const anchor = root.querySelector("a") as HTMLAnchorElement;
+    expect(anchor.className).toBe("idle");
+    expect(anchor.getAttribute("aria-current")).toBeNull();
+
+    await router.navigate("/docs/api");
+    await flush();
+
+    expect(anchor.className).toBe("active");
+    expect(anchor.getAttribute("aria-current")).toBe("page");
+
+    unmount(root);
+  });
+
+  it("prefetches linked routes on intent and marks pending navigations", async () => {
+    let releaseGuard: (() => void) | undefined;
+    const docsComponent = vi.fn(async () => ({
+      default: () => document.createTextNode("docs")
+    }));
+    const root = document.createElement("div");
+    const router = createRouter([
+      route({ path: "/" }),
+      route({
+        id: "docs",
+        path: "/docs",
+        component: docsComponent,
+        middleware: ["slow"]
+      })
+    ], {
+      history: createMemoryHistory("/"),
+      middleware: {
+        slow: () => new Promise<void>((resolve) => {
+          releaseGuard = resolve;
+        })
+      }
+    });
+
+    const App = component({ name: "App" }, () => () => withRouterContext(router, () => Link({
+      to: "/docs",
+      prefetch: true,
+      pendingClass: "pending",
+      activeClass: "active",
+      inactiveClass: "idle",
+      children: "Docs"
+    })));
+
+    await router.start();
+    mount(App, root);
+
+    const anchor = root.querySelector("a") as HTMLAnchorElement;
+    anchor.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+    await flush();
+
+    expect(docsComponent).toHaveBeenCalledTimes(1);
+
+    anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    await flush();
+
+    expect(anchor.className).toBe("pending");
+    expect(anchor.getAttribute("data-pending")).toBe("true");
+    expect(anchor.getAttribute("aria-busy")).toBe("true");
+
+    releaseGuard?.();
+    await flush();
+
+    expect(router.getCurrentRoute()?.fullPath).toBe("/docs");
+    expect(anchor.className).toBe("active");
+    expect(docsComponent).toHaveBeenCalledTimes(1);
+
+    unmount(root);
   });
 });

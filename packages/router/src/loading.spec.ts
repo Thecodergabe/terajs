@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RouteDefinition } from "./definition";
 import {
+  clearPrefetchedRouteMatches,
   createRouteHydrationSnapshot,
   loadRouteMatch,
+  prefetchRoute,
   type RouteLoadContext
 } from "./loading";
-import { matchRoute } from "./runtime";
+import { createRouter, matchRoute } from "./runtime";
 
 function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
@@ -25,6 +27,34 @@ function route(overrides: Partial<RouteDefinition>): RouteDefinition {
 }
 
 describe("loadRouteMatch", () => {
+  it("reuses prefetched route loads on the next navigation render", async () => {
+    const componentSpy = vi.fn(async () => ({
+      default: "DocsPage",
+      load: ({ pathname }: RouteLoadContext) => ({ pathname })
+    }));
+    const router = createRouter([
+      route({
+        id: "docs",
+        path: "/docs",
+        filePath: "/pages/docs.nbl",
+        component: componentSpy
+      })
+    ]);
+
+    const prefetched = await prefetchRoute(router, "/docs");
+    expect(prefetched?.data).toEqual({ pathname: "/docs" });
+    expect(componentSpy).toHaveBeenCalledTimes(1);
+
+    const matched = router.resolve("/docs");
+    expect(matched).not.toBeNull();
+
+    const loaded = await loadRouteMatch(matched!);
+    expect(loaded.data).toEqual({ pathname: "/docs" });
+    expect(componentSpy).toHaveBeenCalledTimes(1);
+
+    clearPrefetchedRouteMatches();
+  });
+
   it("loads component, layout chain, and route data", async () => {
     const matched = matchRoute(
       [
@@ -97,5 +127,11 @@ describe("loadRouteMatch", () => {
     expect(loadSpy).toHaveBeenCalledTimes(1);
     expect(hydratedLoad.data).toEqual({ id: "42", hydrated: true });
     expect(hydratedLoad.resolved).toEqual(snapshot.resolved);
+  });
+
+  it("returns null when prefetching an unknown route", async () => {
+    const router = createRouter([]);
+
+    await expect(prefetchRoute(router, "/missing")).resolves.toBeNull();
   });
 });

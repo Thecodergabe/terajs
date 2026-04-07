@@ -36,6 +36,9 @@ export * from "./link";
 // Error boundaries
 export * from "./errorBoundary";
 
+// Router context helpers
+export * from "./routerContext";
+
 // IR Renderer (SSR-aligned baseline for client-side rendering)
 export * from "./renderFromIR";
 

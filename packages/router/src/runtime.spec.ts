@@ -84,6 +84,54 @@ describe("createRouter", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
+  it("tracks pending navigation state around async transitions", async () => {
+    let releaseGuard: (() => void) | undefined;
+    const history = createMemoryHistory("/");
+    const router = createRouter(
+      [
+        route({ path: "/", filePath: "/pages/index.nbl" }),
+        route({ path: "/docs", filePath: "/pages/docs.nbl", middleware: ["slow"] })
+      ],
+      {
+        history,
+        middleware: {
+          slow: () => new Promise<void>((resolve) => {
+            releaseGuard = resolve;
+          })
+        }
+      }
+    );
+    const listener = vi.fn();
+
+    router.subscribeNavigation(listener);
+    await router.start();
+
+    const navigation = router.navigate("/docs");
+    expect(router.getNavigationState()).toEqual({
+      pending: true,
+      from: expect.objectContaining({ fullPath: "/" }),
+      to: "/docs",
+      source: "push"
+    });
+
+    releaseGuard?.();
+    await navigation;
+
+    expect(router.getNavigationState()).toEqual({
+      pending: false,
+      from: null,
+      to: null,
+      source: null
+    });
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ pending: true, to: "/docs" }));
+    expect(listener).toHaveBeenLastCalledWith({
+      pending: false,
+      from: null,
+      to: null,
+      source: null
+    });
+  });
+
   it("blocks navigation when middleware returns false", async () => {
     const debugSpy = vi.spyOn(Debug, "emit");
     const authGuard: NavigationGuard = () => false;

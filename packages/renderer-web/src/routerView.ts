@@ -6,6 +6,7 @@ import { withErrorBoundary } from "./errorBoundary";
 import { readHydrationPayload } from "./hydrate";
 import { mount, unmount } from "./mount";
 import type { FrameworkComponent } from "./render";
+import { withRouterContext } from "./routerContext";
 
 export interface RouteRenderContext<TData = unknown> {
   router: Router;
@@ -121,11 +122,13 @@ function maybeWrapLoadedMatch<TData>(
   options: RouteViewOptions<TData>
 ): FrameworkComponent {
   const composed = composeLoadedMatch(router, loaded);
+  const routed: FrameworkComponent = () => withRouterContext(router, () => composed());
+
   if (!options.componentError) {
-    return composed;
+    return routed;
   }
 
-  return withErrorBoundary(composed, {
+  return withErrorBoundary(routed, {
     fallback: ({ error, retry }) => options.componentError!({
       router,
       match: loaded.match,

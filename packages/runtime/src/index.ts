@@ -33,6 +33,8 @@ export {
 export type { RuntimeHydrationState } from "./hydration";
 
 // Async data
+export { createAction } from "./action";
+export type { Action, ActionOptions, ActionState } from "./action";
 export { createResource } from "./resource";
 export type { Resource, ResourceState } from "./resource";
 export {
