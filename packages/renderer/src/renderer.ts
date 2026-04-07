@@ -1,10 +1,10 @@
 /**
  * @file renderer.ts
  * @description
- * Platform-agnostic renderer interface for Nebula.
+ * Platform-agnostic renderer interface for Terajs.
  *
  * Renderers (web, native, terminal, etc.) implement this interface to
- * convert Nebula's AST into platform-specific UI output.
+ * convert Terajs's AST into platform-specific UI output.
  */
 
 import type {

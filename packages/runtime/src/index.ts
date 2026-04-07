@@ -39,7 +39,9 @@ export type { Resource, ResourceState } from "./resource";
 // Server functions
 export {
   executeServerFunction,
+  executeServerFunctionCall,
   getServerFunctionTransport,
+  hasServerFunction,
   server,
   setServerFunctionTransport
 } from "./server";
@@ -50,3 +52,17 @@ export type {
   ServerFunctionOptions,
   ServerFunctionTransport
 } from "./server";
+export {
+  createFetchServerFunctionTransport,
+  createServerContextFromRequest,
+  createServerFunctionRequestHandler,
+  handleServerFunctionRequest,
+  readServerFunctionCall
+} from "./serverTransport";
+export type {
+  FetchServerFunctionTransportOptions,
+  ServerFunctionErrorResponse,
+  ServerFunctionRequestHandlerOptions,
+  ServerFunctionResponse,
+  ServerFunctionSuccessResponse
+} from "./serverTransport";

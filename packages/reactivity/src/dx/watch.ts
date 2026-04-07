@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file watch.ts
  * @description
- * High-level reactive watcher for Nebula's DX layer.
+ * High-level reactive watcher for Terajs's DX layer.
  *
  * `watch()` observes the *value* returned by a source getter and invokes a
  * callback whenever that value changes.

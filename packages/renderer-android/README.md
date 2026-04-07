@@ -1,10 +1,10 @@
-# Nebula Android Renderer (Experimental)
+# Terajs Android Renderer (Experimental)
 
-This package is a proof-of-concept for rendering Nebula components to native Android (Jetpack Compose) views.
+This package is a proof-of-concept for rendering Terajs components to native Android (Jetpack Compose) views.
 
 ## Goals
-- Map Nebula’s runtime/component tree to Jetpack Compose primitives
-- Reuse Nebula’s reactivity and SFC pipeline
+- Map Terajs’s runtime/component tree to Jetpack Compose primitives
+- Reuse Terajs’s reactivity and SFC pipeline
 - Enable cross-platform UI from a single codebase
 
 ## Usage

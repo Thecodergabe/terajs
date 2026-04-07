@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file renderToString.ts
  * @description
- * Nebula's server-side renderer.
+ * Terajs's server-side renderer.
  *
  * Converts an IRModule (compiler output) into:
  * - HTML markup
@@ -37,7 +37,7 @@ export function isSSRHtml(value: unknown): value is SSRHtml {
 }
 
 /**
- * Render a Nebula IRModule to an SSRResult.
+ * Render a Terajs IRModule to an SSRResult.
  *
  * @param ir - The IRModule produced by the compiler.
  * @param ctx - Optional SSR context for overriding meta/route.
@@ -288,7 +288,7 @@ export function renderHydrationMarker(
     payload.resources = payloadContext.resources;
   }
 
-  return `<script type="application/nebula-hydration">${JSON.stringify(payload)}</script>`;
+  return `<script type="application/terajs-hydration">${JSON.stringify(payload)}</script>`;
 }
 
 

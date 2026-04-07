@@ -1,9 +1,9 @@
-﻿# **Nebula**
+# **Terajs**
 
-Nebula is a next-generation UI framework built on **fine-grained reactivity**, a **compiler-powered template system**, and a **developer-first philosophy**.
+Terajs is a next-generation UI framework built on **fine-grained reactivity**, a **compiler-powered template system**, and a **developer-first philosophy**.
 It feels familiar, performs like Solid, reads like Vue, stays flexible like React - without their complexity.
 
-Nebula is:
+Terajs is:
 
 - **TypeScript-first, but TypeScript-optional**
 - **style-agnostic**
@@ -12,7 +12,7 @@ Nebula is:
 - **debuggable by design**
 - **AI-ready and meta-aware**
 
-Nebula's goal is simple:
+Terajs's goal is simple:
 
 > **Provide structure without restricting creativity.**
 
@@ -21,7 +21,7 @@ Nebula's goal is simple:
 # Features
 
 ## **Fine-grained reactivity**
-Nebula uses explicit, dependency-tracked signals:
+Terajs uses explicit, dependency-tracked signals:
 
 - `signal()` for reactive values
 - `computed()` for derived values
@@ -37,7 +37,7 @@ Signals update the DOM directly.
 
 ## **Single-File Components (SFC)**
 
-Nebula components use a clean, declarative format:
+Terajs components use a clean, declarative format:
 
 ```
 <template>
@@ -93,7 +93,7 @@ module.exports = {
 
 ## **Compiler-powered templates**
 
-Nebula includes a full template pipeline:
+Terajs includes a full template pipeline:
 
 - tokenizer
 - parser
@@ -109,7 +109,7 @@ Templates compile into direct DOM operations bound to signals.
 
 ## **Component-driven routing & metadata**
 
-Nebula components can define:
+Terajs components can define:
 
 - route configuration
 - SEO metadata
@@ -123,7 +123,7 @@ Routing is flexible, not prescriptive.
 
 ## **SSR without pain**
 
-Nebula's SSR model:
+Terajs's SSR model:
 
 - components run once
 - effects do not run on the server
@@ -133,11 +133,25 @@ Nebula's SSR model:
 
 Streaming SSR is planned.
 
+For applications that need server-owned logic, Terajs can also expose an optional app server boundary for route loaders and server functions.
+
+That boundary is meant for:
+
+- database access
+- auth and session checks
+- cookie-aware personalization
+- trusted mutations
+- secret-bearing backend calls
+
+It is not meant to replace direct API clients or formal service contracts. If your app already talks to a versioned backend through OpenAPI, Kiota, REST, or GraphQL, that remains a valid client boundary.
+
+Terajs's role is the app-layer boundary between the UI and server-owned logic, not a replacement for external API design.
+
 ---
 
 ## **Style-agnostic**
 
-Nebula does not enforce or prefer any styling approach.
+Terajs does not enforce or prefer any styling approach.
 
 Use:
 
@@ -156,15 +170,15 @@ Scoped styles are optional and require no build step.
 
 ## **Platform-agnostic**
 
-Nebula Core is renderer-agnostic.
+Terajs Core is renderer-agnostic.
 
 Planned renderers:
 
-- **nebula-web** - DOM
-- **nebula-native** - iOS/Android
-- **nebula-canvas** - Canvas/WebGL/Skia
-- **nebula-ssr** - server output
-- **nebula-terminal** - terminal UIs
+- **packages/renderer-web** - DOM
+- **packages/renderer-ios** and **packages/renderer-android** - native renderers
+- **packages/renderer-canvas** - Canvas/WebGL/Skia
+- **packages/renderer-ssr** - server output
+- **packages/renderer-terminal** - terminal UIs
 
 Write once, render anywhere.
 
@@ -172,7 +186,7 @@ Write once, render anywhere.
 
 ## **DX above everything**
 
-Nebula is built for humans:
+Terajs is built for humans:
 
 - predictable reactivity
 - simple mental model
@@ -215,18 +229,18 @@ Debugging is a first-class feature.
 {
   "title": "Counter",
   "description": "A simple counter component",
-  "keywords": ["counter", "example", "nebula"],
-  "og:title": "Nebula Counter Example",
-  "og:description": "A minimal counter component built with Nebula"
+  "keywords": ["counter", "example", "terajs"],
+  "og:title": "Terajs Counter Example",
+  "og:description": "A minimal counter component built with Terajs"
 }
 </meta>
 
 <ai>
 {
-  "summary": "A simple interactive counter component that demonstrates Nebula's fine-grained reactivity.",
+  "summary": "A simple interactive counter component that demonstrates Terajs's fine-grained reactivity.",
   "intent": "Demonstrate reactive UI updates",
   "entities": ["counter", "button", "signal"],
-  "audience": "developers learning Nebula"
+  "audience": "developers learning Terajs"
 }
 </ai>
 
@@ -260,8 +274,8 @@ packages/
   ui/              -> optional UI primitives
 ```
 
-Nebula Core stays minimal.
-Nebula Kit (future) provides structure when needed.
+Terajs Core stays minimal.
+Terajs Kit (future) provides structure when needed.
 
 ---
 
@@ -280,7 +294,7 @@ Nebula Kit (future) provides structure when needed.
 - [ ] Virtualized lists
 - [ ] Portal primitives
 - [ ] Devtools
-- [ ] Nebula Kit (meta-framework)
+- [ ] Terajs Kit (meta-framework)
 - [ ] Native renderer
 - [ ] Canvas renderer
 
@@ -290,7 +304,7 @@ Full roadmap is in `ROADMAP.md`.
 
 # Philosophy Summary
 
-Nebula aims to be:
+Terajs aims to be:
 
 - simple
 - fast
@@ -301,6 +315,6 @@ Nebula aims to be:
 - TypeScript-first, but JS-friendly
 - debuggable by design
 
-Nebula gives developers **power, not rules**.
+Terajs gives developers **power, not rules**.
 
 ---

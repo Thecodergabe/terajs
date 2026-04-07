@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file bindings.ts
  * @description
- * Fine-grained DOM bindings for Nebula's reactive renderer.
+ * Fine-grained DOM bindings for Terajs's reactive renderer.
  *
  * These helpers connect reactive expressions (signals, memos, accessors)
  * to DOM updates. Each binding registers a reactive effect that updates

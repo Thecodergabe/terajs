@@ -1,7 +1,7 @@
 /**
  * @file rewriteScopedCss.ts
  * @description
- * Rewrites CSS selectors to apply Nebula's scoped style attribute.
+ * Rewrites CSS selectors to apply Terajs's scoped style attribute.
  *
  * Example:
  *   .btn { color: red; }

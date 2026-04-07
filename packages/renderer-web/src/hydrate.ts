@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file hydrate.ts
  * @description
- * Client-side hydration entry for Nebula.
+ * Client-side hydration entry for Terajs.
  *
  * Responsibilities:
  * - read SSR hydration marker
@@ -28,7 +28,7 @@ export interface HydrationPayload {
  */
 export function readHydrationPayload(): HydrationPayload {
   const script = document.querySelector<HTMLScriptElement>(
-    'script[type="application/nebula-hydration"]'
+    'script[type="application/terajs-hydration"]'
   );
 
   if (!script || !script.textContent) {

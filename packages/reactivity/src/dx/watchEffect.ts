@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file watchEffect.ts
  * @description
- * High-level reactive side-effect primitive for Nebula's DX layer.
+ * High-level reactive side-effect primitive for Terajs's DX layer.
  *
  * `watchEffect()` runs a function immediately and re-runs it whenever any
  * reactive dependency accessed inside the function changes.

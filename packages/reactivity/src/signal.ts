@@ -1,8 +1,8 @@
-﻿/**
+/**
  * @file signal.ts
- * Core fine-grained reactive primitive for Nebula.
+ * Core fine-grained reactive primitive for Terajs.
  *
- * Fully integrated with the Nebula Debug Core:
+ * Fully integrated with the Terajs Debug Core:
  * - metadata creation
  * - reactive registry
  * - dependency graph

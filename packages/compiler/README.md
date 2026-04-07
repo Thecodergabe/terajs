@@ -1,6 +1,6 @@
-﻿# Nebula Compiler
+# Terajs Compiler
 
-The Nebula compiler transforms SFC templates into efficient, platform-agnostic render functions.
+The Terajs compiler transforms SFC templates into efficient, platform-agnostic render functions.
 
 ---
 

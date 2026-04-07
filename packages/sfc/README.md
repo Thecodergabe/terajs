@@ -1,6 +1,6 @@
-# Nebula SFC (Single-File Component) System
+# Terajs SFC (Single-File Component) System
 
-Nebula SFCs are the heart of your UI. They combine template, logic, style, and meta in a single file.
+Terajs SFCs are the heart of your UI. They combine template, logic, style, and meta in a single file.
 
 ---
 
@@ -56,7 +56,7 @@ No import needed for `<FancyButton />` if it’s in your auto-import dirs.
 ---
 
 ## DevTools
-- Inspect SFCs live in the Nebula DevTools overlay.
+- Inspect SFCs live in the Terajs DevTools overlay.
 - See component tree, signals, effects, and logs in real time.
 
 ---

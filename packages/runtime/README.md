@@ -1,6 +1,6 @@
-﻿# Nebula Runtime
+# Terajs Runtime
 
-The Nebula runtime coordinates component mounting, context, and the connection between reactivity and the DOM.
+The Terajs runtime coordinates component mounting, context, and the connection between reactivity and the DOM.
 
 ---
 
@@ -8,7 +8,7 @@ The Nebula runtime coordinates component mounting, context, and the connection b
 - Platform-agnostic: works in browser, SSR, and custom renderers
 - Context system for dependency injection
 - Lifecycle hooks for mounting, updating, and disposal
-- Integrates with Nebula's fine-grained reactivity
+- Integrates with Terajs's fine-grained reactivity
 
 ---
 

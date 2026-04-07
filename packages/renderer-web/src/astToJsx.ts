@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file astToJsx.ts
  * @description
- * Converts Nebula's platform-agnostic AST into JSX elements
+ * Converts Terajs's platform-agnostic AST into JSX elements
  * using the existing renderer-web JSX runtime.
  */
 

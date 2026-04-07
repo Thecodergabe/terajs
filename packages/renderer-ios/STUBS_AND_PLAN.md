@@ -1,4 +1,4 @@
-# Nebula Native Renderer Stubs & Plan
+# Terajs Native Renderer Stubs & Plan
 
 This directory contains experimental scaffolds for native renderers:
 
@@ -13,9 +13,9 @@ This directory contains experimental scaffolds for native renderers:
 ## What’s next
 - Implement the JS-to-native bridge (JavaScriptCore, JNI, etc.)
 - Scaffold native host apps (Swift, Kotlin)
-- Map Nebula elements to native primitives
+- Map Terajs elements to native primitives
 - Add tests, docs, and real-world examples
 
 ---
 
-**This is a foundation for future cross-platform Nebula development.**
+**This is a foundation for future cross-platform Terajs development.**

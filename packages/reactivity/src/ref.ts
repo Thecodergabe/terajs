@@ -1,11 +1,11 @@
-﻿/**
+/**
  * @file ref.ts
  * @description
- * Public-facing reactive primitive for Nebula.
+ * Public-facing reactive primitive for Terajs.
  *
  * A `ref()` wraps a primitive value in a fine-grained `signal()` and exposes
  * a `.value` getter/setter. This mirrors Vue's ergonomics while maintaining
- * Nebula's explicit signal semantics.
+ * Terajs's explicit signal semantics.
  *
  * `ref()` is ideal for:
  * - primitive values (number, string, boolean)
@@ -51,7 +51,7 @@ export interface Ref<T> {
 /**
  * Creates a reactive reference around a primitive value.
  *
- * This is a thin ergonomic layer over Nebula's core `signal()`:
+ * This is a thin ergonomic layer over Terajs's core `signal()`:
  * - `.value` reads track dependencies
  * - `.value = x` triggers updates
  * - no deep reactivity is introduced

@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file render.ts
  * @description
- * Core component execution pipeline for Nebula.
+ * Core component execution pipeline for Terajs.
  *
  * Components run inside a ComponentContext, which tracks disposers.
  * Components may return:

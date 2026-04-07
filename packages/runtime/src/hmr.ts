@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file hmr.ts
  * @description
- * Hot Module Replacement runtime for Nebula.
+ * Hot Module Replacement runtime for Terajs.
  *
  * Tracks live component instances and supports hot-swapping
  * setup functions and IR modules without full reload.

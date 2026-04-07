@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file unwrap.ts
  * @description
- * Central unwrapping logic for Nebula's renderer.
+ * Central unwrapping logic for Terajs's renderer.
  *
  * This function normalizes any reactive value into a plain value:
  * - `ref()` -> returns `.value`

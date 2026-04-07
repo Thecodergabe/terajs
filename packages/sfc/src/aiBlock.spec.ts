@@ -8,14 +8,14 @@ describe("SFC <ai> block", () => {
       <template>Hello</template>
       <ai>
         summary: This is a test
-        keywords: test, nebula
+        keywords: test, terajs
       </ai>
       `,
       "/components/AiTest.nbl"
     );
 
     expect(sfc.ai?.summary).toBe("This is a test");
-    expect(sfc.ai?.keywords).toEqual(["test", "nebula"]);
+    expect(sfc.ai?.keywords).toEqual(["test", "terajs"]);
   });
 
   it("handles empty <ai> block", () => {

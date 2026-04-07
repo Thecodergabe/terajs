@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file lifecycle.ts
  * @description
- * Lifecycle registration utilities for Nebula components.
+ * Lifecycle registration utilities for Terajs components.
  */
 
 import { emitDebug as emit } from "@terajs/shared";

@@ -38,6 +38,7 @@ export interface ServerFunction<TArgs extends unknown[] = unknown[], TResult = u
 
 let serverFunctionTransport: ServerFunctionTransport | undefined;
 let nextServerFunctionId = 0;
+const serverFunctionRegistry = new Map<string, ServerFunctionHandler<unknown[], unknown>>();
 
 function resolveServerFunctionId(
   handler: ServerFunctionHandler<unknown[], unknown>,
@@ -129,7 +130,24 @@ export function server<THandler extends ServerFunctionInputHandler>(
 
   wrapped.id = id;
   wrapped[serverFunctionHandlerSymbol] = normalizedHandler;
+  serverFunctionRegistry.set(id, normalizedHandler as ServerFunctionHandler<unknown[], unknown>);
   return wrapped;
+}
+
+export async function executeServerFunctionCall(
+  call: ServerFunctionCall,
+  context: ServerContext = {}
+): Promise<unknown> {
+  const handler = serverFunctionRegistry.get(call.id);
+  if (!handler) {
+    throw new Error(`Unknown server function \"${call.id}\".`);
+  }
+
+  return invokeHandler(call.id, handler, context, call.args);
+}
+
+export function hasServerFunction(id: string): boolean {
+  return serverFunctionRegistry.has(id);
 }
 
 export async function executeServerFunction<TArgs extends unknown[], TResult>(

@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file mount.ts
  * @description
- * Mounting and unmounting entry points for Nebula's component system.
+ * Mounting and unmounting entry points for Terajs's component system.
  *
  * Mounting:
  * - Clears the root

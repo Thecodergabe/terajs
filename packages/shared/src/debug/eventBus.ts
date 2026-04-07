@@ -2,7 +2,7 @@ import type { DebugEvent } from "./types/events";
 
 /**
  * Simple in-memory pub/sub for debug events.
- * This is the central channel the rest of Nebula emits into.
+ * This is the central channel the rest of Terajs emits into.
  */
 export type DebugEventListener = (event: DebugEvent) => void;
 

@@ -1,4 +1,4 @@
-﻿// Shared event bus for Nebula DevTools (runtime <-> overlay)
+// Shared event bus for Terajs DevTools (runtime <-> overlay)
 import { shallowRef } from "@terajs/reactivity";
 
 export interface DevtoolsEvent {

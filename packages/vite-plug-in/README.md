@@ -1,6 +1,6 @@
-﻿# Nebula Vite Plugin
+# Terajs Vite Plugin
 
-This plugin enables Nebula SFC compilation, HMR, and auto-imports for your project.
+This plugin enables Terajs SFC compilation, HMR, and auto-imports for your project.
 
 ## Features
 - Compiles `.nbl` Single-File Components
@@ -75,7 +75,7 @@ This produces a manifest that already includes:
 
 ### 4. Devtools Overlay
 
-To enable the Nebula DevTools overlay, import and call:
+To enable the Terajs DevTools overlay, import and call:
 
 ```js
 import { mountDevtoolsOverlay } from '@terajs/devtools';

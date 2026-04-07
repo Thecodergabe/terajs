@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file sfcToComponent.ts
  * @description
- * Converts a ParsedSFC into a runnable Nebula component module.
+ * Converts a ParsedSFC into a runnable Terajs component module.
  *
  * This is the final glue step in the SFC pipeline:
  *  - compile <script> -> setup() function
@@ -17,7 +17,7 @@ import { compileTemplateFromSFC } from "./compileTemplate";
 
 /**
  * Convert a parsed SFC into a full ES module string that exports
- * a Nebula component ready for runtime execution (and HMR in dev).
+ * a Terajs component ready for runtime execution (and HMR in dev).
  */
 export function sfcToComponent(sfc: ParsedSFC): string {
   // Extract script content (string or { content })

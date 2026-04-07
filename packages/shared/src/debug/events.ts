@@ -1,7 +1,7 @@
 /**
  * @file events.ts
  * @description
- * Nebula's internal debugging substrate.
+ * Terajs's internal debugging substrate.
  */
 
 // Import the graph logic to satisfy the proxy method
@@ -134,7 +134,7 @@ export const Debug = {
     },
 
     emit<TType extends DebugEventType>(type: TType, payload: any): void {
-        const hasGlobalHook = typeof window !== "undefined" && (window as any).__NEBULA_DEVTOOLS_HOOK__;
+        const hasGlobalHook = typeof window !== "undefined" && (window as any).__TERAJS_DEVTOOLS_HOOK__;
         
         if (handlers.size === 0 && !hasGlobalHook) return;
 
@@ -153,7 +153,7 @@ export const Debug = {
         }
 
         if (hasGlobalHook) {
-            (window as any).__NEBULA_DEVTOOLS_HOOK__.emit(event);
+            (window as any).__TERAJS_DEVTOOLS_HOOK__.emit(event);
         }
     },
 };

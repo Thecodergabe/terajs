@@ -1,6 +1,6 @@
 /**
  * @file analyzer.ts
- * Nebula Reactivity Analyzer (dev-only):
+ * Terajs Reactivity Analyzer (dev-only):
  * Warns about large objects/arrays made reactive, deep reactivity, and suggests markStatic/memo.
  * DX-first: actionable, non-noisy, and opt-in for production builds.
  */
@@ -17,13 +17,13 @@ export function analyzeReactivity(value: any, context?: { file?: string; line?: 
   if (Array.isArray(value) && value.length > LARGE_ARRAY_THRESHOLD) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[Nebula Analyzer] Large array (${value.length} items) made reactive${contextMsg(context)}.\n` +
+      `[Terajs Analyzer] Large array (${value.length} items) made reactive${contextMsg(context)}.\n` +
       `Consider markStatic(arr) or memoization for better performance.`
     );
   } else if (isPlainObject(value) && Object.keys(value).length > LARGE_OBJECT_THRESHOLD) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[Nebula Analyzer] Large object (${Object.keys(value).length} keys) made reactive${contextMsg(context)}.\n` +
+      `[Terajs Analyzer] Large object (${Object.keys(value).length} keys) made reactive${contextMsg(context)}.\n` +
       `Consider markStatic(obj) or memoization for better performance.`
     );
   }

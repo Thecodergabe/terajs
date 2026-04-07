@@ -1,7 +1,7 @@
 /**
  * @file compileScript.ts
  * @description
- * Nebula SFC script compiler (dependency‑free).
+ * Terajs SFC script compiler (dependency‑free).
  *
  * Responsibilities:
  * - Strip a subset of TypeScript syntax

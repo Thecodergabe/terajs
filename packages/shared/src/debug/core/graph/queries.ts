@@ -1,7 +1,7 @@
 /**
  * @file queries.ts
  * @description
- * High‑level graph query utilities for Nebula’s dependency graph.
+ * High‑level graph query utilities for Terajs’s dependency graph.
  *
  * These functions provide read‑only access to the graph structure and are
  * intended for DevTools, debugging, and visualization.

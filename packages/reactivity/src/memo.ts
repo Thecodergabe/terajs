@@ -1,6 +1,6 @@
 /**
  * @file memo.ts
- * Nebula-native memoization utility for shallowly caching computed results.
+ * Terajs memoization utility for shallowly caching computed results.
  * DX-first: simple, ergonomic, and works with signals, refs, or plain values.
  *
  * Usage:
@@ -63,7 +63,7 @@ export function memo<T>(key: symbol, fn: () => T, deps?: any[]): T {
  *   const arr = markStatic([1,2,3]);
  */
 export function markStatic<T extends object>(obj: T): T {
-  Object.defineProperty(obj, "__nebula_static__", { value: true, enumerable: false });
+  Object.defineProperty(obj, "__terajs_static__", { value: true, enumerable: false });
   return obj;
 }
 
@@ -83,6 +83,6 @@ export function shallowRef<T>(value: T): Ref<T> {
     set value(v) { _val = v; },
     _sig: undefined as any // Not a true signal, but for type compat
   } as Ref<T>;
-  Object.defineProperty(refObj, "__nebula_shallow__", { value: true, enumerable: false });
+  Object.defineProperty(refObj, "__terajs_shallow__", { value: true, enumerable: false });
   return refObj;
 }

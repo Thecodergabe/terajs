@@ -88,7 +88,7 @@ function parseYamlBlock<T = any>(
 }
 
 /**
- * Nebula SFC parser: always treats <script> as setup context.
+ * Terajs SFC parser: always treats <script> as setup context.
  * No <script setup> needed—just use <script> for all setup logic.
  *
  * Supported blocks: <template>, <script>, <style>, <meta>, <route>, <ai>

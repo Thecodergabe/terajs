@@ -1,7 +1,7 @@
 /**
  * @file stripTypes.ts
  * @description
- * Very small, dependency‑free TypeScript stripper for Nebula SFC `<script>` blocks.
+ * Very small, dependency‑free TypeScript stripper for Terajs SFC `<script>` blocks.
  *
  * This is NOT a full TS parser. It focuses on:
  * - removing `: Type` annotations on variables, params, and properties

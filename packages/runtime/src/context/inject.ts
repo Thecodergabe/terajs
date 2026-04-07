@@ -43,7 +43,7 @@ export function inject<T>(key: ContextKey, fallback?: T): T {
   }
 
   throw new Error(
-    `Nebula inject(): no provider found for key. ` +
+    `Terajs inject(): no provider found for key. ` +
       `Either supply a fallback or ensure a matching provide() exists.`
   );
 }

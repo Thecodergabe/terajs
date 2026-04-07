@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file batch.ts
  * @description
- * Nebula's batching system for fine-grained reactivity.
+ * Terajs's batching system for fine-grained reactivity.
  *
  * Batching groups multiple signal updates together so that effects
  * run only once after all updates complete.

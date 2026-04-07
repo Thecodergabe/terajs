@@ -1,9 +1,9 @@
-﻿/**
+/**
  * @file updateKeyedList.ts
  * @description
- * A minimal, platform-agnostic keyed list reconciler for Nebula's fine-grained renderer.
+ * A minimal, platform-agnostic keyed list reconciler for Terajs's fine-grained renderer.
  *
- * Nebula does NOT use a virtual DOM or tree diffing. Instead, lists are updated
+ * Terajs does NOT use a virtual DOM or tree diffing. Instead, lists are updated
  * reactively: when the underlying array changes, this function receives the old
  * and new lists and performs the minimal DOM operations needed to update the UI.
  *
@@ -14,7 +14,7 @@
  * - Unmounts removed items
  * - Uses an LIS (Longest Increasing Subsequence) to minimize DOM movement
  *
- * It is the ONLY diffing Nebula performs.
+ * It is the ONLY diffing Terajs performs.
  */
 
 import { Debug } from "@terajs/shared";

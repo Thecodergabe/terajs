@@ -1,17 +1,17 @@
 ```md
-# Nebula Kit
+# Terajs Kit
 
-Nebula Kit is the official application framework built on top of Nebula Core. While Nebula Core provides the rendering engine, reactivity system, and component model, Nebula Kit provides the structure needed to build full applications.
+Terajs Kit is the official application framework built on top of Terajs Core. While Terajs Core provides the rendering engine, reactivity system, and component model, Terajs Kit provides the structure needed to build full applications.
 
-Nebula Kit is comparable to frameworks like Nuxt, Next, SvelteKit, and SolidStart — but built on Nebula’s simpler, faster, fine‑grained foundation.
+Terajs Kit is comparable to frameworks like Nuxt, Next, SvelteKit, and SolidStart — but built on Terajs’s simpler, faster, fine‑grained foundation.
 
-Nebula Kit is optional. Nebula Core remains fully usable on its own.
+Terajs Kit is optional. Terajs Core remains fully usable on its own.
 
 ---
 
 ## 1. Philosophy
 
-Nebula Kit follows four principles:
+Terajs Kit follows four principles:
 
 ### **1. Convention over configuration**
 Developers get a predictable project structure without losing flexibility.
@@ -23,13 +23,13 @@ Data loading, SSR, and hydration work together seamlessly.
 Streaming SSR, partial hydration, and virtualization are built‑in.
 
 ### **4. Platform‑agnostic**
-Nebula Kit works with any Nebula renderer (DOM, native, canvas).
+Terajs Kit works with any Terajs renderer (DOM, native, canvas).
 
 ---
 
 ## 2. Features Overview
 
-Nebula Kit includes:
+Terajs Kit includes:
 
 - file‑based routing  
 - nested layouts  
@@ -43,13 +43,13 @@ Nebula Kit includes:
 - built‑in UI patterns (modal, popover, toast)  
 - integration patterns for ecommerce, CMS, APIs  
 
-Nebula Kit is designed for apps of any scale — from small sites to enterprise dashboards.
+Terajs Kit is designed for apps of any scale — from small sites to enterprise dashboards.
 
 ---
 
 ## 3. File‑Based Routing
 
-Nebula Kit supports a simple, predictable routing structure:
+Terajs Kit supports a simple, predictable routing structure:
 
 ```
 src/routes/
@@ -104,7 +104,7 @@ This enables SSR‑friendly data fetching without waterfalls.
 
 ## 5. Server Functions
 
-Nebula Kit supports server‑only functions:
+Terajs Kit supports server‑only functions:
 
 ```ts
 export const getUser = server(async () => {
@@ -119,11 +119,44 @@ Server functions:
 - automatically serialize results  
 - integrate with loaders and actions  
 
+Broadly, use server functions for app-owned server logic:
+
+- database reads and writes  
+- auth and session checks  
+- trusted mutations  
+- cookie-aware requests  
+- calls that require secrets or private tokens  
+
+Do not treat them as a replacement for OpenAPI, Kiota, or generated SDKs.
+
+If an app already depends on a formal external service contract, Terajs can call that client directly or wrap it inside a server function when the call must stay server-only.
+
+The broad intended shape is:
+
+```text
+UI -> Terajs app boundary -> server function -> DB or generated API client
+```
+
+### Transport Scope
+
+Terajs Kit does not require a special Terajs-owned backend.
+
+The client only needs an app endpoint that can dispatch server calls, such as `/_terajs/server`, mounted inside whatever server or edge adapter the app already uses.
+
+The default transport is intentionally minimal:
+
+- it uses standard `fetch` on the client  
+- it uses standard `Request` and `Response` objects on the server side  
+- it does not introduce a required RPC framework  
+- it does not add a generated-client dependency  
+
+If a runtime does not provide those primitives, the adapter can inject equivalents without changing Terajs Core or the server-function model.
+
 ---
 
 ## 6. Streaming SSR
 
-Nebula Kit supports streaming HTML to the client:
+Terajs Kit supports streaming HTML to the client:
 
 - send above‑the‑fold content immediately  
 - stream async sections as they resolve  
@@ -141,7 +174,7 @@ Streaming works with:
 
 ## 7. Partial Hydration
 
-Nebula Kit hydrates only what’s interactive:
+Terajs Kit hydrates only what’s interactive:
 
 - static sections stay static  
 - interactive components hydrate lazily  
@@ -156,7 +189,7 @@ This keeps large pages fast.
 
 ## 8. Virtualized Lists & Infinite Feeds
 
-Nebula Kit includes high‑performance list primitives:
+Terajs Kit includes high‑performance list primitives:
 
 ### `<VirtualList />`
 Renders only visible items.
@@ -180,7 +213,7 @@ Perfect for ecommerce grids, dashboards, and doom‑scroll feeds.
 
 ## 9. Portals & Overlays
 
-Nebula Kit includes a `<Portal>` primitive for:
+Terajs Kit includes a `<Portal>` primitive for:
 
 - modals  
 - popovers  
@@ -199,7 +232,7 @@ Portals work across:
 
 ## 10. Built‑In UI Patterns
 
-Nebula Kit ships with optional UI primitives:
+Terajs Kit ships with optional UI primitives:
 
 - `<Modal />`  
 - `<Popover />`  
@@ -214,7 +247,7 @@ These are unstyled and framework‑agnostic.
 
 ## 11. Data Resources
 
-Nebula Kit includes `createResource()` for async state:
+Terajs Kit includes `createResource()` for async state:
 
 ```ts
 const user = createResource(() => fetchUser());
@@ -232,7 +265,7 @@ Features:
 
 ## 12. Integration Patterns
 
-Nebula Kit provides examples and adapters for:
+Terajs Kit provides examples and adapters for:
 
 - ecommerce (Shopify, Medusa, Commerce.js)  
 - CMS (Sanity, Contentful, Strapi)  
@@ -240,18 +273,18 @@ Nebula Kit provides examples and adapters for:
 - authentication providers  
 - design systems  
 
-Nebula Kit does not enforce a backend.
+Terajs Kit does not enforce a backend.
 
 ---
 
 ## 13. Multi‑Platform Support
 
-Nebula Kit works with any Nebula renderer:
+Terajs Kit works with any Terajs renderer:
 
-- **nebula-dom** (web)  
-- **nebula-native** (iOS/Android)  
-- **nebula-canvas** (Skia/WebGL)  
-- **nebula-server** (SSR)  
+- **packages/renderer-web** (web)  
+- **packages/renderer-ios** and **packages/renderer-android** (native)  
+- **packages/renderer-canvas** (Skia/WebGL)  
+- **packages/renderer-ssr** (SSR)  
 
 Routing, loaders, and hydration adapt to the renderer.
 
@@ -259,7 +292,7 @@ Routing, loaders, and hydration adapt to the renderer.
 
 ## 14. Philosophy Summary
 
-Nebula Kit is:
+Terajs Kit is:
 
 - structured  
 - scalable  
@@ -269,7 +302,7 @@ Nebula Kit is:
 - flexible  
 - batteries‑included  
 
-Nebula Core = rendering engine.  
-Nebula Kit = full application framework.
+Terajs Core = rendering engine.  
+Terajs Kit = full application framework.
 
 ```

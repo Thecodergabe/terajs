@@ -1,9 +1,9 @@
-﻿/**
+/**
  * @file irTypes.ts
  * @description
- * Core Intermediate Representation (IR) types for Nebula's compiler.
+ * Core Intermediate Representation (IR) types for Terajs's compiler.
  *
- * Nebula's IR is intentionally renderer-agnostic. It represents:
+ * Terajs's IR is intentionally renderer-agnostic. It represents:
  * - normalized template structure
  * - metadata extracted from <meta> blocks
  * - route overrides extracted from <route> blocks
@@ -115,7 +115,7 @@ export type IRNode =
   | IRForNode
 
 /**
- * The full IR module produced from a Nebula SFC++ file.
+ * The full IR module produced from a Terajs SFC++ file.
  *
  * This is the compiler's primary output and the input to:
  * - SSR renderer

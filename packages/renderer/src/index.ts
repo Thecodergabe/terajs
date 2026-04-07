@@ -1,7 +1,7 @@
 /**
  * @file index.ts
  * @description
- * Public entry point for the platform-agnostic Nebula renderer package.
+ * Public entry point for the platform-agnostic Terajs renderer package.
  */
 
 export * from "./ast";

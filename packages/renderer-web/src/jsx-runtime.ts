@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file jsx-runtime.ts
  * @description
- * Nebula's JSX runtime - the bridge between JSX syntax and Nebula's
+ * Terajs's JSX runtime - the bridge between JSX syntax and Terajs's
  * fine-grained DOM renderer.
  *
  * JSX compiles directly into:
@@ -34,7 +34,7 @@ import { Debug } from "@terajs/shared";
 /**
  * Special symbol used by JSX to represent a fragment.
  */
-export const Fragment = Symbol("Nebula.Fragment");
+export const Fragment = Symbol("Terajs.Fragment");
 
 /**
  * Normalize any JSX child into a concrete DOM Node.

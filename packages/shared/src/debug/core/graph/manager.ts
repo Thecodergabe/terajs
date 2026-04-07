@@ -1,7 +1,7 @@
 /**
  * @file manager.ts
  * @description
- * Reactive Graph Manager for Nebula.
+ * Reactive Graph Manager for Terajs.
  */
 
 import type { ReactiveMetadata } from "../../types/metadata";

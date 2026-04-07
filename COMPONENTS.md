@@ -1,9 +1,9 @@
 ```md
-# 🧩 Nebula Component System
+# 🧩 Terajs Component System
 
-Nebula components are lightweight functions built on fine‑grained reactivity. Components run once; templates update automatically when reactive values change. This makes Nebula predictable, fast, and easy to reason about.
+Terajs components are lightweight functions built on fine‑grained reactivity. Components run once; templates update automatically when reactive values change. This makes Terajs predictable, fast, and easy to reason about.
 
-Nebula encourages a simple structure inside `.tsx` files:
+Terajs encourages a simple structure inside `.tsx` files:
 
 - Props  
 - Logic (state, computed, effects, handlers)  
@@ -16,7 +16,7 @@ This structure is recommended, not enforced.
 
 ## 1. Component Anatomy
 
-A typical Nebula component:
+A typical Terajs component:
 
 ```tsx
 export interface ExampleProps {
@@ -111,7 +111,7 @@ Template rules:
 - should avoid heavy computations  
 - runs only when needed  
 
-Nebula updates only the parts of the UI that depend on reactive reads.
+Terajs updates only the parts of the UI that depend on reactive reads.
 
 ---
 
@@ -128,7 +128,7 @@ export const styles = `
 `;
 ```
 
-Nebula will:
+Terajs will:
 
 - generate a unique class for the component  
 - scope the styles at runtime  
@@ -166,7 +166,7 @@ No registration, no boilerplate, no magic.
 
 ## 7. Async Components
 
-Nebula supports async components via:
+Terajs supports async components via:
 
 ```ts
 const User = lazy(() => import("./User"));
@@ -184,7 +184,7 @@ Behavior:
 
 ## 8. Lifecycle & Cleanup
 
-Nebula supports cleanup via:
+Terajs supports cleanup via:
 
 ```ts
 effect(() => {
@@ -206,7 +206,7 @@ Effects do not run on the server.
 
 ## 9. SSR Behavior
 
-Nebula follows a simple rule:
+Terajs follows a simple rule:
 
 > If it works on the client, it works on the server — except DOM operations and effects.
 
@@ -223,7 +223,7 @@ SSR guarantees:
 
 ## 10. Multi‑File Components (Optional)
 
-Nebula supports splitting large components:
+Terajs supports splitting large components:
 
 ```
 UserCard/
@@ -239,22 +239,22 @@ This is optional and not enforced.
 
 ## 11. Interoperability
 
-Nebula components work with:
+Terajs components work with:
 
 - any DOM‑based UI library  
 - any CSS framework  
 - Web Components  
 - JSX‑based design systems  
-- native renderers (nebula-native)  
-- canvas renderers (nebula-canvas)  
+- native renderers (packages/renderer-ios, packages/renderer-android)  
+- canvas renderers (packages/renderer-canvas)  
 
-Nebula does not impose a custom component universe.
+Terajs does not impose a custom component universe.
 
 ---
 
 ## 12. Reactivity: Deep vs Shallow Watching
 
-Nebula uses fine‑grained, explicit dependency tracking.
+Terajs uses fine‑grained, explicit dependency tracking.
 
 - **Shallow watching is the default**  
 - **Deep watching is not supported**  
@@ -280,7 +280,7 @@ This keeps reactivity predictable, fast, and SSR‑safe.
 
 ## 13. Slots (Default, Named, Scoped)
 
-Nebula supports flexible slot patterns using JSX functions.
+Terajs supports flexible slot patterns using JSX functions.
 
 ### Default Slot
 
@@ -319,7 +319,7 @@ Slots are fully reactive and SSR‑safe.
 
 ## 14. Portals (Teleporting Content)
 
-Nebula includes a `<Portal>` primitive for rendering content outside the normal hierarchy.
+Terajs includes a `<Portal>` primitive for rendering content outside the normal hierarchy.
 
 Example:
 
@@ -342,7 +342,7 @@ Used for modals, popovers, tooltips, dropdowns, and overlays.
 
 ## 15. Philosophy Summary
 
-Nebula components are:
+Terajs components are:
 
 - simple  
 - fast  
@@ -352,5 +352,5 @@ Nebula components are:
 - cross‑platform  
 - easy to read and maintain  
 
-Nebula provides a recommended pattern without restricting how developers build their components.
+Terajs provides a recommended pattern without restricting how developers build their components.
 ```

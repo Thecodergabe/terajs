@@ -1,9 +1,9 @@
-﻿/**
+/**
  * @file for.ts
  * @description
- * Nebula's reactive keyed list component.
+ * Terajs's reactive keyed list component.
  *
- * This component is the idiomatic way to render arrays in Nebula.
+ * This component is the idiomatic way to render arrays in Terajs.
  * It performs:
  * - minimal DOM movement
  * - keyed identity preservation

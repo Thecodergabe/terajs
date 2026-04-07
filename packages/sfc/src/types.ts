@@ -4,7 +4,7 @@ import type { MetaConfig, RouteOverride } from "@terajs/shared";
  * Optional route overrides declared inside an SFC `<route>` block.
  *
  * These values override defaults inferred from the file path and routing system.
- * Parsed from a YAML-like block using Nebula's internal mini parser.
+ * Parsed from a YAML-like block using Terajs's internal mini parser.
  */
 export type { RouteOverride };
 
@@ -12,12 +12,12 @@ export type { RouteOverride };
  * Metadata configuration declared inside an SFC `<meta>` block.
  *
  * Drives SEO, AI, analytics, performance, and accessibility behavior.
- * Parsed from a YAML-like block using Nebula's internal mini parser.
+ * Parsed from a YAML-like block using Terajs's internal mini parser.
  */
 export type { MetaConfig };
 
 /**
- * Parsed representation of a Nebula SFC++ file.
+ * Parsed representation of a Terajs SFC++ file.
  *
  * Includes:
  * - raw template/script/style blocks

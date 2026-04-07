@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file template.ts
  * @description
- * Nebula's reactive template wrapper.
+ * Terajs's reactive template wrapper.
  *
  * A TemplateFn is a function that returns a DOM Node.
  * It is wrapped in a reactive effect so that whenever any signal it reads

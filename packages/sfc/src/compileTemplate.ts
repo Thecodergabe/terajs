@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { parseSFC } from "@terajs/sfc";
 import { sfcToComponent } from "./sfcToComponent";
 
@@ -34,7 +34,7 @@ describe("sfcToComponent (integration)", () => {
 /**
  * @file compileTemplate.ts
  * @description
- * SFC-aware template compiler entry point for Nebula.
+ * SFC-aware template compiler entry point for Terajs.
  *
  * This is a thin wrapper around `generateIRModule`, which:
  * - parses the `<template>` block into an AST
@@ -54,7 +54,7 @@ import type { IRModule } from "@terajs/compiler";
 import { generateIRModule } from "@terajs/compiler";
 
 /**
- * Compiles a Nebula SFC's `<template>` (plus meta/ai/route)
+ * Compiles a Terajs SFC's `<template>` (plus meta/ai/route)
  * into a full `IRModule`.
  *
  * @param sfc - The parsed SFC structure (from `parseSFC`).

@@ -1,9 +1,9 @@
-﻿/**
+/**
  * @file dom.ts
  * @description
- * Platform-specific DOM operations for Nebula's renderer.
+ * Platform-specific DOM operations for Terajs's renderer.
  *
- * Nebula does NOT use a virtual DOM. These operations directly mutate the DOM
+ * Terajs does NOT use a virtual DOM. These operations directly mutate the DOM
  * to ensure maximum performance and minimal memory overhead.
  */
 

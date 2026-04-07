@@ -1,7 +1,7 @@
 /**
  * @file component.ts
  * @description
- * Platform-agnostic component contract for Nebula.
+ * Platform-agnostic component contract for Terajs.
  *
  * A FrameworkComponent is a function that receives props and returns
  * either:

@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file component.ts
  * @description
- * High-level component wrapper for Nebula.
+ * High-level component wrapper for Terajs.
  * Now includes optional HMR integration (dev-only).
  */
 
@@ -46,10 +46,10 @@ export function onCleanup(fn: Disposer): void {
 }
 
 /**
- * Create a Nebula component wrapper.
+ * Create a Terajs component wrapper.
  *
  * This is the primary runtime entry point for components.
- * It wires the setup function into Nebula's context system and,
+ * It wires the setup function into Terajs's context system and,
  * in development, registers the component for HMR.
  */
 export function component<P = any>(
@@ -100,7 +100,7 @@ export function component<P = any>(
     try {
       out = currentSetup(props as P);
     } catch (err) {
-      console.error(`[Nebula] Error in component <${name} />:`, err);
+      console.error(`[Terajs] Error in component <${name} />:`, err);
       setCurrentContext(null);
       popContextFrame();
       throw err;

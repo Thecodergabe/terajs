@@ -1,15 +1,15 @@
 ```md
-# Nebula API Reference
+# Terajs API Reference
 
-This document describes the full public API of **Nebula Core** — the reactivity system, component model, lifecycle utilities, and DOM‑agnostic primitives that power Nebula’s rendering engine and Nebula Kit.
+This document describes the full public API of **Terajs Core** — the reactivity system, component model, lifecycle utilities, and DOM‑agnostic primitives that power Terajs’s rendering engine and Terajs Kit.
 
-Nebula’s API is intentionally small, predictable, and stable.
+Terajs’s API is intentionally small, predictable, and stable.
 
 ---
 
 # 1. Reactivity API
 
-Nebula uses fine‑grained, explicit dependency tracking. Signals are the foundation of all reactive behavior.
+Terajs uses fine‑grained, explicit dependency tracking. Signals are the foundation of all reactive behavior.
 
 ---
 
@@ -81,7 +81,7 @@ effect(() => {
 
 # 2. Component API
 
-Nebula components are simple functions that return a template function.
+Terajs components are simple functions that return a template function.
 
 ---
 
@@ -133,7 +133,7 @@ if (isServer()) {
 
 # 3. Lifecycle API
 
-Nebula provides minimal lifecycle utilities.
+Terajs provides minimal lifecycle utilities.
 
 ---
 
@@ -161,9 +161,32 @@ onUnmount(() => {
 
 ---
 
+## Server Runtime Overview
+
+Terajs's runtime can optionally expose a server boundary for loaders and server functions.
+
+Use that boundary when code must stay app-owned and server-side, such as:
+
+- database access  
+- auth and session checks  
+- cookie-aware reads or mutations  
+- secret-bearing backend calls  
+
+Do not use it as a replacement for a formal service contract. If your app already uses OpenAPI, Kiota, REST, GraphQL, or another generated client boundary, Terajs can consume that client directly or wrap it in a server function when the call must remain server-only.
+
+The transport layer is adapter-based:
+
+- the client side can use `fetch` to call an app endpoint such as `/_terajs/server`  
+- the server side can dispatch those calls from standard `Request` and `Response` primitives  
+- no specific HTTP framework is required by the runtime itself  
+
+This keeps the core runtime modular while still allowing a batteries-included app layer on top.
+
+---
+
 # 4. Context API
 
-Nebula supports dependency injection via context.
+Terajs supports dependency injection via context.
 
 ---
 
@@ -201,7 +224,7 @@ Provides a context value to children.
 
 # 5. Portal API
 
-Nebula supports teleporting content outside the normal hierarchy.
+Terajs supports teleporting content outside the normal hierarchy.
 
 ---
 
@@ -223,7 +246,7 @@ Nebula supports teleporting content outside the normal hierarchy.
 
 # 6. Slot API
 
-Nebula supports default, named, and scoped slots.
+Terajs supports default, named, and scoped slots.
 
 ---
 
@@ -276,13 +299,13 @@ interface Renderer {
 }
 ```
 
-Nebula Core is renderer‑agnostic.
+Terajs Core is renderer‑agnostic.
 
 ---
 
 # 8. SSR API
 
-Nebula supports deterministic SSR.
+Terajs supports deterministic SSR.
 
 ---
 
@@ -300,7 +323,7 @@ Streams HTML chunks.
 
 ## 8.3 Hydration Markers
 
-Nebula automatically inserts hydration markers for:
+Terajs automatically inserts hydration markers for:
 
 - signals  
 - components  
@@ -311,7 +334,7 @@ Nebula automatically inserts hydration markers for:
 
 # 9. Utility API
 
-Nebula includes small utilities.
+Terajs includes small utilities.
 
 ---
 
@@ -339,7 +362,7 @@ Converts an object to inline styles.
 
 # 10. Philosophy Summary
 
-Nebula’s API is:
+Terajs’s API is:
 
 - small  
 - predictable  
@@ -349,8 +372,8 @@ Nebula’s API is:
 - fine‑grained  
 - easy to learn  
 
-Nebula Core stays minimal.  
-Nebula Kit adds structure.  
+Terajs Core stays minimal.  
+Terajs Kit adds structure.  
 Renderers handle output.
 
 ```

@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file renderFromIR.ts
  * @description
- * Reactive client-side DOM renderer for Nebula's IR.
+ * Reactive client-side DOM renderer for Terajs's IR.
  */
 
 import type {

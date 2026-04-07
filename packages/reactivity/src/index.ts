@@ -1,7 +1,7 @@
 /**
  * @file index.ts
  * @description
- * Entry point for the Nebula Reactivity System.
+ * Entry point for the Terajs Reactivity System.
  * * This package provides the fine-grained primitives required to build
  * reactive interfaces with automatic dependency tracking and 
  * deep-diffing capabilities.

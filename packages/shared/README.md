@@ -1,6 +1,6 @@
-﻿# Nebula Shared Package
+# Terajs Shared Package
 
-This package provides all shared types, debug/event systems, and the dependency graph for Nebula's runtime and devtools.
+This package provides all shared types, debug/event systems, and the dependency graph for Terajs's runtime and devtools.
 
 ---
 

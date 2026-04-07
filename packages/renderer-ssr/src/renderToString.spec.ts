@@ -20,7 +20,7 @@ describe("renderToString", () => {
     const { html, head } = renderToString(ir);
 
     expect(html).toBe(
-      `Hello<script type="application/nebula-hydration">{"mode":"eager"}</script>`
+      `Hello<script type="application/terajs-hydration">{"mode":"eager"}</script>`
     );
     expect(head).toBe("");
   });
@@ -38,7 +38,7 @@ describe("renderToString", () => {
     const { html } = renderToString(ir);
 
     expect(html).toBe(
-      `<div>Hi</div><script type="application/nebula-hydration">{"mode":"eager"}</script>`
+      `<div>Hi</div><script type="application/terajs-hydration">{"mode":"eager"}</script>`
     );
   });
 

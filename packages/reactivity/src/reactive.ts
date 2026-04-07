@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file reactive.ts
  * @description
- * Implements deep reactivity for objects and arrays using Nebula's
+ * Implements deep reactivity for objects and arrays using Terajs's
  * fine-grained signal system.
  *
  * Each property becomes its own signal, enabling:

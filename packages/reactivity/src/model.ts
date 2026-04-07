@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file model.ts
  * @description
- * Implements Nebula's two-way binding primitive.
+ * Implements Terajs's two-way binding primitive.
  *
  * `model()` creates a `ref()` that stays synchronized with a parent
  * component's prop. Updating the model updates the parent, and updating

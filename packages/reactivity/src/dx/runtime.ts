@@ -1,7 +1,7 @@
-﻿/**
+/**
  * @file runtime.ts
  * @description
- * Tracks whether Nebula is running in client or server mode.
+ * Tracks whether Terajs is running in client or server mode.
  *
  * Server mode disables effect execution and DOM writes,
  * but still allows dependency tracking for hydration.

@@ -1,5 +1,5 @@
-// Nebula Android Renderer Entry Point (Experimental)
-// This is a proof-of-concept for mapping Nebula's runtime/component tree to Jetpack Compose
+// Terajs Android Renderer Entry Point (Experimental)
+// This is a proof-of-concept for mapping Terajs's runtime/component tree to Jetpack Compose
 
 // Platform adapter interface
 export interface PlatformAdapter {
@@ -12,7 +12,7 @@ export interface PlatformAdapter {
 // Example: Jetpack Compose adapter stub
 export const JetpackComposeAdapter: PlatformAdapter = {
   createElement(type, props) {
-    // Map Nebula element types to Jetpack Compose primitives
+    // Map Terajs element types to Jetpack Compose primitives
     // e.g., 'div' -> Column, 'span' -> Text, etc.
     return { type, props };
   },
@@ -30,8 +30,8 @@ export const JetpackComposeAdapter: PlatformAdapter = {
 };
 
 // Renderer entry
-export function renderNebulaToJetpackCompose(component: any, adapter: PlatformAdapter = JetpackComposeAdapter) {
-  // TODO: Walk Nebula component tree and map to Jetpack Compose
+export function renderTerajsToJetpackCompose(component: any, adapter: PlatformAdapter = JetpackComposeAdapter) {
+  // TODO: Walk Terajs component tree and map to Jetpack Compose
   // This is a stub for future implementation
   return adapter.createElement('Column', {});
 }

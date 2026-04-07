@@ -1,7 +1,7 @@
 /**
  * @file types.ts
  * @description
- * Shared SSR types for Nebula's server-side renderer.
+ * Shared SSR types for Terajs's server-side renderer.
  * These types define the shape of the SSR context, hydration hints,
  * and the final SSR output returned by `renderToString`.
  */
@@ -37,7 +37,7 @@ export interface SSRContext {
 /**
  * Hydration hint derived from meta, route, or SSR context.
  *
- * Nebula uses hydration modes to determine how the client should
+ * Terajs uses hydration modes to determine how the client should
  * re-activate the server-rendered HTML.
  */
 export interface SSRHydrationHint {
@@ -54,7 +54,7 @@ export interface SSRHydrationHint {
 }
 
 /**
- * Result of Nebula's server-side rendering.
+ * Result of Terajs's server-side rendering.
  *
  * Returned by `renderToString`, this object contains:
  * - the rendered HTML body

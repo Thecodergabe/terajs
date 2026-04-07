@@ -1,6 +1,6 @@
-﻿# Nebula DevTools
+# Terajs DevTools
 
-Nebula DevTools provides a live overlay for inspecting your app's component tree, signals, effects, and runtime events. Built with Nebula SFCs and styled with Tailwind.
+Terajs DevTools provides a live overlay for inspecting your app's component tree, signals, effects, and runtime events. Built with Terajs SFCs and styled with Tailwind.
 
 ---
 

@@ -1,10 +1,10 @@
-# Nebula iOS Renderer (Experimental)
+# Terajs iOS Renderer (Experimental)
 
-This package is a proof-of-concept for rendering Nebula components to native iOS (SwiftUI) views.
+This package is a proof-of-concept for rendering Terajs components to native iOS (SwiftUI) views.
 
 ## Goals
-- Map Nebula’s runtime/component tree to SwiftUI primitives
-- Reuse Nebula’s reactivity and SFC pipeline
+- Map Terajs’s runtime/component tree to SwiftUI primitives
+- Reuse Terajs’s reactivity and SFC pipeline
 - Enable cross-platform UI from a single codebase
 
 ## Usage

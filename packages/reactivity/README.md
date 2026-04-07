@@ -1,6 +1,6 @@
-﻿# Nebula Reactivity System
+# Terajs Reactivity System
 
-Nebula's reactivity system is fine-grained, fast, and designed for DX. It powers all state, computed, and effect logic in Nebula apps.
+Terajs's reactivity system is fine-grained, fast, and designed for DX. It powers all state, computed, and effect logic in Terajs apps.
 
 ---
 
@@ -65,7 +65,7 @@ user.name = 'Bro'; // triggers effect
 ---
 
 ## Debugging & DevTools
-- All signals, effects, and computed values emit debug events for live inspection in Nebula DevTools.
+- All signals, effects, and computed values emit debug events for live inspection in Terajs DevTools.
 - The dependency graph is visualized in the devtools overlay.
 
 ---
@@ -75,7 +75,7 @@ user.name = 'Bro'; // triggers effect
 ```ts
 import { signal, effect } from '@terajs/reactivity';
 
-const todos = signal(['Learn Nebula']);
+const todos = signal(['Learn Terajs']);
 effect(() => {
   console.log('Todos:', todos());
 });

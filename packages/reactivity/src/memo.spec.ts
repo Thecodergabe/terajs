@@ -1,6 +1,6 @@
 /**
  * @file memo.spec.ts
- * Tests for Nebula's memo, markStatic, and shallowRef utilities.
+ * Tests for Terajs's memo, markStatic, and shallowRef utilities.
  */
 import { memo, markStatic, shallowRef } from "./memo";
 
@@ -29,7 +29,7 @@ describe("memo utility", () => {
 describe("markStatic", () => {
   it("marks an object as static", () => {
     const arr = markStatic([1, 2, 3]);
-    expect((arr as any).__nebula_static__).toBe(true);
+    expect((arr as any).__terajs_static__).toBe(true);
   });
 });
 
