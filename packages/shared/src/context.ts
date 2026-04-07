@@ -4,6 +4,7 @@
  */
 
 import { Debug } from "./debug/events";
+import type { ComponentErrorBoundaryHandler } from "./errorBoundary";
 
 export type Disposer = () => void;
 
@@ -13,6 +14,7 @@ export interface ComponentContext {
   frame: any;
   name: string;
   instance: number;
+  errorBoundary?: ComponentErrorBoundaryHandler;
 
   mounted?: Array<() => void>;
   updated?: Array<() => void>;
@@ -38,6 +40,7 @@ export function createComponentContext(): ComponentContext {
     frame: null,
     name: "Unknown",
     instance: 0,
+    errorBoundary: undefined,
     mounted: [],
     updated: [],
     unmounted: []

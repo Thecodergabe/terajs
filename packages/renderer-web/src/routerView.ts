@@ -1,7 +1,8 @@
 import type { LoadedRouteMatch, RouteHydrationSnapshot, RouteMatch, Router } from "@terajs/router";
-import { loadRouteMatch } from "@terajs/router";
-import { onCleanup } from "@terajs/runtime";
+import { getRouteDataResourceKeys, loadRouteMatch } from "@terajs/router";
+import { onCleanup, registerResourceInvalidation } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
+import { withErrorBoundary } from "./errorBoundary";
 import { readHydrationPayload } from "./hydrate";
 import { mount, unmount } from "./mount";
 import type { FrameworkComponent } from "./render";
@@ -16,7 +17,14 @@ export interface RouteViewOptions<TData = unknown> {
   autoStart?: boolean;
   loading?: (context: { router: Router; match: RouteMatch }) => Node;
   notFound?: (context: { router: Router; target: string }) => Node;
-  error?: (context: { router: Router; target: string; error: unknown }) => Node;
+  error?: (context: { router: Router; target: string; error: unknown; retry: () => Promise<void> }) => Node;
+  componentError?: (context: {
+    router: Router;
+    match: RouteMatch;
+    loaded: LoadedRouteMatch<TData>;
+    error: unknown;
+    retry: () => void;
+  }) => Node;
   applyMeta?: boolean;
   hydrationSnapshot?: RouteHydrationSnapshot<TData>;
 }
@@ -107,6 +115,27 @@ function composeLoadedMatch<TData>(
   return current;
 }
 
+function maybeWrapLoadedMatch<TData>(
+  router: Router,
+  loaded: LoadedRouteMatch<TData>,
+  options: RouteViewOptions<TData>
+): FrameworkComponent {
+  const composed = composeLoadedMatch(router, loaded);
+  if (!options.componentError) {
+    return composed;
+  }
+
+  return withErrorBoundary(composed, {
+    fallback: ({ error, retry }) => options.componentError!({
+      router,
+      match: loaded.match,
+      loaded,
+      error,
+      retry
+    })
+  });
+}
+
 export function createRouteView<TData = unknown>(
   router: Router,
   options: RouteViewOptions<TData> = {}
@@ -119,6 +148,7 @@ export function createRouteView<TData = unknown>(
     let started = false;
     let lastTarget = router.history.getLocation();
     let currentAbort: AbortController | null = null;
+    let currentRouteInvalidationCleanup: (() => void) | null = null;
     let hydrationSnapshot = options.hydrationSnapshot ?? readHydrationPayload().routeSnapshot as RouteHydrationSnapshot<TData> | undefined;
 
     const renderNode = (node: Node) => {
@@ -136,6 +166,8 @@ export function createRouteView<TData = unknown>(
       const token = navigationToken;
       currentAbort?.abort();
       currentAbort = new AbortController();
+      currentRouteInvalidationCleanup?.();
+      currentRouteInvalidationCleanup = null;
 
       if (!match) {
         renderNode(
@@ -146,6 +178,11 @@ export function createRouteView<TData = unknown>(
       }
 
       lastTarget = match.fullPath;
+
+      const retry = async () => {
+        const activeMatch = router.getCurrentRoute() ?? match;
+        await renderMatch(activeMatch);
+      };
 
       if (options.loading) {
         renderNode(options.loading({ router, match }));
@@ -169,7 +206,19 @@ export function createRouteView<TData = unknown>(
           applyResolvedRouteMetadata(loaded);
         }
 
-        mount(composeLoadedMatch(router, loaded), host);
+        currentRouteInvalidationCleanup = registerResourceInvalidation(
+          getRouteDataResourceKeys(match.route.id),
+          async () => {
+            const activeMatch = router.getCurrentRoute();
+            if (!activeMatch || activeMatch.fullPath !== match.fullPath) {
+              return;
+            }
+
+            await renderMatch(activeMatch);
+          }
+        );
+
+        mount(maybeWrapLoadedMatch(router, loaded, options), host);
       } catch (error) {
         if (currentAbort.signal.aborted) {
           return;
@@ -182,7 +231,7 @@ export function createRouteView<TData = unknown>(
         });
 
         renderNode(
-          options.error?.({ router, target: lastTarget, error }) ??
+          options.error?.({ router, target: lastTarget, error, retry }) ??
             createTextNode(`Route render failed: ${lastTarget}`)
         );
       }
@@ -206,6 +255,7 @@ export function createRouteView<TData = unknown>(
 
     onCleanup(() => {
       currentAbort?.abort();
+      currentRouteInvalidationCleanup?.();
       unsubscribe();
       try {
         unmount(host);

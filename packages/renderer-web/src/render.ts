@@ -60,6 +60,7 @@ export function renderComponent(
 ): RenderResult {
     const ctx = createComponentContext();
     const prev = getCurrentContext();
+    ctx.errorBoundary = prev?.errorBoundary;
 
     Debug.emit("component:render:start", {
         component,
@@ -155,6 +156,16 @@ export function renderIntoRoot(
 
 /** Type guard for AST nodes */
 function isAst(value: any): value is ASTNode {
-    return value && typeof value === "object" && typeof value.type === "string";
+    if (!value || typeof value !== "object" || value instanceof Node) {
+        return false;
+    }
+
+    return value.type === "element"
+        || value.type === "text"
+        || value.type === "interp"
+        || value.type === "if"
+        || value.type === "for"
+        || value.type === "portal"
+        || value.type === "slot";
 }
 

@@ -9,7 +9,7 @@
  */
 
 import { effect } from "@terajs/reactivity";
-import { onCleanup } from "@terajs/runtime";
+import { getCurrentContext, onCleanup } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
 
 /**
@@ -33,9 +33,26 @@ export function template(fn: TemplateFn): Node {
     });
 
     let current: Node | null = null;
+    const boundary = getCurrentContext()?.errorBoundary;
+    const ownerName = getCurrentContext()?.name;
 
     const stop = effect(() => {
-        const next = fn();
+        let next: Node;
+
+        try {
+            next = fn();
+        } catch (error) {
+            if (boundary) {
+                boundary({
+                    error,
+                    phase: "template",
+                    componentName: ownerName
+                });
+                return;
+            }
+
+            throw error;
+        }
 
         Debug.emit("template:update", {
             templateFn: fn,

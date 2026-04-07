@@ -29,6 +29,7 @@ export * from "./debug/types/graph";
 export * from "./hydration";
 export * from "./routeTypes";
 export * from "./server";
+export * from "./errorBoundary";
 
 export { 
   getCurrentContext, 

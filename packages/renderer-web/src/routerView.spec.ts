@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMemoryHistory, createRouteHydrationSnapshot, createRouter, type RouteDefinition } from "@terajs/router";
+import {
+  createMemoryHistory,
+  createRouteHydrationSnapshot,
+  createRouter,
+  getRouteDataResourceKey,
+  type RouteDefinition
+} from "@terajs/router";
+import { invalidateResources } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
 import { mount, unmount } from "./mount";
 import { createRouteView } from "./routerView";
@@ -180,6 +187,172 @@ describe("createRouteView", () => {
 
     expect(root.querySelector('[data-layout="root"]')?.textContent).toContain("page");
     expect(root.querySelector('[data-layout="docs"]')?.textContent).toContain("page");
+
+    unmount(root);
+  });
+
+  it("revalidates the current route when its data key is invalidated", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let version = 0;
+    const router = createRouter(
+      [
+        route({
+          id: "docs",
+          path: "/docs",
+          component: async () => ({
+            default: ({ data }: { data: { version: number } }) => document.createTextNode(`docs:${data.version}`),
+            load: () => ({ version: ++version })
+          })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("docs:1");
+
+    await invalidateResources(getRouteDataResourceKey("docs"));
+    await flush();
+
+    expect(root.textContent).toContain("docs:2");
+
+    unmount(root);
+  });
+
+  it("exposes a retry callback for route errors", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let shouldFail = true;
+    const router = createRouter(
+      [
+        route({
+          id: "docs",
+          path: "/docs",
+          component: async () => ({
+            default: ({ data }: { data: { version: number } }) => document.createTextNode(`docs:${data.version}`),
+            load: () => {
+              if (shouldFail) {
+                throw new Error("temporary");
+              }
+
+              return { version: 1 };
+            }
+          })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(
+      createRouteView(router, {
+        error: ({ retry }) => {
+          const button = document.createElement("button");
+          button.textContent = "retry";
+          button.addEventListener("click", () => {
+            shouldFail = false;
+            void retry();
+          });
+          return button;
+        }
+      }),
+      root
+    );
+    await flush();
+
+    const button = root.querySelector("button");
+    expect(button?.textContent).toBe("retry");
+
+    button?.dispatchEvent(new MouseEvent("click"));
+    await flush();
+
+    expect(root.textContent).toContain("docs:1");
+
+    unmount(root);
+  });
+
+  it("wraps route component render failures with componentError fallback", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const router = createRouter(
+      [
+        route({
+          id: "docs",
+          path: "/docs",
+          component: async () => ({
+            default: () => {
+              throw new Error("page failed");
+            }
+          })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(
+      createRouteView(router, {
+        componentError: ({ error }) => {
+          const el = document.createElement("p");
+          el.textContent = error instanceof Error ? error.message : String(error);
+          return el;
+        }
+      }),
+      root
+    );
+    await flush();
+
+    expect(root.textContent).toContain("page failed");
+
+    unmount(root);
+  });
+
+  it("retries route component failures from componentError fallback", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let shouldFail = true;
+    const router = createRouter(
+      [
+        route({
+          id: "docs",
+          path: "/docs",
+          component: async () => ({
+            default: () => () => {
+              if (shouldFail) {
+                throw new Error("component update failed");
+              }
+
+              return document.createTextNode("component ok");
+            }
+          })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(
+      createRouteView(router, {
+        componentError: ({ retry }) => {
+          const button = document.createElement("button");
+          button.textContent = "recover";
+          button.addEventListener("click", () => {
+            shouldFail = false;
+            retry();
+          });
+          return button;
+        }
+      }),
+      root
+    );
+    await flush();
+
+    expect(root.textContent).toContain("recover");
+
+    root.querySelector("button")?.dispatchEvent(new MouseEvent("click"));
+    await flush();
+
+    expect(root.textContent).toContain("component ok");
 
     unmount(root);
   });

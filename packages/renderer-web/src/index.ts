@@ -30,6 +30,12 @@ export * from "./hydrate";
 // Portal primitive
 export * from "./portal";
 
+// Router-aware link primitive
+export * from "./link";
+
+// Error boundaries
+export * from "./errorBoundary";
+
 // IR Renderer (SSR-aligned baseline for client-side rendering)
 export * from "./renderFromIR";
 
