@@ -10,7 +10,10 @@ import { invalidateResources } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
 import { Link } from "./link";
 import { mount, unmount } from "./mount";
+import type { RoutePendingProps } from "./routeShell";
 import { createRouteView } from "./routerView";
+import { RoutePending } from "./routeShell";
+import { withRouterContext } from "./routerContext";
 
 function route(overrides: Partial<RouteDefinition>): RouteDefinition {
   return {
@@ -59,6 +62,54 @@ describe("createRouteView", () => {
     await router.navigate("/about");
     await flush();
     expect(root.textContent).toContain("about");
+
+    unmount(root);
+  });
+
+  it("keeps the previous page visible while the next route loads when requested", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let resolveAbout: ((value: { default: () => Text }) => void) | undefined;
+    const router = createRouter(
+      [
+        route({ path: "/", component: async () => ({ default: () => document.createTextNode("home") }) }),
+        route({
+          path: "/about",
+          component: () => new Promise((resolve) => {
+            resolveAbout = resolve;
+          })
+        })
+      ],
+      { history: createMemoryHistory("/") }
+    );
+
+    mount(
+      createRouteView(router, {
+        loading: () => document.createTextNode("loading page"),
+        pending: ({ match }) => {
+          const el = document.createElement("p");
+          el.textContent = `pending:${match.fullPath}`;
+          return el;
+        },
+        keepPreviousDuringLoading: true
+      }),
+      root
+    );
+    await flush();
+
+    expect(root.textContent).toContain("home");
+
+    await router.navigate("/about");
+    await Promise.resolve();
+
+    expect(root.querySelector('[data-tera-route-content="true"]')?.textContent).toContain("home");
+    expect(root.querySelector('[data-tera-route-pending="true"]')?.textContent).toContain("pending:/about");
+
+    resolveAbout?.({ default: () => document.createTextNode("about") });
+    await flush();
+
+    expect(root.textContent).toContain("about");
+    expect(root.querySelector('[data-tera-route-pending="true"]')?.textContent).toBe("");
 
     unmount(root);
   });
@@ -389,6 +440,50 @@ describe("createRouteView", () => {
     await flush();
 
     expect(root.textContent).toContain("component ok");
+
+    unmount(root);
+  });
+
+  it("renders route pending helpers from router navigation state", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    let releaseGuard: (() => void) | undefined;
+    const router = createRouter(
+      [
+        route({ path: "/", filePath: "/pages/index.nbl" }),
+        route({ path: "/docs", filePath: "/pages/docs.nbl", middleware: ["slow"] })
+      ],
+      {
+        history: createMemoryHistory("/"),
+        middleware: {
+          slow: () => new Promise<void>((resolve) => {
+            releaseGuard = resolve;
+          })
+        }
+      }
+    );
+
+    await router.start();
+    mount(
+      () => withRouterContext(router, () => RoutePending({
+        children: (state: Parameters<NonNullable<RoutePendingProps["when"]>>[0]) => `pending:${state.to}`,
+        fallback: "idle"
+      })),
+      root
+    );
+
+    expect(root.textContent).toContain("idle");
+
+    const navigation = router.navigate("/docs");
+    await Promise.resolve();
+
+    expect(root.textContent).toContain("pending:/docs");
+
+    releaseGuard?.();
+    await navigation;
+    await flush();
+
+    expect(root.textContent).toContain("idle");
 
     unmount(root);
   });

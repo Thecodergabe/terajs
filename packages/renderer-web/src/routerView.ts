@@ -17,6 +17,12 @@ export interface RouteRenderContext<TData = unknown> {
 export interface RouteViewOptions<TData = unknown> {
   autoStart?: boolean;
   loading?: (context: { router: Router; match: RouteMatch }) => Node;
+  pending?: (context: {
+    router: Router;
+    current: RouteMatch | null;
+    match: RouteMatch;
+  }) => Node;
+  keepPreviousDuringLoading?: boolean;
   notFound?: (context: { router: Router; target: string }) => Node;
   error?: (context: { router: Router; target: string; error: unknown; retry: () => Promise<void> }) => Node;
   componentError?: (context: {
@@ -146,25 +152,42 @@ export function createRouteView<TData = unknown>(
   return () => {
     const host = document.createElement("div");
     host.setAttribute("data-tera-route-view", "true");
+    const contentHost = document.createElement("div");
+    contentHost.setAttribute("data-tera-route-content", "true");
+    const pendingHost = document.createElement("div");
+    pendingHost.setAttribute("data-tera-route-pending", "true");
+    host.append(contentHost, pendingHost);
 
     let navigationToken = 0;
     let started = false;
     let lastTarget = router.history.getLocation();
     let currentAbort: AbortController | null = null;
     let currentRouteInvalidationCleanup: (() => void) | null = null;
+    let lastRenderedMatch: RouteMatch | null = router.getCurrentRoute();
     let hydrationSnapshot = options.hydrationSnapshot ?? readHydrationPayload().routeSnapshot as RouteHydrationSnapshot<TData> | undefined;
 
-    const renderNode = (node: Node) => {
+    const clearRoot = (root: HTMLElement) => {
       try {
-        unmount(host);
+        unmount(root);
       } catch {
-        host.innerHTML = "";
+        root.innerHTML = "";
       }
-      host.innerHTML = "";
-      host.appendChild(node);
+    };
+
+    const renderContentNode = (node: Node) => {
+      clearRoot(contentHost);
+      contentHost.appendChild(node);
+    };
+
+    const renderPendingNode = (node: Node | null) => {
+      clearRoot(pendingHost);
+      if (node) {
+        pendingHost.appendChild(node);
+      }
     };
 
     const renderMatch = async (match: RouteMatch | null) => {
+      const previousMatch = lastRenderedMatch;
       navigationToken += 1;
       const token = navigationToken;
       currentAbort?.abort();
@@ -173,10 +196,12 @@ export function createRouteView<TData = unknown>(
       currentRouteInvalidationCleanup = null;
 
       if (!match) {
-        renderNode(
+        renderPendingNode(null);
+        renderContentNode(
           options.notFound?.({ router, target: lastTarget }) ??
             createTextNode(`Route not found: ${lastTarget}`)
         );
+        lastRenderedMatch = null;
         return;
       }
 
@@ -187,8 +212,15 @@ export function createRouteView<TData = unknown>(
         await renderMatch(activeMatch);
       };
 
-      if (options.loading) {
-        renderNode(options.loading({ router, match }));
+      if (options.keepPreviousDuringLoading && contentHost.childNodes.length > 0) {
+        renderPendingNode(
+          options.pending?.({ router, current: previousMatch, match }) ??
+            options.loading?.({ router, match }) ??
+            null
+        );
+      } else if (options.loading) {
+        renderPendingNode(null);
+        renderContentNode(options.loading({ router, match }));
       }
 
       try {
@@ -209,6 +241,8 @@ export function createRouteView<TData = unknown>(
           applyResolvedRouteMetadata(loaded);
         }
 
+        renderPendingNode(null);
+
         currentRouteInvalidationCleanup = registerResourceInvalidation(
           getRouteDataResourceKeys(match.route.id),
           async () => {
@@ -221,11 +255,14 @@ export function createRouteView<TData = unknown>(
           }
         );
 
-        mount(maybeWrapLoadedMatch(router, loaded, options), host);
+        mount(maybeWrapLoadedMatch(router, loaded, options), contentHost);
+        lastRenderedMatch = loaded.match;
       } catch (error) {
         if (currentAbort.signal.aborted) {
           return;
         }
+
+        renderPendingNode(null);
 
         Debug.emit("error:router", {
           message: error instanceof Error ? error.message : "Failed to render route.",
@@ -233,7 +270,7 @@ export function createRouteView<TData = unknown>(
           error
         });
 
-        renderNode(
+        renderContentNode(
           options.error?.({ router, target: lastTarget, error, retry }) ??
             createTextNode(`Route render failed: ${lastTarget}`)
         );
@@ -260,11 +297,9 @@ export function createRouteView<TData = unknown>(
       currentAbort?.abort();
       currentRouteInvalidationCleanup?.();
       unsubscribe();
-      try {
-        unmount(host);
-      } catch {
-        host.innerHTML = "";
-      }
+      clearRoot(contentHost);
+      clearRoot(pendingHost);
+      host.innerHTML = "";
     });
 
     return host;
