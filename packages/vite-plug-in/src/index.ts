@@ -9,6 +9,7 @@ import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs";
 import { getConfiguredRoutes, getRouteDirs } from "./config";
 import { compileSfcToComponent } from "./compileSfcToComponent";
+import { generateRouteConfigWithAssets } from "./routesScanner";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
@@ -56,6 +57,19 @@ function readNblFilesRecursively(dir: string): string[] {
   }
 
   return files;
+}
+
+function readBuildManifest(root: string, outDir: string): Record<string, any> | undefined {
+  const manifestPath = path.resolve(root, outDir, "manifest.json");
+  if (!fs.existsSync(manifestPath)) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch {
+    return undefined;
+  }
 }
 
 async function readRequestBody(stream: NodeJS.ReadableStream): Promise<string | undefined> {
@@ -151,6 +165,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     ? false
     : options.serverFunctions ?? {};
 
+  let config: any;
+  let manifest: Record<string, any> | undefined;
+
   function pascalCase(str: string) {
     return str
       .replace(/[-_](.)/g, (_, c) => c.toUpperCase())
@@ -220,6 +237,18 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     name: "terajs",
     enforce: "pre",
 
+    configResolved(resolvedConfig) {
+      config = resolvedConfig;
+    },
+
+    async writeBundle() {
+      if (!config?.build?.manifest) {
+        return;
+      }
+
+      manifest = readBuildManifest(config.root ?? process.cwd(), config.build.outDir ?? "dist");
+    },
+
     configureServer(server) {
       if (serverFunctionOptions === false) {
         return;
@@ -240,7 +269,16 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         return generateAutoImports();
       }
       if (id === RESOLVED_ROUTES_VIRTUAL_ID) {
-        return generateRoutesModule();
+        const routeFiles = Array.from(new Set([
+          ...routeDirs.flatMap((dir) => readNblFilesRecursively(dir)),
+          ...configuredRoutes.map((route) => route.filePath)
+        ])).sort();
+
+        if (config?.command === "build" && !manifest) {
+          manifest = readBuildManifest(config.root ?? process.cwd(), config.build.outDir ?? "dist");
+        }
+
+        return generateRouteConfigWithAssets(routeFiles, manifest, configuredRoutes);
       }
       if (!id.endsWith(".nbl")) return null;
 

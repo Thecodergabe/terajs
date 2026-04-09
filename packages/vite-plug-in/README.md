@@ -6,6 +6,7 @@ This plugin enables Terajs SFC compilation, HMR, and auto-imports for your proje
 - Compiles `.nbl` Single-File Components
 - Hot Module Replacement (HMR) for SFCs
 - **Auto-imports**: All components in configured directories are available globally in SFCs (no manual imports needed)
+- Production route manifest support with hashed asset resolution from Vite `manifest.json`
 
 ## Usage
 
@@ -72,8 +73,41 @@ This produces a manifest that already includes:
 - file-based layout wrappers from outermost to innermost
 - `<route>` overrides for path, middleware, hydration, prerender, and edge hints
 - lazy component loaders for each route
+- production-ready hashed asset lookup when Vite emits `manifest.json`
 
-### 4. Devtools Overlay
+### 4. Canonical App Shell
+
+Terajs apps can mount a single opinionated shell around the route graph.
+
+```html
+<template>
+  <div class="terajs-app">
+    <RouterView />
+
+    <Portal target="#terajs-modals" />
+  </div>
+</template>
+
+<script>
+  import { routes } from 'virtual:terajs-routes';
+  import { createRouter } from '@terajs/router';
+
+  export const router = createRouter(routes);
+</script>
+
+<style>
+  #terajs-modals {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+</style>
+```
+
+This shell keeps the route graph, nested layouts, and portal layer aligned across dev and production.
+
+### 5. Devtools Overlay
 
 To enable the Terajs DevTools overlay, import and call:
 

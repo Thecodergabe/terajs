@@ -213,12 +213,57 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(resolved).toBe("\0virtual:terajs-routes");
     expect(typeof code).toBe("string");
-    expect(code).toContain("@terajs/router-manifest");
     expect(code).toContain('filePath: "/src/routes/index.nbl"');
     expect(code).toContain('filePath: "/src/routes/products/[id].nbl"');
+    expect(code).toContain('layout: import("./src/routes/layout.nbl")');
   });
 
-  it("passes config-defined route overrides into the virtual manifest", async () => {
+  it("resolves hashed asset paths from the build manifest in build mode", async () => {
+    const routesDir = path.resolve(process.cwd(), "src/routes");
+    const productDir = path.join(routesDir, "products");
+    const manifestPath = path.resolve(process.cwd(), "dist", "manifest.json");
+
+    vi.spyOn(fs, "existsSync").mockImplementation((input) => {
+      const value = String(input);
+      return value === routesDir || value === productDir || value === manifestPath;
+    });
+
+    vi.spyOn(fs, "readdirSync").mockImplementation((input, options) => {
+      const value = String(input);
+      if (options && typeof options === "object" && "withFileTypes" in options && options.withFileTypes) {
+        if (value === routesDir) {
+          return [
+            { name: "index.nbl", isDirectory: () => false, isFile: () => true }
+          ] as any;
+        }
+      }
+      return [] as any;
+    });
+
+    vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      const value = String(input);
+      if (value.endsWith("index.nbl")) return "<template><Home /></template>";
+      if (value === manifestPath) {
+        return JSON.stringify({
+          "src/routes/index.nbl": { file: "assets/index-123.js" }
+        });
+      }
+      return "<template />";
+    });
+
+    const plugin = terajsPlugin();
+    const configResolved = plugin.configResolved as ((config: any) => void);
+    configResolved({ command: "build", root: process.cwd(), build: { outDir: "dist", manifest: true } });
+    await (plugin.writeBundle as (() => Promise<void>))();
+
+    const load = requireHook<[string], unknown>(plugin.load);
+    const code = load("\0virtual:terajs-routes");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain('asset: "assets/index-123.js"');
+  });
+
+  it("passes config-defined route overrides into the virtual route module", async () => {
     const configModule = await import("./config");
     vi.spyOn(configModule, "getConfiguredRoutes").mockReturnValue([
       {
@@ -240,7 +285,6 @@ describe("Terajs Vite Plugin (integration)", () => {
   const code = load("\0virtual:terajs-routes");
 
     expect(typeof code).toBe("string");
-    expect(code).toContain("routeConfigs");
     expect(code).toContain('path: "/learn"');
     expect(code).toContain('middleware: ["docs"]');
     expect(code).toContain('prerender: false');

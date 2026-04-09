@@ -14,6 +14,7 @@ export interface RouteDefinition {
   filePath: string;
   component: () => Promise<unknown>;
   layout?: any;
+  asset?: string;
   children?: RouteDefinition[];
   middleware: string[];
   prerender: boolean;

@@ -22,6 +22,7 @@ export interface RouteSourceInput {
   source?: string;
   parsedSFC?: ParsedSFC;
   component?: () => Promise<unknown>;
+  asset?: string;
 }
 
 function normalizeFilePath(filePath: string): string {
@@ -165,6 +166,7 @@ export function buildRouteManifest(
       return {
         ...route,
         component: input.component ?? route.component,
+        asset: input.asset,
         layouts: resolveLayouts(input.filePath, layoutsByDirectory)
       };
     });

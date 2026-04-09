@@ -85,4 +85,5 @@ export type {
 
 // Components
 export { Portal } from "./components/Portal";
+export { Suspense } from "./components/Suspense";
 export type { PortalProps } from "./components/Portal";

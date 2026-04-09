@@ -302,7 +302,7 @@ function renderNode(node: IRNode, scope: Record<string, unknown>): string {
 /**
  * Render a text node.
  */
-function renderText(node: IRTextNode): string {
+export function renderText(node: IRTextNode): string {
   return escapeText(node.value);
 }
 
@@ -310,7 +310,7 @@ function renderText(node: IRTextNode): string {
  * Render an interpolation node.
  * SSR does not evaluate expressions yet, so this returns an empty string.
  */
-function renderInterp(node: IRInterpolationNode, scope: Record<string, unknown>): string {
+export function renderInterp(node: IRInterpolationNode, scope: Record<string, unknown>): string {
   const value = resolveExpr(scope, node.expression);
   if (value == null) {
     return "";
@@ -326,17 +326,17 @@ function renderInterp(node: IRInterpolationNode, scope: Record<string, unknown>)
 /**
  * Render an element node and its children.
  */
-function renderElement(node: IRElementNode, scope: Record<string, unknown>): string {
+export function renderElement(node: IRElementNode, scope: Record<string, unknown>): string {
   const attrs = renderAttrs(node.props, scope);
   const children = node.children.map((child) => renderNode(child, scope)).join("");
   return `<${node.tag}${attrs}>${children}</${node.tag}>`;
 }
 
-function renderPortal(node: IRPortalNode, scope: Record<string, unknown>): string {
+export function renderPortal(node: IRPortalNode, scope: Record<string, unknown>): string {
   return node.children.map((child) => renderNode(child, scope)).join("");
 }
 
-function renderSlot(node: IRSlotNode, scope: Record<string, unknown>): string {
+export function renderSlot(node: IRSlotNode, scope: Record<string, unknown>): string {
   const slotName = node.name ?? "default";
   const slotValue = (scope.slots as Record<string, unknown> | undefined)?.[slotName];
 
@@ -350,7 +350,7 @@ function renderSlot(node: IRSlotNode, scope: Record<string, unknown>): string {
 /**
  * Render a v-if node.
  */
-function renderIf(node: IRIfNode, scope: Record<string, unknown>): string {
+export function renderIf(node: IRIfNode, scope: Record<string, unknown>): string {
   if (resolveExpr(scope, node.condition)) {
     return node.then.map((child) => renderNode(child, scope)).join("");
   }
@@ -361,7 +361,7 @@ function renderIf(node: IRIfNode, scope: Record<string, unknown>): string {
  * Render a v-for node.
  * SSR does not evaluate expressions yet; it simply renders the body once.
  */
-function renderFor(node: IRForNode, scope: Record<string, unknown>): string {
+export function renderFor(node: IRForNode, scope: Record<string, unknown>): string {
   const value = resolveExpr(scope, node.each);
   const items = Array.isArray(value) ? value : [];
 
@@ -380,7 +380,7 @@ function renderFor(node: IRForNode, scope: Record<string, unknown>): string {
 /**
  * Render static HTML attributes.
  */
-function renderAttrs(props: any[], scope: Record<string, unknown>): string {
+export function renderAttrs(props: any[], scope: Record<string, unknown>): string {
   if (!props.length) return "";
   const parts: string[] = [];
 
@@ -523,7 +523,7 @@ export function renderHydrationMarker(
 /**
  * Renders the state hydration script.
  */
-function renderHydrationData(data: Record<string, any>): string {
+export function renderHydrationData(data: Record<string, any>): string {
   if (!data || Object.keys(data).length === 0) return "";
   const serialized = JSON.stringify(data).replace(/</g, "\\u003c");
   return `<script id="__TERAJS_DATA__" type="application/json">${serialized}</script>`;

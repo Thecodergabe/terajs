@@ -1,5 +1,6 @@
 export { executeServerRoute } from "./executeRoute";
 export { renderToString } from "./renderToString";
+export { renderToStream } from "./renderToStream";
 
 export type {
   ExecuteServerRouteOptions,
