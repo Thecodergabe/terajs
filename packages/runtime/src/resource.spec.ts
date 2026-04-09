@@ -114,10 +114,23 @@ describe("createResource", () => {
 
     await Promise.resolve();
     expect(resource.data()).toEqual({ id: 1 });
+    expect(resource.source()).toBe("persistence");
     expect(fetcher).toHaveBeenCalled();
 
     await resource.promise();
     expect(resource.data()).toEqual({ id: 2 });
+    expect(resource.source()).toBe("network");
     expect(resource.state()).toBe("ready");
+  });
+
+  it("uses persistent key as SSR hydrate key when ssr: true is enabled", async () => {
+    document.body.innerHTML = `<script id="__TERAJS_DATA__" type="application/json">{"nebula-tasks-v1":[{"title":"cached task"}]}</script>`;
+
+    const fetcher = vi.fn(async () => [{ title: "remote task" }]);
+    const resource = createResource(() => fetcher(), { persistent: "nebula-tasks-v1", ssr: true });
+
+    expect(resource.data()).toEqual([{ title: "cached task" }]);
+    expect(resource.source()).toBe("hydration");
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

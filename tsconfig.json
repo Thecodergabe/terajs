@@ -26,6 +26,7 @@
     { "path": "./packages/router" },
     { "path": "./packages/router-manifest" },
     { "path": "./packages/ui" },
-    { "path": "./packages/vite-plug-in" }
+    { "path": "./packages/vite-plug-in" },
+    { "path": "./packages/cli" }
   ]
 }

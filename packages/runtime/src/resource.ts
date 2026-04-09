@@ -46,6 +46,7 @@ export interface Resource<TData> {
   state: Signal<ResourceState>;
   loading: () => boolean;
   latest: () => TData | undefined;
+  source: () => "hydration" | "persistence" | "network" | undefined;
   promise: () => Promise<TData> | null;
   refetch: () => Promise<TData>;
   mutate: (value: TData | ((current: TData | undefined) => TData)) => void;
@@ -59,6 +60,7 @@ interface ResourceOptions<TData> {
   hydrateKey?: string;
   key?: ResourceKey | ResourceKey[];
   persistent?: string;
+  ssr?: boolean;
 }
 
 export function createResource<TData>(
@@ -81,8 +83,8 @@ export function createResource<TSource, TData>(
     ? maybeFetcher
     : sourceOrFetcher) as ResourceFetcher<TSource | void, TData>;
   const options = (hasSource ? maybeOptions : maybeFetcher) as ResourceOptions<TData> | undefined;
-  const hydrationKey = options?.hydrateKey ?? (typeof options?.key === "string" ? options.key : undefined);
   const persistentKey = options?.persistent;
+  const hydrationKey = options?.hydrateKey ?? (options?.ssr ? persistentKey : undefined) ?? (typeof options?.key === "string" ? options.key : undefined);
   const hydratedValue = hydrationKey
     ? consumeHydratedResource<TData>(hydrationKey) ?? getHydratedData<TData>(hydrationKey)
     : undefined;
@@ -103,12 +105,16 @@ export function createResource<TSource, TData>(
   const data = signal<TData | undefined>(initialValue);
   const error = signal<unknown>(initialError);
   const state = signal<ResourceState>(initialState);
+  const sourceSignal = signal<"hydration" | "persistence" | "network" | undefined>(
+    hydratedValue !== undefined ? "hydration" : undefined
+  );
 
   if (persistentKey && hydratedValue === undefined && typeof window !== "undefined") {
     void localStorageAdapter.getItem<TData>(persistentKey)
       .then((cached) => {
         if (cached !== null && cached !== undefined) {
           data.set(cached);
+          sourceSignal.set("persistence");
           if (state() === "idle") {
             state.set("ready");
           }
@@ -143,6 +149,7 @@ export function createResource<TSource, TData>(
       }
 
       data.set(resolved);
+      sourceSignal.set("network");
       state.set("ready");
       error.set(undefined);
       if (persistentKey && typeof window !== "undefined") {
@@ -217,6 +224,7 @@ export function createResource<TSource, TData>(
     state,
     loading: () => state() === "pending",
     latest: () => data(),
+    source: () => sourceSignal(),
     promise: () => currentPromise,
     refetch: () => execute(currentSource),
     mutate: (value) => {

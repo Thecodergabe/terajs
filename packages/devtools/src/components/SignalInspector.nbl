@@ -7,8 +7,11 @@
 
     <ul v-if="updateList().length > 0" class="signal-list">
       <li v-for="sig in updateList()" :key="sig.key" class="signal-item">
-        <span class="signal-key">{{ sig.key }}</span>
-        <span class="signal-preview">= {{ sig.preview }}</span>
+        <span class="signal-key">
+          {{ sig.key }}
+          <span v-if="sig.persistent" class="signal-icon" title="Persisted signal">💾</span>
+        </span>
+        <span :class="['signal-preview', sig.muted ? 'signal-preview--muted' : '']">= {{ sig.preview }}</span>
       </li>
     </ul>
   </div>
@@ -29,9 +32,12 @@ watchEffect(() => {
     if (event.type === 'signal:update') {
       const payload = event.payload || {}
       const key = payload.key || 'unknown'
+      const metadata = payload.metadata || {}
       updates[key] = {
         key,
-        preview: JSON.stringify(payload.value).slice(0, 50)
+        preview: JSON.stringify(payload.value).slice(0, 50),
+        persistent: metadata.persistent === true,
+        muted: metadata.persistent === true && metadata.source === 'persistence'
       }
     }
     if (event.type === 'effect:run') runs += 1
@@ -71,9 +77,17 @@ summary: Tracks signal updates and effect execution counts.
 
 .panel-subtitle,
 .signal-preview {
-  color: var(--tera-mist, #B3B3B3);
+  color: var(--tera-cloud, #F5F5F5);
   font-family: "JetBrains Mono", "Fira Code", monospace;
   font-size: 0.75rem;
+}
+
+.signal-preview--muted {
+  color: var(--tera-mist, #B3B3B3);
+}
+
+.signal-icon {
+  margin-left: 0.35rem;
 }
 
 .empty-state {
