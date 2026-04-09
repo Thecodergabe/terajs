@@ -194,6 +194,26 @@ function renderSchema(schema: any): string {
   }
 }
 
+/**
+ * Renders resource hints for the browser to prioritize asset loading.
+ * Supports .css (stylesheet) and .js (modulepreload).
+ * @param assets - Array of absolute or relative asset URLs from the build manifest.
+ * @returns Serialized HTML link tags.
+ */
+function renderAssets(assets: string[]): string {
+  return assets
+    .filter((url) => typeof url === "string" && url.trim() !== "")
+    .map((url) => {
+      const href = escapeAttr(url.trim());
+      if (href.endsWith(".css")) {
+        return `<link rel="stylesheet" href="${href}">`;
+      }
+      // Optimization: modulepreload reduces waterfall effect on route-specific chunks.
+      return `<link rel="modulepreload" href="${href}">`;
+    })
+    .join("\n");
+}
+
 function renderAICoord(ai: Record<string, any>): string {
   if (!isPlainObject(ai) || Object.keys(ai).length === 0) return "";
   const content = JSON.stringify(ai).replace(/"/g, "&quot;");
@@ -406,15 +426,30 @@ function renderAttrs(props: any[], scope: Record<string, unknown>): string {
 /**
  * Render <head> metadata from IR meta + SSR context.
  */
+/**
+ * Render <head> metadata from IR meta + SSR context.
+ *
+ * @param ir - The IR module containing page metadata.
+ * @param ctx - SSR context including asset hints and overrides.
+ * @returns HTML string for injection into <head>.
+ */
 export function renderHead(ir: IRModule, ctx: Partial<SSRContext>): string {
   const irRouteMeta = isPlainObject(ir.route?.meta) ? ir.route?.meta as Record<string, unknown> : undefined;
   const routeMeta = isPlainObject(ctx.route?.meta) ? ctx.route?.meta as Record<string, unknown> : undefined;
   const meta = mergeMeta(ir.meta ?? {}, irRouteMeta, routeMeta, ctx.meta ?? {});
   const mergedAi = mergeMeta(ir.ai ?? {}, ctx.ai ?? {});
 
-  const parts = renderStructuredMeta(meta);
+  const parts: string[] = [];
+  const assetTags = renderAssets(ctx.assets ?? []);
+  if (assetTags) {
+    parts.push(assetTags);
+  }
+
+  parts.push(...renderStructuredMeta(meta));
+
   const aiTag = renderAICoord(mergedAi as Record<string, any>);
   if (aiTag) parts.push(aiTag);
+
   const schemaTag = renderSchema(meta.schema);
   if (schemaTag) parts.push(schemaTag);
 

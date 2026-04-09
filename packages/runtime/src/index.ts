@@ -32,11 +32,18 @@ export {
 } from "./hydration";
 export type { RuntimeHydrationState } from "./hydration";
 
+// Renderer bridge
+export {
+  setCurrentRenderer,
+  getCurrentRenderer
+} from "./renderer";
+export type { Renderer } from "./renderer";
+
 // Async data
 export { createAction } from "./action";
 export type { Action, ActionOptions, ActionState } from "./action";
 export { createResource } from "./resource";
-export type { Resource, ResourceState } from "./resource";
+export type { Resource, ResourceState, ResourcePayload } from "./resource";
 export {
   invalidateResources,
   registerResourceInvalidation
@@ -75,3 +82,7 @@ export type {
   ServerFunctionResponse,
   ServerFunctionSuccessResponse
 } from "./serverTransport";
+
+// Components
+export { Portal } from "./components/Portal";
+export type { PortalProps } from "./components/Portal";

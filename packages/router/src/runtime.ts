@@ -13,6 +13,7 @@ export interface RouteMatch {
   params: RouteParams;
   query: RouteQuery;
   hash: string;
+  componentStack?: any[];
 }
 
 export interface RouterHistory {
@@ -81,6 +82,17 @@ export type NavigationResult =
       to: string;
       redirectedTo: RouteMatch;
     };
+
+export function resolveComponentStack(route: RouteDefinition): any[] {
+  const stack: any[] = [];
+
+  if (route.layout) {
+    stack.push(route.layout);
+  }
+
+  stack.push(route.component);
+  return stack;
+}
 
 function normalizePathname(pathname: string): string {
   if (!pathname || pathname === "/") {
@@ -187,7 +199,8 @@ export function matchRoute(routes: RouteDefinition[], target: string): RouteMatc
           fullPath: parsedTarget.fullPath,
           params,
           query: parsedTarget.query,
-          hash: parsedTarget.hash
+          hash: parsedTarget.hash,
+          componentStack: resolveComponentStack(route)
         } satisfies RouteMatch
       };
     })

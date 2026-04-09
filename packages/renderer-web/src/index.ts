@@ -20,6 +20,7 @@ export * from "./for";
 export * from "./dom";
 export * from "./bindings";
 export * from "./updateKeyedList";
+export * from "./styles";
 
 // Internal Helpers
 export * from "./unwrap";

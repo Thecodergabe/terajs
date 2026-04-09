@@ -59,3 +59,15 @@ describe("parseSFC", () => {
     expect(sfc.routeOverride).toBeNull();
   });
 });
+
+describe("SFC Diagnostics", () => {
+  it("should throw an error for empty reactive expressions", () => {
+    const code = `<template><div>{{  }}</div></template>`;
+    expect(() => parseSFC(code, "error.nbl")).toThrow("Empty reactive expression");
+  });
+
+  it("should throw an error for mismatched tags", () => {
+    const code = `<template><div></span></template>`;
+    expect(() => parseSFC(code, "error.nbl")).toThrow("Mismatched or unclosed tag");
+  });
+});

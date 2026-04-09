@@ -5,5 +5,6 @@
 
 export * from "./parseSfc";
 export * from "./types";
+export * from "./errors";
 export * from "./compileTemplate";
 export * from "./compileScript";

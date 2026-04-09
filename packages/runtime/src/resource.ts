@@ -5,8 +5,25 @@ import { getCurrentContext } from "./component/context";
 import { consumeHydratedResource } from "./hydration";
 import { registerResourceInvalidation, type ResourceKey } from "./invalidation";
 
+export interface ResourcePayload<T = any> {
+  data?: T;
+  error?: any;
+  status: "pending" | "success" | "error";
+}
+
 export type ResourceState = "idle" | "pending" | "ready" | "error";
-function getHydratedData<TValue = unknown>(key: string): TValue | undefined {
+function isResourcePayload(value: unknown): value is ResourcePayload {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "status" in value &&
+    ((value as any).status === "pending" ||
+      (value as any).status === "success" ||
+      (value as any).status === "error")
+  );
+}
+
+function getHydratedData<TValue = unknown>(key: string): TValue | ResourcePayload<TValue> | undefined {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return undefined;
   }
@@ -66,11 +83,23 @@ export function createResource<TSource, TData>(
   const hydratedValue = hydrationKey
     ? consumeHydratedResource<TData>(hydrationKey) ?? getHydratedData<TData>(hydrationKey)
     : undefined;
-  const initialValue = hydratedValue !== undefined ? hydratedValue : options?.initialValue;
+
+  const payload = isResourcePayload(hydratedValue) ? hydratedValue : undefined;
+  const initialValue = payload?.status === "success" ? payload.data : (payload ? undefined : (hydratedValue as TData | undefined ?? options?.initialValue));
+  const initialError = payload?.status === "error" ? payload.error : undefined;
+  const initialState = payload
+    ? payload.status === "pending"
+      ? "pending"
+      : payload.status === "error"
+      ? "error"
+      : "ready"
+    : initialValue !== undefined
+      ? "ready"
+      : "idle";
 
   const data = signal<TData | undefined>(initialValue);
-  const error = signal<unknown>(undefined);
-  const state = signal<ResourceState>(initialValue !== undefined ? "ready" : "idle");
+  const error = signal<unknown>(initialError);
+  const state = signal<ResourceState>(initialState);
 
   let currentPromise: Promise<TData> | null = null;
   let requestVersion = 0;

@@ -7,6 +7,7 @@
  */
 
 import type { RouteHydrationSnapshot } from "@terajs/router";
+import type { ResourcePayload } from "@terajs/runtime";
 
 /**
  * Context object passed into SSR.
@@ -27,14 +28,17 @@ export interface SSRContext {
   /** Data scope used to evaluate dynamic IR on the server. */
   scope?: Record<string, unknown>;
 
+  /** Serialized assets for build manifest preloading. */
+  assets?: string[];
+
   /** Serialized resources reused by client-side createResource hydration. */
   resources?: Record<string, unknown>;
 
   /** Serialized route payload used to resume route state on the client. */
   routeSnapshot?: RouteHydrationSnapshot<unknown>;
 
-  /** Serialized loader data returned during SSR. */
-  data?: Record<string, any>;
+  /** Serialized hydration payloads for keyed resources. */
+  data?: Record<string, ResourcePayload>;
 }
 
 /**

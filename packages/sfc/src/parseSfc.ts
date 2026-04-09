@@ -1,5 +1,6 @@
 import { ParsedSFC, MetaConfig, RouteOverride } from "./types";
 import { parseMiniYAML } from "./parseMiniYAML";
+import { createSfcError } from "./errors";
 
 /**
  * Extracts a block with attributes and content.
@@ -38,6 +39,80 @@ function parseTemplateBlock(source: string): ParsedSFC["template"] {
   const raw = extractBlockWithAttributes(source, "template");
   if (!raw) return "";
   return raw.content;
+}
+
+function getPosition(source: string, index: number) {
+  const lines = source.slice(0, index).split("\n");
+  const line = lines.length;
+  const column = lines[lines.length - 1]?.length + 1 || 1;
+  return { line, column };
+}
+
+/**
+ * Performs a shallow scan of the template to catch structural syntax errors.
+ * @throws {SfcError} if the template is malformed.
+ */
+function validateTemplateStructure(template: string, source: string, filePath: string) {
+  if (!template) return;
+
+  const emptyMatch = template.match(/\{\{\s*\}\}/);
+  if (emptyMatch) {
+    const templateOffset = source.indexOf(template);
+    const absoluteIndex = (templateOffset !== -1 ? templateOffset : 0) + emptyMatch.index!;
+    const { line, column } = getPosition(source, absoluteIndex);
+    throw createSfcError(
+      "Empty reactive expression '{{ }}' found.",
+      line,
+      column,
+      filePath,
+      source
+    );
+  }
+
+  const tags = template.match(/<\s*(\/?)\s*([a-zA-Z0-9-]+)([^>]*?)>/g) || [];
+  const stack: Array<{ tag: string; index: number }> = [];
+
+  for (const rawTag of tags) {
+    const match = rawTag.match(/<\s*(\/?)\s*([a-zA-Z0-9-]+)([^>]*?)>/);
+    if (!match) continue;
+
+    const isClosing = !!match[1];
+    const tagName = match[2];
+    const attrs = match[3] ?? "";
+    const selfClosing = /\/\s*$/.test(attrs);
+    const sourceIndex = source.indexOf(rawTag, source.indexOf(template));
+
+    if (isClosing) {
+      const opening = stack.pop();
+      if (!opening || opening.tag !== tagName) {
+        const { line, column } = getPosition(source, sourceIndex);
+        throw createSfcError(
+          `Mismatched or unclosed tag: expected </${opening?.tag ?? "?"}> but found </${tagName}>.`,
+          line,
+          column,
+          filePath,
+          source
+        );
+      }
+      continue;
+    }
+
+    if (!selfClosing) {
+      stack.push({ tag: tagName, index: sourceIndex });
+    }
+  }
+
+  if (stack.length > 0) {
+    const opening = stack[stack.length - 1];
+    const { line, column } = getPosition(source, opening.index);
+    throw createSfcError(
+      `Unclosed tag <${opening.tag}> found.`,
+      line,
+      column,
+      filePath,
+      source
+    );
+  }
 }
 
 /**
@@ -102,6 +177,8 @@ function parseYamlBlock<T = any>(
  */
 export function parseSFC(source: string, filePath: string): ParsedSFC {
   const template = parseTemplateBlock(source);
+  validateTemplateStructure(template, source, filePath);
+
   const script = parseScriptBlock(source);
   const style = parseStyleBlock(source);
 

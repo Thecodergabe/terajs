@@ -13,7 +13,8 @@ export interface RouteDefinition {
   path: string;
   filePath: string;
   component: () => Promise<unknown>;
-  layout: string | null;
+  layout?: any;
+  children?: RouteDefinition[];
   middleware: string[];
   prerender: boolean;
   hydrate: HydrationMode;

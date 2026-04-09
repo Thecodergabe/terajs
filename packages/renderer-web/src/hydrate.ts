@@ -15,6 +15,7 @@ import type { RouteHydrationSnapshot } from "@terajs/router";
 import type { HydrationMode } from "@terajs/shared";
 import { mount } from "./mount";
 import type { FrameworkComponent } from "./render";
+import { validateHydration } from "./hydration/diagnostics";
 
 export interface HydrationPayload {
   mode: HydrationMode | "ai";
@@ -63,12 +64,22 @@ export function hydrateRoot(
   props?: any
 ): void {
   const payload = readHydrationPayload();
+  const isDev = process.env.NODE_ENV === "development";
+  let serverSnapshot = "";
+
+  if (isDev) {
+    serverSnapshot = root.innerHTML;
+  }
 
   scheduleHydration(
     payload.mode,
     () => {
       // Replace SSR HTML with a fresh client-side mount
       mount(component, root, props);
+
+      if (isDev) {
+        validateHydration(root, serverSnapshot);
+      }
     },
     root
   );
