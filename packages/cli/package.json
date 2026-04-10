@@ -15,7 +15,7 @@
     }
   },
   "dependencies": {
-    "@terajs/vite-plugin": "*",
+    "@terajs/vite-plugin": "^0.0.1",
     "commander": "^11.0.0",
     "vite": "^8.0.0"
   },

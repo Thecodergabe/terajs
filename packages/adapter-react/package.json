@@ -32,11 +32,13 @@
     "react-dom": "^18.0.0"
   },
   "dependencies": {
-    "@terajs/reactivity": "*",
-    "@terajs/renderer-web": "*",
-    "@terajs/runtime": "*"
+    "@terajs/reactivity": "^1.0.0",
+    "@terajs/renderer-web": "^0.0.1",
+    "@terajs/runtime": "^0.0.1"
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs"
 }

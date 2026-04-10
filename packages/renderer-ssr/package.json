@@ -15,7 +15,12 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@terajs/compiler": "*",
-    "@terajs/router": "*"
+    "@terajs/compiler": "^0.0.1",
+    "@terajs/router": "^0.0.1"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs",
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -12,8 +12,13 @@
     }
   },
   "dependencies": {
-    "@terajs/reactivity": "*",
-    "@terajs/shared": "*",
-    "@terajs/adapter-ai": "*"
+    "@terajs/reactivity": "^1.0.0",
+    "@terajs/shared": "^0.0.1",
+    "@terajs/adapter-ai": "^0.0.1"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs",
+  "publishConfig": {
+    "access": "public"
   }
 }

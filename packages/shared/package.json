@@ -10,5 +10,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs",
+  "publishConfig": {
+    "access": "public"
   }
 }

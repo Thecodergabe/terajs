@@ -17,5 +17,9 @@
   },
   "license": "MIT",
   "author": "Terajs Labs",
-  "sideEffects": false
+  "sideEffects": false,
+  "repository": "https://github.com/Thecodergabe/terajs",
+  "publishConfig": {
+    "access": "public"
+  }
 }

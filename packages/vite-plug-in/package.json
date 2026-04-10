@@ -5,7 +5,6 @@
   "author": "Terajs Labs",
   "type": "module",
   "sideEffects": false,
-
   "files": [
     "dist",
     "README.md",
@@ -13,7 +12,6 @@
     "!dist/**/*.spec.d.ts",
     "!dist/**/*.spec.d.ts.map"
   ],
-
   "keywords": [
     "terajs",
     "vite",
@@ -22,10 +20,8 @@
     "routing",
     "local-first"
   ],
-
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -33,21 +29,20 @@
       "default": "./dist/index.js"
     }
   },
-
   "dependencies": {
-    "@terajs/shared": "*",
-    "@terajs/runtime": "*",
-    "@terajs/router-manifest": "*",
-    "@terajs/router": "*",
-    "@terajs/sfc": "*",
-    "@terajs/compiler": "*"
+    "@terajs/shared": "^0.0.1",
+    "@terajs/runtime": "^0.0.1",
+    "@terajs/router-manifest": "^0.0.1",
+    "@terajs/router": "^0.0.1",
+    "@terajs/sfc": "^0.0.1",
+    "@terajs/compiler": "^0.0.1"
   },
-
   "peerDependencies": {
     "vite": "^8.0.0"
   },
-
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Thecodergabe/terajs"
 }
