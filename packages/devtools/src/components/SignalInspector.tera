@@ -9,7 +9,7 @@
       <li v-for="sig in updateList()" :key="sig.key" class="signal-item">
         <span class="signal-key">
           {{ sig.key }}
-          <span v-if="sig.persistent" class="signal-icon" title="Persisted signal">💾</span>
+          <span v-if="sig.persistent" class="signal-icon" title="Persisted signal">persisted</span>
         </span>
         <span :class="['signal-preview', sig.muted ? 'signal-preview--muted' : '']">= {{ sig.preview }}</span>
       </li>

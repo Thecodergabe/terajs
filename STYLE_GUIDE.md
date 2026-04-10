@@ -1,4 +1,4 @@
-#  Terajs Style Guide (Updated)
+# Terajs Style Guide
 
 Terajs encourages clarity, predictability, and small composable pieces — without forcing a rigid structure. These conventions help teams write consistent, maintainable components while preserving full flexibility.
 
@@ -103,13 +103,13 @@ Terajs does not enforce this — it’s just a helpful pattern.
 
 Avoid recalculating expensive values inside templates.
 
-❌ Avoid:
+Avoid:
 
 ```tsx
 return () => <div>{expensiveCalculation()}</div>
 ```
 
-✔ Prefer:
+Prefer:
 
 ```ts
 const result = computed(expensiveCalculation)

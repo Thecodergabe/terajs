@@ -1,24 +1,40 @@
 # Terajs Runtime
 
-The Terajs runtime coordinates component mounting, context, and the connection between reactivity and the DOM.
+The Terajs runtime coordinates component lifecycle, context, async data primitives,
+local-first queue contracts, and server-function boundaries.
 
 ---
 
 ## Features
 - Platform-agnostic: works in browser, SSR, and custom renderers
 - Context system for dependency injection
-- Lifecycle hooks for mounting, updating, and disposal
-- Integrates with Terajs's fine-grained reactivity
+- Lifecycle hooks for mount/update/unmount orchestration
+- Action/resource primitives with queue-aware execution paths
+- Validation and invalidation helpers for route and form workflows
+- Server function execution and transport adapters
+
+---
+
+## Install
+
+```bash
+npm install @terajs/runtime
+```
 
 ---
 
 ## Usage Example
 
 ```ts
-import { mount } from '@terajs/runtime';
-import App from './App.tera';
+import { createAction, createMutationQueue } from '@terajs/runtime';
 
-mount(App, document.getElementById('app'));
+const queue = await createMutationQueue();
+
+const saveProfile = createAction(async (payload: { name: string }) => {
+	return payload.name;
+});
+
+await saveProfile.runQueued({ queue, type: 'profile:save' }, { name: 'Ada' });
 ```
 
 ---
@@ -26,7 +42,7 @@ mount(App, document.getElementById('app'));
 ## Context API
 
 ```ts
-import { createComponentContext, getCurrentContext, setCurrentContext } from '@terajs/shared';
+import { createComponentContext, getCurrentContext, setCurrentContext } from '@terajs/runtime';
 
 const ctx = createComponentContext();
 setCurrentContext(ctx);
@@ -40,12 +56,14 @@ setCurrentContext(ctx);
 ---
 
 ## API Reference
-- `mount(component, el)`
-- `createComponentContext()`
-- `getCurrentContext()`
-- `setCurrentContext(ctx)`
+- Components: `component`, `onCleanup`, lifecycle hooks
+- Context: `provide`, `inject`, `createComponentContext`
+- Async data: `createAction`, `createResource`
+- Local-first queue: `createMutationQueue`, `createMutationQueueStorage`
+- Validation: `createSchemaValidator`
+- Server functions: `server`, `executeServerFunction`, transport helpers
 
 ---
 
-See the devtools and shared package docs for more on debugging and inspection.
+See API_REFERENCE.md at repository root for the canonical shipped surface.
 

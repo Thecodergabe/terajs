@@ -1,5 +1,5 @@
 ```md
-# 🧩 Terajs Component System
+# Terajs Component System
 
 Status note (April 2026): This guide describes component philosophy and patterns. For exact shipped APIs and signatures, use API_REFERENCE.md.
 

@@ -1,11 +1,11 @@
 ```md
 # Terajs Kit
 
-Terajs Kit is the official application framework built on top of Terajs Core. While Terajs Core provides the rendering engine, reactivity system, and component model, Terajs Kit provides the structure needed to build full applications.
+Status note (April 2026): This document describes Kit-level architecture and planned direction. For shipped APIs and current behavior, use API_REFERENCE.md.
 
-Terajs Kit is comparable to frameworks like Nuxt, Next, SvelteKit, and SolidStart — but built on Terajs’s simpler, faster, fine‑grained foundation.
+Terajs Kit is the application framework layer built on top of Terajs Core. While Terajs Core provides the rendering engine, reactivity system, and component model, Terajs Kit provides structure for full applications.
 
-Terajs Kit is optional. Terajs Core remains fully usable on its own.
+Terajs Kit is optional. Terajs Core remains usable on its own.
 
 ---
 

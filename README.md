@@ -1,7 +1,7 @@
 # **Terajs**
 
-Terajs is a next-generation UI framework built on **fine-grained reactivity**, a **compiler-powered template system**, and a **developer-first philosophy**.
-It feels familiar, performs like Solid, reads like Vue, stays flexible like React - without their complexity.
+Terajs is a UI framework built on **fine-grained reactivity**, a **compiler-powered template system**, and a **developer-first philosophy**.
+It focuses on predictable updates, direct DOM rendering, and modular package boundaries.
 
 Terajs is:
 
@@ -121,7 +121,7 @@ Routing is flexible, not prescriptive.
 
 ---
 
-## **SSR without pain**
+## **SSR support**
 
 Terajs's SSR model:
 
@@ -280,7 +280,7 @@ Write once, render anywhere.
 
 ---
 
-## **DX above everything**
+## **Developer experience**
 
 Terajs is built for humans:
 
