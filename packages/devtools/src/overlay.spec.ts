@@ -93,4 +93,27 @@ describe("devtools overlay public entry", () => {
 
     expect(shadowRoot?.textContent).toContain("No route matched /missing");
   });
+
+  it("shows queue events in the queue monitor tab", () => {
+    mountDevtoolsOverlay();
+
+    Debug.emit("queue:enqueue", {
+      id: "q1",
+      type: "form:save",
+      pending: 1
+    });
+    Debug.emit("queue:conflict", {
+      id: "q1",
+      type: "form:save",
+      conflictKey: "profile:1",
+      decision: "replace"
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const queueTab = shadowRoot?.querySelector('[data-tab="Queue"]') as HTMLButtonElement | null;
+    queueTab?.click();
+
+    expect(shadowRoot?.textContent).toContain("Queue Monitor");
+    expect(shadowRoot?.textContent).toContain("form:save");
+  });
 });

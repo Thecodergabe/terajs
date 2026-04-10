@@ -122,6 +122,7 @@ Use these for app-owned server boundaries, not as a replacement for your externa
 - `createMutationQueue(options?)`
 - `createMutationQueueStorage(adapter, key?)`
 - `defaultMutationRetryPolicy`
+- `MutationConflictResolver` hooks (`replace`, `ignore`, `merge` decisions)
 - `createAction(...).runQueued(queueOptions, ...args)`
 - `createResource(...).mutate(value, { queue, serverCall, ... })`
 

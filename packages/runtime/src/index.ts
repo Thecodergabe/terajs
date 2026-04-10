@@ -61,6 +61,9 @@ export {
 } from "./queue/mutationQueue";
 export type {
   EnqueueMutationInput,
+  MutationConflictDecision,
+  MutationConflictResolution,
+  MutationConflictResolver,
   MutationFlushResult,
   MutationHandler,
   MutationQueue,

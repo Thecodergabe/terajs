@@ -24,6 +24,7 @@ export interface PerformanceMetrics {
   effectRuns: number;
   renderEvents: number;
   queueEnqueued: number;
+  queueConflicts: number;
   queueRetried: number;
   queueFailed: number;
   queueFlushed: number;
@@ -95,6 +96,7 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
       effectRuns: 0,
       renderEvents: 0,
       queueEnqueued: 0,
+      queueConflicts: 0,
       queueRetried: 0,
       queueFailed: 0,
       queueFlushed: 0,
@@ -112,6 +114,7 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
   let effectRuns = 0;
   let renderEvents = 0;
   let queueEnqueued = 0;
+  let queueConflicts = 0;
   let queueRetried = 0;
   let queueFailed = 0;
   let queueFlushed = 0;
@@ -120,6 +123,7 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
     if (event.type === "effect:run") effectRuns++;
     if (event.type.startsWith("component:render:")) renderEvents++;
     if (event.type === "queue:enqueue") queueEnqueued++;
+    if (event.type === "queue:conflict") queueConflicts++;
     if (event.type === "queue:retry") queueRetried++;
     if (event.type === "queue:fail") queueFailed++;
     if (event.type === "queue:drained") queueFlushed++;
@@ -157,6 +161,7 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
     effectRuns,
     renderEvents,
     queueEnqueued,
+    queueConflicts,
     queueRetried,
     queueFailed,
     queueFlushed,

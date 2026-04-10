@@ -64,6 +64,7 @@ describe("devtools analytics", () => {
     expect(metrics.effectRuns).toBe(5);
     expect(metrics.renderEvents).toBe(1);
     expect(metrics.queueEnqueued).toBe(0);
+    expect(metrics.queueConflicts).toBe(0);
     expect(metrics.queueRetried).toBe(0);
     expect(metrics.queueFailed).toBe(0);
     expect(metrics.queueFlushed).toBe(0);
@@ -77,6 +78,7 @@ describe("devtools analytics", () => {
     const events: DevtoolsEventLike[] = [
       { type: "queue:enqueue", timestamp: 1000, payload: { id: "1" } },
       { type: "queue:enqueue", timestamp: 1200, payload: { id: "2" } },
+      { type: "queue:conflict", timestamp: 1300, payload: { id: "2", decision: "replace" } },
       { type: "queue:retry", timestamp: 1400, payload: { id: "2" } },
       { type: "queue:fail", timestamp: 1600, payload: { id: "2" } },
       { type: "queue:drained", timestamp: 1800, payload: { flushed: 1 } }
@@ -85,6 +87,7 @@ describe("devtools analytics", () => {
     const metrics = computePerformanceMetrics(events, 2000);
 
     expect(metrics.queueEnqueued).toBe(2);
+    expect(metrics.queueConflicts).toBe(1);
     expect(metrics.queueRetried).toBe(1);
     expect(metrics.queueFailed).toBe(1);
     expect(metrics.queueFlushed).toBe(1);

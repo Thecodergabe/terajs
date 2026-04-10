@@ -22,6 +22,7 @@ type TabName =
   | "Issues"
   | "Logs"
   | "Timeline"
+  | "Queue"
   | "Performance"
   | "Sanity Check"
   | "Settings";
@@ -46,6 +47,7 @@ const TABS: TabName[] = [
   "Issues",
   "Logs",
   "Timeline",
+  "Queue",
   "Performance",
   "Sanity Check",
   "Settings"
@@ -252,6 +254,8 @@ function renderPanel(state: DevtoolsState): string {
       return renderLogsPanel(state);
     case "Timeline":
       return renderTimelinePanel(state);
+    case "Queue":
+      return renderQueuePanel(state.events);
     case "Performance":
       return renderPerformancePanel(state.events);
     case "Sanity Check":
@@ -461,6 +465,7 @@ function renderPerformancePanel(events: DevtoolsEvent[]): string {
         ${renderMetricCard("Effect Runs", String(metrics.effectRuns))}
         ${renderMetricCard("Render Events", String(metrics.renderEvents))}
         ${renderMetricCard("Queue Enqueued", String(metrics.queueEnqueued))}
+        ${renderMetricCard("Queue Conflicts", String(metrics.queueConflicts))}
         ${renderMetricCard("Queue Retried", String(metrics.queueRetried))}
         ${renderMetricCard("Queue Failed", String(metrics.queueFailed))}
         ${renderMetricCard("Queue Flushed", String(metrics.queueFlushed))}
@@ -475,6 +480,39 @@ function renderPerformancePanel(events: DevtoolsEvent[]): string {
               <span class="muted-text">count=${item.count}</span>
               <span class="muted-text">avg=${item.avgDeltaMs}ms</span>
               <span class="muted-text">max=${item.maxDeltaMs}ms</span>
+            </li>
+          `).join("")}
+        </ul>
+      `}
+    </div>
+  `;
+}
+
+function renderQueuePanel(events: DevtoolsEvent[]): string {
+  const metrics = computePerformanceMetrics(events, 10000);
+  const queueEvents = events
+    .filter((event) => event.type.startsWith("queue:"))
+    .slice(-80)
+    .reverse();
+
+  return `
+    <div>
+      <div class="panel-title is-amber">Queue Monitor</div>
+      <div class="panel-subtitle">Pending estimate: ${metrics.queueDepthEstimate} | Enqueued: ${metrics.queueEnqueued}</div>
+      <div class="metrics-grid">
+        ${renderMetricCard("Queue Enqueued", String(metrics.queueEnqueued))}
+        ${renderMetricCard("Queue Conflicts", String(metrics.queueConflicts))}
+        ${renderMetricCard("Queue Retried", String(metrics.queueRetried))}
+        ${renderMetricCard("Queue Failed", String(metrics.queueFailed))}
+        ${renderMetricCard("Queue Flushed", String(metrics.queueFlushed))}
+        ${renderMetricCard("Queue Depth Est.", String(metrics.queueDepthEstimate))}
+      </div>
+      ${queueEvents.length === 0 ? `<div class="empty-state">No queue events yet.</div>` : `
+        <ul class="stack-list log-list">
+          ${queueEvents.map((event) => `
+            <li class="stack-item performance-item">
+              <span class="accent-text is-amber">${escapeHtml(event.type)}</span>
+              <span class="muted-text">${escapeHtml(queueEventSummary(event))}</span>
             </li>
           `).join("")}
         </ul>
@@ -673,6 +711,25 @@ function issueMessage(event: DevtoolsEvent): string {
   const likelyCause = readString(event.payload, "likelyCause");
   if (likelyCause) return `Likely Cause: ${likelyCause}`;
   return shortJson(event.payload ?? {});
+}
+
+function queueEventSummary(event: DevtoolsEvent): string {
+  const payload = event.payload ?? {};
+  const id = readString(payload, "id");
+  const type = readString(payload, "type");
+  const decision = readString(payload, "decision");
+  const attempts = readNumber(payload, "attempts");
+  const pending = readNumber(payload, "pending");
+
+  const parts = [
+    type ? `type=${type}` : undefined,
+    id ? `id=${id}` : undefined,
+    decision ? `decision=${decision}` : undefined,
+    attempts !== undefined ? `attempts=${attempts}` : undefined,
+    pending !== undefined ? `pending=${pending}` : undefined
+  ].filter((part): part is string => typeof part === "string");
+
+  return parts.length > 0 ? parts.join(" ") : shortJson(payload);
 }
 
 function generateLikelyCause(payload: Record<string, unknown> | undefined): string | null {

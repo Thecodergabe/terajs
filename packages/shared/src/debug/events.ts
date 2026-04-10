@@ -27,7 +27,7 @@ export type DebugEventType =
     | "watch:create" | "watch:source" | "watch:callback" | "watch:cleanup" | "watch:stop"
     | "watchEffect:create" | "watch:dispose" | "watchEffect:run" | "watchEffect:cleanup" | "watchEffect:stop"
     | "resource:load:start" | "resource:load:end" | "resource:error" | "resource:mutate" | "resource:invalidate"
-    | "queue:enqueue" | "queue:retry" | "queue:flush" | "queue:drained" | "queue:fail"
+    | "queue:enqueue" | "queue:retry" | "queue:flush" | "queue:drained" | "queue:fail" | "queue:conflict"
     | "server:function:invoke" | "server:function:transport" | "server:function:error"
 
     /* ------------------------------- Renderer ------------------------------- */

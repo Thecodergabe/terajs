@@ -6,6 +6,7 @@ export type MutationStatus = "pending" | "failed";
 export interface QueuedMutation {
   id: string;
   type: string;
+  conflictKey?: string;
   payload: unknown;
   createdAt: number;
   attempts: number;
@@ -18,10 +19,25 @@ export interface QueuedMutation {
 export interface EnqueueMutationInput {
   id?: string;
   type: string;
+  conflictKey?: string;
   payload: unknown;
   maxRetries?: number;
   nextRetryAt?: number;
 }
+
+export type MutationConflictDecision = "replace" | "ignore" | "merge";
+
+export interface MutationConflictResolution {
+  decision: MutationConflictDecision;
+  payload?: unknown;
+  maxRetries?: number;
+  nextRetryAt?: number;
+}
+
+export type MutationConflictResolver = (
+  existing: QueuedMutation,
+  incoming: QueuedMutation
+) => MutationConflictDecision | MutationConflictResolution;
 
 export interface MutationFlushResult {
   flushed: number;
@@ -45,6 +61,7 @@ export interface MutationQueueStorage {
 export interface MutationQueueOptions {
   storage?: MutationQueueStorage;
   retryPolicy?: MutationRetryPolicy;
+  resolveConflict?: MutationConflictResolver;
   createId?: () => string;
   now?: () => number;
 }
@@ -100,6 +117,7 @@ export async function createMutationQueue(
       const mutation: QueuedMutation = {
         id: input.id ?? createId(),
         type: input.type,
+        conflictKey: normalizeConflictKey(input.conflictKey),
         payload: input.payload,
         createdAt: now(),
         attempts: 0,
@@ -108,6 +126,68 @@ export async function createMutationQueue(
         status: "pending",
         lastError: undefined
       };
+
+      if (mutation.conflictKey) {
+        const conflictIndex = items.findIndex((item) =>
+          item.status === "pending"
+          && item.type === mutation.type
+          && item.conflictKey === mutation.conflictKey
+        );
+
+        if (conflictIndex !== -1) {
+          const existing = items[conflictIndex];
+          const resolution = resolveMutationConflict(existing, mutation, options.resolveConflict);
+
+          if (resolution.decision === "ignore") {
+            Debug.emit("queue:conflict", {
+              type: mutation.type,
+              id: existing.id,
+              conflictKey: mutation.conflictKey,
+              decision: resolution.decision
+            });
+
+            return { ...existing };
+          }
+
+          const nextMutation: QueuedMutation = resolution.decision === "merge"
+            ? {
+                ...existing,
+                payload: resolution.payload ?? mutation.payload,
+                maxRetries: resolution.maxRetries ?? Math.max(existing.maxRetries, mutation.maxRetries),
+                nextRetryAt: resolution.nextRetryAt ?? Math.min(existing.nextRetryAt, mutation.nextRetryAt),
+                status: "pending",
+                lastError: undefined
+              }
+            : {
+                ...mutation,
+                id: existing.id,
+                createdAt: existing.createdAt,
+                attempts: 0,
+                status: "pending",
+                lastError: undefined
+              };
+
+          items = items.map((item, index) => {
+            if (index === conflictIndex) {
+              return nextMutation;
+            }
+
+            return item;
+          });
+
+          await persist();
+
+          Debug.emit("queue:conflict", {
+            type: mutation.type,
+            id: existing.id,
+            conflictKey: mutation.conflictKey,
+            decision: resolution.decision,
+            pending: items.filter((item) => item.status === "pending").length
+          });
+
+          return { ...nextMutation };
+        }
+      }
 
       items = [...items, mutation].sort((left, right) => left.createdAt - right.createdAt);
       await persist();
@@ -277,6 +357,7 @@ function normalizeMutations(input: QueuedMutation[]): QueuedMutation[] {
       return {
         id: candidate.id,
         type: candidate.type,
+        conflictKey: normalizeConflictKey(candidate.conflictKey),
         payload: candidate.payload,
         createdAt: typeof candidate.createdAt === "number" ? candidate.createdAt : Date.now(),
         attempts: typeof candidate.attempts === "number" ? Math.max(0, candidate.attempts) : 0,
@@ -287,6 +368,32 @@ function normalizeMutations(input: QueuedMutation[]): QueuedMutation[] {
       };
     })
     .sort((left, right) => left.createdAt - right.createdAt);
+}
+
+function normalizeConflictKey(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function resolveMutationConflict(
+  existing: QueuedMutation,
+  incoming: QueuedMutation,
+  resolver: MutationConflictResolver | undefined
+): MutationConflictResolution {
+  if (!resolver) {
+    return { decision: "replace" };
+  }
+
+  const resolved = resolver(existing, incoming);
+  if (typeof resolved === "string") {
+    return { decision: resolved };
+  }
+
+  return resolved;
 }
 
 function defaultCreateId(): string {

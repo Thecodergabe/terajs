@@ -141,4 +141,61 @@ describe("createMutationQueue", () => {
     await storage.clear?.();
     expect(await storage.load()).toEqual([]);
   });
+
+  it("replaces pending mutations sharing conflict key by default", async () => {
+    let nextId = 0;
+    const queue = await createMutationQueue({
+      createId: () => `m-${++nextId}`,
+      now: () => 100
+    });
+
+    await queue.enqueue({
+      type: "profile:save",
+      conflictKey: "profile:1",
+      payload: { name: "Ada" }
+    });
+
+    await queue.enqueue({
+      type: "profile:save",
+      conflictKey: "profile:1",
+      payload: { name: "Grace" }
+    });
+
+    const snapshot = queue.snapshot();
+    expect(snapshot).toHaveLength(1);
+    expect(snapshot[0]?.id).toBe("m-1");
+    expect(snapshot[0]?.payload).toEqual({ name: "Grace" });
+  });
+
+  it("supports custom merge strategy for conflicting mutations", async () => {
+    const queue = await createMutationQueue({
+      now: () => 200,
+      resolveConflict: (existing, incoming) => ({
+        decision: "merge",
+        payload: {
+          ...(existing.payload as Record<string, unknown>),
+          ...(incoming.payload as Record<string, unknown>)
+        }
+      })
+    });
+
+    await queue.enqueue({
+      type: "todo:update",
+      conflictKey: "todo:1",
+      payload: { title: "Draft" }
+    });
+
+    await queue.enqueue({
+      type: "todo:update",
+      conflictKey: "todo:1",
+      payload: { completed: true }
+    });
+
+    const snapshot = queue.snapshot();
+    expect(snapshot).toHaveLength(1);
+    expect(snapshot[0]?.payload).toEqual({
+      title: "Draft",
+      completed: true
+    });
+  });
 });
