@@ -1,5 +1,6 @@
 import { buildTimeline, computePerformanceMetrics, replayEventsAtIndex } from "./analytics";
 import { Debug, emitDebug, subscribeDebug } from "@terajs/shared";
+import { captureStateSnapshot } from "@terajs/adapter-ai";
 
 export interface DevtoolsEvent {
   type: string;
@@ -13,6 +14,7 @@ export interface DevtoolsEvent {
 
 type TabName =
   | "Components"
+  | "AI Diagnostics"
   | "Signals"
   | "Meta"
   | "Issues"
@@ -29,10 +31,13 @@ interface DevtoolsState {
   logFilter: "all" | "component" | "signal" | "effect" | "error";
   timelineCursor: number;
   theme: "dark" | "light";
+  aiPrompt: string | null;
+  aiLikelyCause: string | null;
 }
 
 const TABS: TabName[] = [
   "Components",
+  "AI Diagnostics",
   "Signals",
   "Meta",
   "Issues",
@@ -50,12 +55,22 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
     selectedMetaKey: null,
     logFilter: "all",
     timelineCursor: -1,
-    theme: "dark"
+    theme: "dark",
+    aiPrompt: null,
+    aiLikelyCause: null
   };
 
   const appendEvent = (rawEvent: unknown) => {
     const event = normalizeEvent(rawEvent);
     if (!event) return;
+
+    if (event.type === "reactive:error") {
+      const likelyCause = generateLikelyCause(event.payload);
+      if (likelyCause) {
+        event.payload = { ...event.payload, likelyCause };
+        state.aiLikelyCause = likelyCause;
+      }
+    }
 
     state.events = [...state.events.slice(-249), event];
     state.eventCount += 1;
@@ -91,6 +106,19 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
       return;
     }
 
+    if (target.closest("[data-action='ask-ai']")) {
+      state.aiPrompt = buildAIPrompt();
+      render();
+      return;
+    }
+
+    if (target.closest("[data-action='copy-ai-prompt']")) {
+      if (state.aiPrompt && typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(state.aiPrompt).catch(() => {});
+      }
+      return;
+    }
+
     if (target.closest("[data-theme-toggle]")) {
       state.theme = state.theme === "dark" ? "light" : "dark";
       render();
@@ -102,6 +130,8 @@ export function mountDevtoolsApp(root: HTMLElement): () => void {
       state.eventCount = 0;
       state.timelineCursor = -1;
       state.selectedMetaKey = null;
+      state.aiPrompt = null;
+      state.aiLikelyCause = null;
       render();
     }
   };
@@ -199,6 +229,8 @@ function renderPanel(state: DevtoolsState): string {
   switch (state.activeTab) {
     case "Components":
       return renderComponentsPanel(state.events);
+    case "AI Diagnostics":
+      return renderAIDiagnosticsPanel(state);
     case "Signals":
       return renderSignalsPanel(state.events);
     case "Meta":
@@ -229,8 +261,11 @@ function renderComponentsPanel(events: DevtoolsEvent[]): string {
       <ul class="stack-list">
         ${components.map((component) => `
           <li class="stack-item">
-            <span class="accent-text is-green">${escapeHtml(component.scope)}</span>
-            <span class="muted-text">#${component.instance}</span>
+            <div>
+              <span class="accent-text is-green">${escapeHtml(component.scope)}</span>
+              <span class="muted-text">#${component.instance}</span>
+            </div>
+            ${component.aiPreview ? `<div class="muted-text ai-hint">AI Context: ${escapeHtml(component.aiPreview)}</div>` : ""}
           </li>
         `).join("")}
       </ul>
@@ -445,6 +480,30 @@ function renderSettingsPanel(): string {
   `;
 }
 
+function renderAIDiagnosticsPanel(state: DevtoolsState): string {
+  return `
+    <div class="ai-panel">
+      <div class="panel-title is-purple">AI Diagnostics</div>
+      <div class="panel-subtitle">Snapshot-driven context and likely cause insights</div>
+      <div class="button-row">
+        <button class="toolbar-button ask-ai-button" data-action="ask-ai">Ask Terajs AI</button>
+        <button class="toolbar-button" data-action="copy-ai-prompt">Copy Prompt</button>
+      </div>
+      <div class="detail-card">
+        <div><span class="accent-text is-purple">Current AI Insight:</span> ${escapeHtml(state.aiLikelyCause ?? "No reactive error detected yet.")}</div>
+      </div>
+      ${state.aiPrompt ? `
+        <div class="detail-card">
+          <div class="panel-subtitle">AI Prompt</div>
+          <pre class="ai-prompt">${escapeHtml(state.aiPrompt)}</pre>
+        </div>
+      ` : `
+        <div class="empty-state">Click "Ask Terajs AI" to build a prompt from the active keyed signal registry.</div>
+      `}
+    </div>
+  `;
+}
+
 function renderMetricCard(label: string, value: string): string {
   return `
     <div class="metric-card">
@@ -465,14 +524,16 @@ function renderEmptyPanel(title: string, subtitle: string, message: string): str
 }
 
 function collectComponents(events: DevtoolsEvent[]) {
-  const componentMap = new Map<string, { key: string; scope: string; instance: number }>();
+  const componentMap = new Map<string, { key: string; scope: string; instance: number; aiPreview?: string }>();
 
   for (const event of events) {
     if (event.type !== "component:mounted") continue;
     const scope = readString(event.payload, "scope") ?? readString(event.payload, "name") ?? "unknown";
     const instance = readNumber(event.payload, "instance") ?? readNumber(event.payload, "id") ?? event.timestamp;
+    const ai = readUnknown(event.payload, "ai");
+    const aiPreview = ai !== undefined ? safeString(ai).slice(0, 160) : undefined;
     const key = `${scope}#${instance}`;
-    componentMap.set(key, { key, scope, instance });
+    componentMap.set(key, { key, scope, instance, aiPreview });
   }
 
   return Array.from(componentMap.values());
@@ -555,7 +616,24 @@ function summarizeLog(event: DevtoolsEvent): string {
 function issueMessage(event: DevtoolsEvent): string {
   const message = readString(event.payload, "message");
   if (message) return message;
+  const likelyCause = readString(event.payload, "likelyCause");
+  if (likelyCause) return `Likely Cause: ${likelyCause}`;
   return shortJson(event.payload ?? {});
+}
+
+function buildAIPrompt(): string {
+  const snapshot = captureStateSnapshot();
+  return `Terajs AI Debug Prompt:\n\nPlease analyze the current application state and provide debugging guidance.\n\n${JSON.stringify(snapshot, null, 2)}`;
+}
+
+function generateLikelyCause(payload: Record<string, unknown> | undefined): string | null {
+  const snapshot = captureStateSnapshot();
+  const entries = snapshot.signals.map((signal) => `${signal.key ?? signal.id}: ${safeString(signal.value)}`);
+  const topEntries = entries.slice(0, 4).join("; ");
+  const origin = readString(payload, "rid") ?? readString(payload, "scope") ?? "unknown origin";
+  const message = readString(payload, "message") ?? "reactive error detected";
+
+  return `Detected reactive error (${message}) from ${origin}. Current keyed state: ${topEntries || "no keyed signals available"}.`;
 }
 
 function isSignalLikeUpdate(type: string): boolean {

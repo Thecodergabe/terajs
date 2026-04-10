@@ -251,6 +251,44 @@ const overlayStyles = `
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 245, 245, 0.96));
   }
 
+  .ai-panel {
+    border: 1px solid rgba(138, 92, 255, 0.26);
+    background: linear-gradient(180deg, rgba(57, 17, 107, 0.18), rgba(6, 9, 35, 0.88));
+    box-shadow: 0 0 32px rgba(138, 92, 255, 0.22), 0 0 60px rgba(79, 227, 255, 0.14);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+
+  .ask-ai-button {
+    background: linear-gradient(135deg, var(--tera-purple), var(--tera-cyan));
+    color: #ffffff;
+    border: 1px solid rgba(79, 227, 255, 0.32);
+    box-shadow: 0 14px 32px rgba(79, 227, 255, 0.18);
+  }
+
+  .ai-prompt {
+    display: block;
+    width: 100%;
+    min-height: 180px;
+    border: 1px solid rgba(138, 92, 255, 0.22);
+    border-radius: 14px;
+    padding: 14px;
+    background: rgba(11, 8, 30, 0.94);
+    color: #e7e7ff;
+    font-family: var(--tera-code-font);
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow: auto;
+    margin-top: 12px;
+  }
+
+  .ai-hint {
+    display: block;
+    margin-top: 6px;
+    color: rgba(179, 179, 255, 0.88);
+  }
+
   .panel-title {
     font-family: var(--tera-heading-font);
     font-size: 15px;
