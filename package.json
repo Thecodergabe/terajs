@@ -12,6 +12,8 @@
     "test:architecture": "vitest --run packages/shared/src/architectureGuardrails.spec.ts",
     "typecheck": "npm run clean && tsc -b --pretty false",
     "smoke:external": "node scripts/external-smoke.mjs",
+    "guard:publish-metadata": "node scripts/guard-publish-metadata.mjs",
+    "prepublishOnly": "npm run guard:publish-metadata",
     "audit:exports": "node scripts/audit-exports.mjs",
     "audit:exports:strict": "node scripts/audit-exports.mjs --strict",
     "rc:check": "npm run typecheck && npx vitest run --maxWorkers=1 && npm run smoke:external -- --skip-build && npm run audit:exports:strict"
