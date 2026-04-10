@@ -54,6 +54,12 @@ function hasLoadFunction<TData>(value: unknown): value is RouteModule<unknown, T
   return typeof value === "object" && value !== null && "load" in value && typeof (value as RouteModule).load === "function";
 }
 
+/**
+ * Loads a matched route module, its layouts, and optional route data.
+ *
+ * Hydration snapshots can be supplied to skip loader execution during
+ * client boot.
+ */
 export async function loadRouteMatch<TData = unknown>(
   match: RouteMatch,
   options: {
@@ -157,6 +163,9 @@ export async function loadRouteMatch<TData = unknown>(
   }
 }
 
+/**
+ * Serializes loaded route data and metadata for hydration handoff.
+ */
 export function createRouteHydrationSnapshot<TData = unknown>(
   loaded: LoadedRouteMatch<TData>
 ): RouteHydrationSnapshot<TData> {
@@ -170,6 +179,9 @@ export function createRouteHydrationSnapshot<TData = unknown>(
   };
 }
 
+/**
+ * Prefetches a route match and caches the pending result by full path.
+ */
 export function prefetchRouteMatch<TData = unknown>(
   match: RouteMatch
 ): Promise<LoadedRouteMatch<TData>> {
@@ -189,6 +201,9 @@ export function prefetchRouteMatch<TData = unknown>(
   return pending;
 }
 
+/**
+ * Clears one cached prefetched route, or all cached prefetched routes.
+ */
 export function clearPrefetchedRouteMatches(target?: string): void {
   if (target) {
     prefetchedRouteMatches.delete(target);
@@ -198,6 +213,11 @@ export function clearPrefetchedRouteMatches(target?: string): void {
   prefetchedRouteMatches.clear();
 }
 
+/**
+ * Resolves and prefetches a route by URL target.
+ *
+ * Returns null when the target cannot be matched.
+ */
 export async function prefetchRoute<TData = unknown>(
   router: Router,
   target: string

@@ -55,6 +55,12 @@ function pruneHydrationRemainder(frame: HydrationFrame): void {
     frame.nextChild = null;
 }
 
+/**
+ * Begins hydration mode for a root container.
+ *
+ * During hydration, creation helpers claim matching existing nodes before
+ * allocating new ones.
+ */
 export function startHydration(root: HTMLElement): void {
     hydrationRoot = root;
     hydrationFrames = [{
@@ -67,6 +73,9 @@ export function startHydration(root: HTMLElement): void {
     });
 }
 
+/**
+ * Ends hydration mode and removes any unclaimed server-rendered nodes.
+ */
 export function finishHydration(): void {
     const root = hydrationRoot;
     if (!root) {
@@ -86,6 +95,11 @@ export function finishHydration(): void {
     });
 }
 
+/**
+ * Executes work under a nested hydration frame.
+ *
+ * Remaining unclaimed children for the frame parent are pruned after `run`.
+ */
 export function withHydrationParent<T>(parent: Node, run: () => T): T {
     if (!isHydrating()) {
         return run();

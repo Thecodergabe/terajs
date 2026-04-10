@@ -39,6 +39,18 @@ export interface ActionOptions<TResult> {
   clearDataOnRun?: boolean;
 }
 
+/**
+ * Creates an async action with reactive state tracking.
+ *
+ * Use actions for user-triggered mutations and request lifecycles where UI needs
+ * consistent access to pending/success/error/queued state.
+ *
+ * @typeParam TArgs Argument tuple accepted by the action handler.
+ * @typeParam TResult Resolved return type of the action handler.
+ * @param handler Action implementation invoked by `run`.
+ * @param options Optional action identity and initial-state configuration.
+ * @returns Action API with run/reset helpers and reactive signals.
+ */
 export function createAction<TArgs extends unknown[], TResult>(
   handler: (...args: TArgs) => Promise<TResult> | TResult,
   options: ActionOptions<TResult> = {}

@@ -100,6 +100,11 @@ function appendSubmitterValue(formData: FormData, submitter: HTMLElement | null)
   }
 }
 
+/**
+ * Converts FormData entries into a plain object.
+ *
+ * Duplicate keys are represented as arrays to preserve all submitted values.
+ */
 export function formDataToObject(formData: FormData): FormValues {
   const values: FormValues = {};
 
@@ -189,6 +194,12 @@ function normalizeStatusContent(value: any): Node {
   throw new Error("Terajs FormStatus: unsupported status content.");
 }
 
+/**
+ * Enhanced form primitive for action-based submissions.
+ *
+ * Supports queue-aware submission, optional validation, and render-state
+ * signals that can be consumed by child helpers.
+ */
 export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
   const {
     action,
@@ -296,6 +307,9 @@ export function Form<TResult = unknown>(props: FormProps<TResult>): Node {
   return formNode;
 }
 
+/**
+ * Submit button helper that binds to nearest Form render state by default.
+ */
 export function SubmitButton<TResult = unknown>(props: SubmitButtonProps<TResult>): Node {
   const {
     formState,
@@ -337,6 +351,9 @@ export function SubmitButton<TResult = unknown>(props: SubmitButtonProps<TResult
   return button;
 }
 
+/**
+ * Status renderer for idle/pending/success/error form states.
+ */
 export function FormStatus<TResult = unknown>(props: FormStatusProps<TResult>): Node {
   const resolvedFormState = signal<FormRenderState<TResult> | undefined>(props.formState);
   let anchor: HTMLSpanElement | null = null;

@@ -83,6 +83,12 @@ export type NavigationResult =
       redirectedTo: RouteMatch;
     };
 
+  /**
+   * Builds the ordered render stack for a matched route.
+   *
+   * The current implementation includes an optional route-level layout followed
+   * by the route component.
+   */
 export function resolveComponentStack(route: RouteDefinition): any[] {
   const stack: any[] = [];
 
@@ -179,6 +185,11 @@ function matchPath(pattern: string, pathname: string): RouteParams | null {
   return params;
 }
 
+/**
+ * Resolves the best route match for a target URL.
+ *
+ * Matching uses static segment priority over dynamic segment priority.
+ */
 export function matchRoute(routes: RouteDefinition[], target: string): RouteMatch | null {
   const parsedTarget = parseTarget(target);
 
@@ -216,6 +227,11 @@ export function matchRoute(routes: RouteDefinition[], target: string): RouteMatc
   return candidates[0]?.match ?? null;
 }
 
+/**
+ * Creates an in-memory history implementation.
+ *
+ * Useful for tests and non-browser environments.
+ */
 export function createMemoryHistory(initialPath = "/"): RouterHistory {
   let currentPath = parseTarget(initialPath).fullPath;
 
@@ -231,6 +247,9 @@ export function createMemoryHistory(initialPath = "/"): RouterHistory {
   };
 }
 
+/**
+ * Creates a browser history implementation backed by `window.history`.
+ */
 export function createBrowserHistory(browserWindow: Window = window): RouterHistory {
   const getLocation = () =>
     `${browserWindow.location.pathname}${browserWindow.location.search}${browserWindow.location.hash}`;
@@ -277,6 +296,9 @@ async function runMiddleware(
   return true;
 }
 
+/**
+ * Creates a router with route matching, middleware, and navigation state.
+ */
 export function createRouter(routes: RouteDefinition[], options: RouterOptions = {}): Router {
   const history = options.history ?? createMemoryHistory();
   const middleware = options.middleware ?? {};

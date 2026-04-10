@@ -1,20 +1,14 @@
 /**
  * @file memo.ts
- * Terajs memoization utility for shallowly caching computed results.
- * DX-first: simple, ergonomic, and works with signals, refs, or plain values.
- *
- * Usage:
- *   const m = memo(() => expensiveFn(a(), b.value));
- *   // Only recomputes if a() or b.value changes (shallow compare)
- *
- *   <Memo deps={[a, b]}>{([a, b]) => expensiveFn(a, b)}</Memo>
+ * @description
+ * Memoization helpers for shallow dependency comparison and explicit
+ * static/shallow value markers.
  */
 
-import { Signal } from "./signal.js";
 import { Ref } from "./ref.js";
 
 /**
- * Shallow equality check for arrays/objects.
+ * Performs shallow equality checks for dependency arrays/objects.
  */
 function shallowEqual(a: any, b: any): boolean {
   if (a === b) return true;
@@ -33,16 +27,18 @@ function shallowEqual(a: any, b: any): boolean {
   return false;
 }
 
-// DX-correct: static cache per call site (symbol key)
 const _memoCache = new Map<symbol, { lastDeps: any[]; lastValue: any }>();
 
 /**
- * Memoizes the result of a function, recomputing only if shallow deps change.
- * Each call site should provide a unique symbol as the first argument for correct isolation.
+ * Memoizes a computed value by shallow-comparing dependency inputs.
  *
- * @param key - Unique symbol for this memoization context (use: const key = Symbol('desc'))
- * @param fn - Function to memoize
- * @param deps - Optional array of dependencies (signals, refs, or values)
+ * Callers must provide a stable symbol key per memoization context.
+ *
+ * @typeParam T Memoized value type.
+ * @param key Stable symbol key for one memoization context.
+ * @param fn Computation to execute when dependencies change.
+ * @param deps Optional dependencies checked via shallow equality.
+ * @returns Cached value when dependencies are unchanged; otherwise next computed value.
  */
 export function memo<T>(key: symbol, fn: () => T, deps?: any[]): T {
   if (!deps || deps.length === 0) return fn();
@@ -55,12 +51,11 @@ export function memo<T>(key: symbol, fn: () => T, deps?: any[]): T {
 }
 
 /**
- * Mark an object/array as static (non-reactive).
+ * Marks an object/array as intentionally static for downstream consumers.
  *
- * @param obj - The object or array to mark static
- * @returns The same object, marked as static
- * @example
- *   const arr = markStatic([1,2,3]);
+ * @typeParam T Object type to mark.
+ * @param obj Object or array to mark.
+ * @returns The same instance with a non-enumerable static marker.
  */
 export function markStatic<T extends object>(obj: T): T {
   Object.defineProperty(obj, "__terajs_static__", { value: true, enumerable: false });
@@ -68,13 +63,13 @@ export function markStatic<T extends object>(obj: T): T {
 }
 
 /**
- * Shallow ref: only .value is reactive, not nested.
+ * Creates a shallow ref-like wrapper where only `.value` replacement is tracked.
  *
- * @param value - The value to wrap
- * @returns A shallow ref object
- * @example
- *   const s = shallowRef({a:1});
- *   s.value = ...
+ * Nested object mutations are not automatically tracked.
+ *
+ * @typeParam T Wrapped value type.
+ * @param value Initial value.
+ * @returns Ref-compatible shallow wrapper.
  */
 export function shallowRef<T>(value: T): Ref<T> {
   let _val = value;

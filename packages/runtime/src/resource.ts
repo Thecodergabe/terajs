@@ -73,15 +73,38 @@ interface ResourceOptions<TData> {
   ssr?: boolean;
 }
 
+/**
+ * Creates a resource without a reactive source.
+ *
+ * The fetcher executes immediately by default, unless `options.immediate` is `false`.
+ */
 export function createResource<TData>(
   fetcher: () => Promise<TData> | TData,
   options?: ResourceOptions<TData>
 ): Resource<TData>;
+
+/**
+ * Creates a resource driven by a reactive source accessor.
+ *
+ * When the source value changes, the resource re-fetches using the new source.
+ */
 export function createResource<TSource, TData>(
   source: () => TSource,
   fetcher: ResourceFetcher<TSource, TData>,
   options?: ResourceOptions<TData>
 ): Resource<TData>;
+
+/**
+ * Creates a resource with reactive data, lifecycle state, and optional
+ * hydration/persistence/invalidation integration.
+ *
+ * @typeParam TSource Source input type when using source-driven resources.
+ * @typeParam TData Resource payload type.
+ * @param sourceOrFetcher Source accessor or fetcher function.
+ * @param maybeFetcher Fetcher when source accessor is provided, otherwise options.
+ * @param maybeOptions Optional resource configuration.
+ * @returns Reactive resource API for loading, refetching, and local mutation.
+ */
 export function createResource<TSource, TData>(
   sourceOrFetcher: (() => TSource) | (() => Promise<TData> | TData),
   maybeFetcher?: ResourceFetcher<TSource, TData> | ResourceOptions<TData>,

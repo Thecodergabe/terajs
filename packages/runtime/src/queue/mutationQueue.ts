@@ -109,6 +109,10 @@ export const defaultMutationRetryPolicy: MutationRetryPolicy = {
 
 /**
  * Creates a mutation queue with optional durable persistence and conflict hooks.
+ *
+ * @param options Queue lifecycle options including retry policy, storage, and
+ * conflict handling strategy.
+ * @returns Mutation queue API for registration, enqueue, flush, and inspection.
  */
 export async function createMutationQueue(
   options: MutationQueueOptions = {}

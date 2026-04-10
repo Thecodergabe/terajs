@@ -3,23 +3,23 @@
  * @description Entry point for the @terajs/shared package.
  */
 
-// 1. Identity & Metadata
+// Identity and metadata utilities
 export * from "./debug/utils/id.js";
 export * from "./debug/metadata.js"; 
 
-// 2. Core Registries & Logic
+// Core registries and graph APIs
 export * from "./debug/core/registry.js";
-export * from "./debug/core/graphRegistry.js"; // This provides addDependency, getNode, etc.
+export * from "./debug/core/graphRegistry.js";
 
-// 3. The Public API Facade (THE TRUTH)
+// Dependency graph facade
 export { addDependency, removeDependencyNode } from "./debug/dependencyGraph.js"; 
 
-// 4. The Event System
-// IMPORTANT: We need both the Debug object AND the named functions
+// Debug event system
 export { Debug, resetDebugHandlers } from "./debug/events.js"; 
 export { emitDebug, getDebugListenerCount, subscribeDebug } from "./debug/eventBus.js"; 
 export { resetDebugListeners } from "./debug/eventBus.js";
-// 5. Context & Types
+
+// Context and shared types
 export * from "./debug/context.js";
 export * from "./debug/devtoolsBridge.js";
 export * from "./debug/types/events.js"; 
