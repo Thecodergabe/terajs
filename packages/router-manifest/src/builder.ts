@@ -44,6 +44,7 @@ export function buildRouteFromSFC(sfc: ParsedSFC): RouteDefinition {
     filePath: sfc.filePath,
     component: () => import(/* @vite-ignore */ sfc.filePath),
     layout: o.layout ?? null,
+    mountTarget: o.mountTarget,
     middleware,
     prerender: o.prerender ?? true,
     hydrate: o.hydrate ?? "eager",

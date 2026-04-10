@@ -7,6 +7,7 @@ export interface RouteConfigInput {
   filePath: string;
   path?: string;
   layout?: string;
+  mountTarget?: string;
   middleware?: string | string[];
   prerender?: boolean;
   hydrate?: RouteDefinition["hydrate"];
@@ -111,6 +112,7 @@ function mergeRouteOverride(
   const configOverride = {
     path: routeConfig.path,
     layout: routeConfig.layout,
+    mountTarget: routeConfig.mountTarget,
     middleware: routeConfig.middleware,
     prerender: routeConfig.prerender,
     hydrate: routeConfig.hydrate,

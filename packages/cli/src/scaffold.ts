@@ -4,11 +4,11 @@ import { join } from "node:path";
 export async function scaffoldProject(name: string): Promise<void> {
   const root = join(process.cwd(), name);
   const src = join(root, "src");
-  const routes = join(src, "routes");
+  const pages = join(src, "pages");
   const components = join(src, "components");
   const terajs = join(root, ".terajs");
 
-  await mkdir(routes, { recursive: true });
+  await mkdir(pages, { recursive: true });
   await mkdir(components, { recursive: true });
   await mkdir(terajs, { recursive: true });
 
@@ -39,7 +39,13 @@ export async function scaffoldProject(name: string): Promise<void> {
     join(root, "terajs.config.cjs"),
     `module.exports = {
   autoImportDirs: ["src/components"],
-  routeDirs: ["src/routes"]
+  routeDirs: ["src/pages"],
+  router: {
+    rootTarget: "app",
+    middlewareDir: "src/middleware",
+    keepPreviousDuringLoading: true,
+    applyMeta: true
+  }
 };
 `
   );
@@ -78,14 +84,9 @@ export default defineConfig({
   await writeFile(
     join(src, "main.ts"),
     `import { mount } from "@terajs/renderer-web";
-import App from "./routes/index.tera";
+import App from "virtual:terajs-app";
 
-const root = document.getElementById("app");
-if (!root) {
-  throw new Error("Missing #app root element.");
-}
-
-mount(App, root);
+mount(App);
 `
   );
 
@@ -106,7 +107,7 @@ dist
   );
 
   await writeFile(
-    join(routes, "index.tera"),
+    join(pages, "index.tera"),
     `<template>
   <main>
     <h1>Welcome to ${name}</h1>

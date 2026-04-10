@@ -10,7 +10,13 @@ vi.mock("./config", () => ({
   __esModule: true,
   getAutoImportDirs: () => [path.resolve(process.cwd(), "packages/devtools/src/components")],
   getRouteDirs: () => [path.resolve(process.cwd(), "src/routes")],
-  getConfiguredRoutes: () => []
+  getConfiguredRoutes: () => [],
+  getRouterConfig: () => ({
+    rootTarget: "app",
+    middlewareDir: path.resolve(process.cwd(), "src/middleware"),
+    keepPreviousDuringLoading: true,
+    applyMeta: true
+  })
 }));
 
 vi.mock("@terajs/shared", () => ({
@@ -228,9 +234,9 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(resolved).toBe("\0virtual:terajs-routes");
     expect(typeof code).toBe("string");
+    expect(code).toContain("buildRouteManifest(routeSources, { routeConfigs })");
     expect(code).toContain('filePath: "/src/routes/index.tera"');
     expect(code).toContain('filePath: "/src/routes/products/[id].tera"');
-    expect(code).toContain('layout: import("./src/routes/layout.tera")');
   });
 
   it("resolves hashed asset paths from the build manifest in build mode", async () => {
@@ -284,6 +290,7 @@ describe("Terajs Vite Plugin (integration)", () => {
       {
         filePath: path.resolve(process.cwd(), "src/routes/docs.tera"),
         path: "/learn",
+        mountTarget: "docs-root",
         middleware: ["docs"],
         prerender: false
       }
@@ -301,7 +308,76 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof code).toBe("string");
     expect(code).toContain('path: "/learn"');
+    expect(code).toContain('mountTarget: "docs-root"');
     expect(code).toContain('middleware: ["docs"]');
     expect(code).toContain('prerender: false');
+  });
+
+  it("generates middleware imports and global middleware list in virtual app module", async () => {
+    const configModule = await import("./config");
+    const middlewareDir = path.resolve(process.cwd(), "src/middleware");
+    const adminDir = path.join(middlewareDir, "admin");
+
+    vi.spyOn(configModule, "getRouterConfig").mockReturnValue({
+      rootTarget: "app",
+      middlewareDir,
+      keepPreviousDuringLoading: true,
+      applyMeta: true
+    });
+
+    vi.spyOn(fs, "existsSync").mockImplementation((input) => {
+      const value = String(input);
+      return value === middlewareDir || value === adminDir;
+    });
+
+    vi.spyOn(fs, "readdirSync").mockImplementation((input, options) => {
+      const value = String(input);
+      if (options && typeof options === "object" && "withFileTypes" in options && options.withFileTypes) {
+        if (value === middlewareDir) {
+          return [
+            { name: "auth.ts", isDirectory: () => false, isFile: () => true },
+            { name: "trace.global.ts", isDirectory: () => false, isFile: () => true },
+            { name: "admin", isDirectory: () => true, isFile: () => false }
+          ] as any;
+        }
+
+        if (value === adminDir) {
+          return [
+            { name: "audit.ts", isDirectory: () => false, isFile: () => true }
+          ] as any;
+        }
+      }
+
+      return [] as any;
+    });
+
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("import * as middlewareModule0");
+    expect(code).toContain('"admin/audit": resolveMiddlewareGuard("admin/audit"');
+    expect(code).toContain('"auth": resolveMiddlewareGuard("auth"');
+    expect(code).toContain('"trace": resolveMiddlewareGuard("trace"');
+    expect(code).toContain('const GLOBAL_MIDDLEWARE = ["trace"]');
+  });
+
+  it("generates a virtual app module with router defaults", () => {
+    const plugin = terajsPlugin();
+    const resolveId = requireHook<[string], unknown>(plugin.resolveId);
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const resolved = resolveId("virtual:terajs-app");
+    const code = load("\0virtual:terajs-app");
+
+    expect(resolved).toBe("\0virtual:terajs-app");
+    expect(typeof code).toBe("string");
+    expect(code).toContain("createBrowserHistory");
+    expect(code).toContain("createRouteView");
+    expect(code).toContain('const ROOT_TARGET_ID = "app"');
+    expect(code).toContain("autoStart: false");
+    expect(code).toContain("keepPreviousDuringLoading: true");
+    expect(code).toContain("document.addEventListener('click'");
   });
 });

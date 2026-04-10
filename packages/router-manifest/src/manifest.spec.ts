@@ -76,6 +76,7 @@ describe("buildRouteManifest", () => {
           {
             filePath: "/src/pages/docs/getting-started.tera",
             path: "/learn/start",
+            mountTarget: "docs-root",
             middleware: ["docs"],
             prerender: false
           }
@@ -84,6 +85,7 @@ describe("buildRouteManifest", () => {
     );
 
     expect(manifest[0].path).toBe("/learn/start");
+    expect(manifest[0].mountTarget).toBe("docs-root");
     expect(manifest[0].middleware).toEqual(["docs"]);
     expect(manifest[0].prerender).toBe(false);
   });
@@ -98,6 +100,7 @@ describe("buildRouteManifest", () => {
 <script>export default () => null</script>
 <route>
   path: /me
+  mountTarget: profile-root
   middleware: secure
 </route>
 `
@@ -109,6 +112,7 @@ describe("buildRouteManifest", () => {
             filePath: "/src/pages/account/profile.tera",
             path: "/account/profile",
             layout: "settings",
+            mountTarget: "account-root",
             middleware: ["auth"],
             prerender: false
           }
@@ -118,6 +122,7 @@ describe("buildRouteManifest", () => {
 
     expect(manifest[0].path).toBe("/me");
     expect(manifest[0].layout).toBe("settings");
+    expect(manifest[0].mountTarget).toBe("profile-root");
     expect(manifest[0].middleware).toEqual(["secure"]);
     expect(manifest[0].prerender).toBe(false);
   });

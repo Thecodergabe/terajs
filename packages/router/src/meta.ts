@@ -6,7 +6,7 @@ export interface ResolvedRouteMetadata {
   ai?: Record<string, unknown>;
   route: Pick<
     RouteDefinition,
-    "id" | "path" | "filePath" | "layout" | "middleware" | "prerender" | "hydrate" | "edge"
+    "id" | "path" | "filePath" | "layout" | "mountTarget" | "middleware" | "prerender" | "hydrate" | "edge"
   > & {
     layouts: string[];
   };
@@ -79,6 +79,7 @@ function buildResolvedRoute(loaded: LoadedRouteMatch<unknown>, carriers: Metadat
   mergedRoute.id = loaded.match.route.id;
   mergedRoute.path = loaded.match.route.path;
   mergedRoute.filePath = loaded.match.route.filePath;
+  mergedRoute.mountTarget = loaded.match.route.mountTarget;
   mergedRoute.middleware = loaded.match.route.middleware;
   mergedRoute.prerender = loaded.match.route.prerender;
   mergedRoute.hydrate = loaded.match.route.hydrate;

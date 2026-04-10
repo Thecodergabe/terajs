@@ -15,6 +15,67 @@ import { signal } from "@terajs/reactivity";
 
 describe("mount() / unmount()", () => {
 
+    it("mount defaults to #app and auto-creates it when missing", () => {
+        const existing = document.getElementById("app");
+        existing?.remove();
+
+        const Comp = () => {
+            const div = document.createElement("div");
+            div.textContent = "auto-root";
+            return div;
+        };
+
+        const root = mount(Comp);
+
+        expect(root.id).toBe("app");
+        expect(document.body.contains(root)).toBe(true);
+        expect(root.textContent).toBe("auto-root");
+
+        unmount(root);
+        root.remove();
+    });
+
+    it("mount accepts selector targets", () => {
+        const root = document.createElement("div");
+        root.id = "selector-root";
+        document.body.appendChild(root);
+
+        const Comp = () => {
+            const div = document.createElement("div");
+            div.textContent = "selector";
+            return div;
+        };
+
+        const mountedRoot = mount(Comp, "#selector-root");
+
+        expect(mountedRoot).toBe(root);
+        expect(root.textContent).toBe("selector");
+
+        unmount(root);
+        root.remove();
+    });
+
+    it("mount supports custom default ids via options", () => {
+        const existing = document.getElementById("terajs-root");
+        existing?.remove();
+
+        const Comp = () => {
+            const div = document.createElement("div");
+            div.textContent = "custom-default";
+            return div;
+        };
+
+        const root = mount(Comp, {
+            defaultId: "terajs-root"
+        });
+
+        expect(root.id).toBe("terajs-root");
+        expect(root.textContent).toBe("custom-default");
+
+        unmount(root);
+        root.remove();
+    });
+
     it("mount inserts component DOM into root", () => {
         const Comp = () => {
             const div = document.createElement("div");

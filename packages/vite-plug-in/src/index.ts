@@ -7,9 +7,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs.js";
-import { getConfiguredRoutes, getRouteDirs } from "./config.js";
+import { getConfiguredRoutes, getRouteDirs, getRouterConfig } from "./config.js";
 import { compileSfcToComponent } from "./compileSfcToComponent.js";
-import { generateRouteConfigWithAssets } from "./routesScanner.js";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
@@ -22,6 +21,8 @@ const AUTO_IMPORT_VIRTUAL_ID = "virtual:terajs-auto-imports";
 const RESOLVED_AUTO_IMPORT_VIRTUAL_ID = `\0${AUTO_IMPORT_VIRTUAL_ID}`;
 const ROUTES_VIRTUAL_ID = "virtual:terajs-routes";
 const RESOLVED_ROUTES_VIRTUAL_ID = `\0${ROUTES_VIRTUAL_ID}`;
+const APP_VIRTUAL_ID = "virtual:terajs-app";
+const RESOLVED_APP_VIRTUAL_ID = `\0${APP_VIRTUAL_ID}`;
 const DEFAULT_SERVER_FUNCTION_ENDPOINT = "/_terajs/server";
 
 export interface TerajsVitePluginOptions {
@@ -57,6 +58,78 @@ function readTeraFilesRecursively(dir: string): string[] {
   }
 
   return files;
+}
+
+interface MiddlewareModuleEntry {
+  key: string;
+  global: boolean;
+  filePath: string;
+}
+
+function isMiddlewareSourceFile(filePath: string): boolean {
+  return /\.(?:[cm]?ts|[cm]?js)$/i.test(filePath) && !filePath.toLowerCase().endsWith(".d.ts");
+}
+
+function readMiddlewareFilesRecursively(dir: string): string[] {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...readMiddlewareFilesRecursively(fullPath));
+      continue;
+    }
+
+    if (entry.isFile() && isMiddlewareSourceFile(entry.name)) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function createMiddlewareModuleEntry(filePath: string, middlewareDir: string): MiddlewareModuleEntry {
+  const relativePath = normalizePath(path.relative(middlewareDir, filePath));
+  const withoutExtension = relativePath.replace(/\.(?:[cm]?ts|[cm]?js)$/i, "");
+  const global = withoutExtension.endsWith(".global");
+  const key = (global ? withoutExtension.slice(0, -".global".length) : withoutExtension).trim();
+
+  return {
+    key,
+    global,
+    filePath
+  };
+}
+
+function getManifestAssetPath(
+  filePath: string,
+  manifest?: Record<string, any>
+): string | undefined {
+  if (!manifest) {
+    return undefined;
+  }
+
+  const relativePath = normalizePath(path.relative(process.cwd(), filePath));
+  const keys = [relativePath];
+  if (!relativePath.startsWith("./")) {
+    keys.push(`./${relativePath}`);
+  }
+  if (!relativePath.startsWith("/")) {
+    keys.push(`/${relativePath}`);
+  }
+
+  for (const key of keys) {
+    const entry = manifest[key];
+    if (entry && typeof entry === "object") {
+      const asset = entry.file ?? entry.src;
+      if (typeof asset === "string") {
+        return asset;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function readBuildManifest(root: string, outDir: string): Record<string, any> | undefined {
@@ -161,6 +234,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   const autoImportDirs = getAutoImportDirs();
   const routeDirs = getRouteDirs();
   const configuredRoutes = getConfiguredRoutes();
+  const routerConfig = getRouterConfig();
   const serverFunctionOptions = options.serverFunctions === false
     ? false
     : options.serverFunctions ?? {};
@@ -196,10 +270,12 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
     const routeSources = routeFiles.map((filePath) => {
       const importPath = toProjectImportPath(filePath);
+      const assetPath = getManifestAssetPath(filePath, manifest);
       return `  {
     filePath: ${JSON.stringify(importPath)},
     source: ${JSON.stringify(fs.readFileSync(filePath, "utf8"))},
-    component: () => import(${JSON.stringify(importPath)})
+    component: () => import(${JSON.stringify(importPath)})${assetPath ? `,
+    asset: ${JSON.stringify(assetPath)}` : ""}
   }`;
     });
 
@@ -207,6 +283,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     filePath: ${JSON.stringify(toProjectImportPath(routeConfig.filePath))},
     ${routeConfig.path ? `path: ${JSON.stringify(routeConfig.path)},` : ""}
     ${routeConfig.layout ? `layout: ${JSON.stringify(routeConfig.layout)},` : ""}
+    ${routeConfig.mountTarget ? `mountTarget: ${JSON.stringify(routeConfig.mountTarget)},` : ""}
     ${routeConfig.middleware ? `middleware: ${JSON.stringify(routeConfig.middleware)},` : ""}
     ${typeof routeConfig.prerender === "boolean" ? `prerender: ${JSON.stringify(routeConfig.prerender)},` : ""}
     ${routeConfig.hydrate ? `hydrate: ${JSON.stringify(routeConfig.hydrate)},` : ""}
@@ -223,6 +300,182 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `];`,
       `export const routes = buildRouteManifest(routeSources, { routeConfigs });`,
       `export default routes;`
+    ].join("\n");
+  }
+
+  function resolveMiddlewareModules(): {
+    modules: MiddlewareModuleEntry[];
+    globalKeys: string[];
+  } {
+    const middlewareDir = routerConfig.middlewareDir;
+    if (!fs.existsSync(middlewareDir)) {
+      return {
+        modules: [],
+        globalKeys: []
+      };
+    }
+
+    const discovered = readMiddlewareFilesRecursively(middlewareDir)
+      .sort((left, right) => normalizePath(left).localeCompare(normalizePath(right)))
+      .map((filePath) => createMiddlewareModuleEntry(filePath, middlewareDir));
+
+    const modules: MiddlewareModuleEntry[] = [];
+    const keys = new Map<string, string>();
+
+    for (const entry of discovered) {
+      if (!entry.key) {
+        throw new Error(`Invalid middleware file name: ${entry.filePath}`);
+      }
+
+      const existing = keys.get(entry.key);
+      if (existing) {
+        throw new Error(
+          `Duplicate middleware key '${entry.key}' found in ${existing} and ${entry.filePath}`
+        );
+      }
+
+      keys.set(entry.key, entry.filePath);
+      modules.push(entry);
+    }
+
+    return {
+      modules,
+      globalKeys: modules.filter((entry) => entry.global).map((entry) => entry.key)
+    };
+  }
+
+  function generateAppModule() {
+    const middlewareModules = resolveMiddlewareModules();
+    const middlewareImports = middlewareModules.modules.map(
+      (entry, index) => `import * as middlewareModule${index} from '${toProjectImportPath(entry.filePath)}';`
+    );
+    const middlewareEntries = middlewareModules.modules.map(
+      (entry, index) => `  ${JSON.stringify(entry.key)}: resolveMiddlewareGuard(${JSON.stringify(entry.key)}, middlewareModule${index})`
+    );
+
+    return [
+      `import { createBrowserHistory, createRouter } from '@terajs/router';`,
+      `import { createRouteView } from '@terajs/renderer-web';`,
+      `import { component, onCleanup, onMounted } from '@terajs/runtime';`,
+      `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
+      ...middlewareImports,
+      `const ROOT_TARGET_ID = ${JSON.stringify(routerConfig.rootTarget)};`,
+      `const GLOBAL_MIDDLEWARE = ${JSON.stringify(middlewareModules.globalKeys)};`,
+      `const MOUNT_TARGET_PATTERN = /^[A-Za-z][\\w:-]*$/;`,
+      `function resolveMiddlewareGuard(name, moduleRecord) {`,
+      `  const candidate = moduleRecord.default ?? moduleRecord.middleware;`,
+      `  if (typeof candidate !== 'function') {`,
+      `    throw new Error(\`Router middleware "\${name}" must export a default function (or named "middleware").\`);`,
+      `  }`,
+      `  return candidate;`,
+      `}`,
+      `const middleware = {`,
+      middlewareEntries.join(",\n"),
+      `};`,
+      `function applyGlobalMiddleware(routeList) {`,
+      `  if (GLOBAL_MIDDLEWARE.length === 0) {`,
+      `    return routeList;`,
+      `  }`,
+      `  return routeList.map((route) => {`,
+      `    const routeMiddleware = Array.isArray(route.middleware) ? route.middleware : [];`,
+      `    const merged = Array.from(new Set([...GLOBAL_MIDDLEWARE, ...routeMiddleware]));`,
+      `    if (merged.length === routeMiddleware.length && merged.every((value, index) => value === routeMiddleware[index])) {`,
+      `      return route;`,
+      `    }`,
+      `    return { ...route, middleware: merged };`,
+      `  });`,
+      `}`,
+      `function normalizeMountTargetId(value) {`,
+      `  if (typeof value !== 'string') {`,
+      `    return ROOT_TARGET_ID;`,
+      `  }`,
+      `  const trimmed = value.trim();`,
+      `  if (!MOUNT_TARGET_PATTERN.test(trimmed)) {`,
+      `    return ROOT_TARGET_ID;`,
+      `  }`,
+      `  return trimmed;`,
+      `}`,
+      `function ensureMountTarget(targetId) {`,
+      `  if (typeof document === 'undefined') {`,
+      `    return null;`,
+      `  }`,
+      `  const existing = document.getElementById(targetId);`,
+      `  if (existing) {`,
+      `    return existing;`,
+      `  }`,
+      `  const root = document.createElement('div');`,
+      `  root.id = targetId;`,
+      `  (document.body ?? document.documentElement).appendChild(root);`,
+      `  return root;`,
+      `}`,
+      `function resolveMatchTargetId(match) {`,
+      `  const routeTarget = match?.route?.mountTarget;`,
+      `  return normalizeMountTargetId(routeTarget);`,
+      `}`,
+      `const routed = applyGlobalMiddleware(routes);`,
+      `export const router = createRouter(routed, { history: createBrowserHistory(), middleware });`,
+      `const routeView = createRouteView(router, {`,
+      `  autoStart: false,`,
+      `  keepPreviousDuringLoading: ${routerConfig.keepPreviousDuringLoading},`,
+      `  applyMeta: ${routerConfig.applyMeta}`,
+      `});`,
+      `const routeViewNode = routeView();`,
+      `const App = component({ name: 'TerajsAppShell' }, () => {`,
+      `  onMounted(() => {`,
+      `    if (typeof document === 'undefined') {`,
+      `      return;`,
+      `    }`,
+      `    let activeTargetId = null;`,
+      `    const moveRouteView = (match) => {`,
+      `      if (!(routeViewNode instanceof Node)) {`,
+      `        return;`,
+      `      }`,
+      `      const targetId = resolveMatchTargetId(match);`,
+      `      if (targetId === activeTargetId) {`,
+      `        return;`,
+      `      }`,
+      `      const target = ensureMountTarget(targetId);`,
+      `      if (!target) {`,
+      `        return;`,
+      `      }`,
+      `      target.replaceChildren(routeViewNode);`,
+      `      activeTargetId = targetId;`,
+      `    };`,
+      `    const onClick = (event) => {`,
+      `      const target = event.target;`,
+      `      const link = target instanceof Element ? target.closest('a[href]') : null;`,
+      `      if (!link) {`,
+      `        return;`,
+      `      }`,
+      `      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {`,
+      `        return;`,
+      `      }`,
+      `      if (link.target === '_blank' || link.hasAttribute('download')) {`,
+      `        return;`,
+      `      }`,
+      `      const href = link.getAttribute('href');`,
+      `      if (!href || !href.startsWith('/')) {`,
+      `        return;`,
+      `      }`,
+      `      event.preventDefault();`,
+      `      void router.navigate(href);`,
+      `    };`,
+      `    const unsubscribe = router.subscribe((match) => {`,
+      `      moveRouteView(match);`,
+      `    });`,
+      `    moveRouteView(router.getCurrentRoute());`,
+      `    void router.start().then(() => {`,
+      `      moveRouteView(router.getCurrentRoute());`,
+      `    });`,
+      `    document.addEventListener('click', onClick);`,
+      `    onCleanup(() => {`,
+      `      unsubscribe();`,
+      `      document.removeEventListener('click', onClick);`,
+      `    });`,
+      `  });`,
+      `  return () => routeViewNode;`,
+      `});`,
+      `export default App;`
     ].join("\n");
   }
 
@@ -262,6 +515,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     resolveId(id) {
       if (id === AUTO_IMPORT_VIRTUAL_ID) return RESOLVED_AUTO_IMPORT_VIRTUAL_ID;
       if (id === ROUTES_VIRTUAL_ID) return RESOLVED_ROUTES_VIRTUAL_ID;
+      if (id === APP_VIRTUAL_ID) return RESOLVED_APP_VIRTUAL_ID;
       return null;
     },
 
@@ -270,18 +524,16 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         return generateAutoImports();
       }
       if (id === RESOLVED_ROUTES_VIRTUAL_ID) {
-        const routeFiles = Array.from(new Set([
-          ...routeDirs.flatMap((dir) => readTeraFilesRecursively(dir)),
-          ...configuredRoutes.map((route) => route.filePath)
-        ])).sort();
-
         if (config?.command === "build" && !manifest) {
           const rootDir = config?.root ?? process.cwd();
           const outDir = config?.build?.outDir ?? "dist";
           manifest = readBuildManifest(rootDir, outDir);
         }
 
-        return generateRouteConfigWithAssets(routeFiles, manifest, configuredRoutes);
+        return generateRoutesModule();
+      }
+      if (id === RESOLVED_APP_VIRTUAL_ID) {
+        return generateAppModule();
       }
       if (!id.endsWith(".tera")) return null;
 
@@ -298,6 +550,17 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     },
 
     handleHotUpdate(ctx) {
+      const normalizedFile = normalizePath(ctx.file);
+      const normalizedMiddlewareDir = normalizePath(routerConfig.middlewareDir);
+
+      if (
+        isMiddlewareSourceFile(normalizedFile) &&
+        normalizedFile.startsWith(normalizedMiddlewareDir)
+      ) {
+        invalidateVirtualModule(ctx.server, RESOLVED_APP_VIRTUAL_ID);
+        return;
+      }
+
       if (!ctx.file.endsWith(".tera")) return;
 
       const code = fs.readFileSync(ctx.file, "utf8");
@@ -314,10 +577,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       const mod = ctx.server.moduleGraph.getModuleById(ctx.file)!;
       ctx.server.moduleGraph.invalidateModule(mod);
 
-      const normalizedFile = normalizePath(ctx.file);
       if (normalizedFile.endsWith(".tera")) {
         if (routeDirs.some((dir) => normalizedFile.startsWith(normalizePath(dir)))) {
           invalidateVirtualModule(ctx.server, RESOLVED_ROUTES_VIRTUAL_ID);
+          invalidateVirtualModule(ctx.server, RESOLVED_APP_VIRTUAL_ID);
         }
 
         if (autoImportDirs.some((dir) => normalizedFile.startsWith(normalizePath(dir)))) {

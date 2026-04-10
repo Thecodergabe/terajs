@@ -38,6 +38,8 @@ describe("cli scaffoldProject", () => {
     const config = await readText(join(appRoot, "terajs.config.cjs"));
     expect(config).toContain("autoImportDirs");
     expect(config).toContain("routeDirs");
+    expect(config).toContain("rootTarget");
+    expect(config).toContain("middlewareDir");
 
     const viteConfig = await readText(join(appRoot, "vite.config.ts"));
     expect(viteConfig).toContain("terajsPlugin()");
@@ -46,9 +48,9 @@ describe("cli scaffoldProject", () => {
     expect(html).toContain("id=\"app\"");
 
     const main = await readText(join(appRoot, "src", "main.ts"));
-    expect(main).toContain("mount(App, root)");
+    expect(main).toContain("mount(App)");
 
-    const route = await readText(join(appRoot, "src", "routes", "index.tera"));
+    const route = await readText(join(appRoot, "src", "pages", "index.tera"));
     expect(route).toContain("Welcome to demo-app");
   });
 });

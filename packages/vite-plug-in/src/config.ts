@@ -8,11 +8,18 @@ const require = createRequire(import.meta.url);
 interface TerajsUserConfig {
   autoImportDirs?: string[];
   routeDirs?: string[];
+  router?: {
+    rootTarget?: string;
+    middlewareDir?: string;
+    keepPreviousDuringLoading?: boolean;
+    applyMeta?: boolean;
+  };
   routes?: Array<{
     file?: string;
     filePath?: string;
     path?: string;
     layout?: string;
+    mountTarget?: string;
     middleware?: string | string[];
     prerender?: boolean;
     hydrate?: RouteConfigInput["hydrate"];
@@ -71,7 +78,7 @@ export function getRouteDirs(): string[] {
   const cwd = process.cwd();
   const config = readTerajsConfig();
   const configuredDirs = Array.isArray(config.routeDirs) ? config.routeDirs : [];
-  const defaultDirs = ["src/routes", "src/pages"];
+  const defaultDirs = ["src/pages"];
   const dirs = configuredDirs.length > 0 ? configuredDirs : defaultDirs;
 
   return dirs
@@ -104,6 +111,7 @@ export function getConfiguredRoutes(): RouteConfigInput[] {
         filePath: path.resolve(cwd, file),
         path: typeof route.path === "string" ? route.path : undefined,
         layout: typeof route.layout === "string" ? route.layout : undefined,
+        mountTarget: typeof route.mountTarget === "string" ? route.mountTarget : undefined,
         middleware: Array.isArray(route.middleware)
           ? route.middleware.filter((value): value is string => typeof value === "string")
           : typeof route.middleware === "string"
@@ -116,4 +124,41 @@ export function getConfiguredRoutes(): RouteConfigInput[] {
   }
 
   return configuredRoutes;
+}
+
+export interface TerajsRouterConfig {
+  rootTarget: string;
+  middlewareDir: string;
+  keepPreviousDuringLoading: boolean;
+  applyMeta: boolean;
+}
+
+function isMountTargetId(value: string): boolean {
+  return /^[A-Za-z][\w:-]*$/.test(value);
+}
+
+export function getRouterConfig(): TerajsRouterConfig {
+  const cwd = process.cwd();
+  const config = readTerajsConfig();
+  const router = config.router;
+
+  const configuredRootTarget = typeof router?.rootTarget === "string" ? router.rootTarget.trim() : "";
+  const rootTarget = isMountTargetId(configuredRootTarget) ? configuredRootTarget : "app";
+
+  const middlewareDir = typeof router?.middlewareDir === "string"
+    ? path.resolve(cwd, router.middlewareDir)
+    : path.resolve(cwd, "src/middleware");
+
+  return {
+    rootTarget,
+    middlewareDir,
+    keepPreviousDuringLoading:
+      typeof router?.keepPreviousDuringLoading === "boolean"
+        ? router.keepPreviousDuringLoading
+        : true,
+    applyMeta:
+      typeof router?.applyMeta === "boolean"
+        ? router.applyMeta
+        : true
+  };
 }

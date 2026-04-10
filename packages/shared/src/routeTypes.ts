@@ -3,6 +3,7 @@ import type { HydrationMode } from "./hydration.js";
 export interface RouteOverride {
   path?: string;
   layout?: string;
+  mountTarget?: string;
   middleware?: string | string[];
   prerender?: boolean;
   hydrate?: HydrationMode;
