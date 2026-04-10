@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { bindText, bindProp, bindClass, bindStyle } from "./bindings";
 import { createText, createElement } from "./dom";
-import { signal } from "../../reactivity/src/signal";
+import { signal } from "@terajs/reactivity";
 
 describe("bindings", () => {
     it("bindText updates when signal changes", () => {

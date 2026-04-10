@@ -325,6 +325,8 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
     stop: () => {
       stopListening?.();
       stopListening = null;
+      listeners.clear();
+      navigationListeners.clear();
     },
     resolve: (target) => matchRoute(routes, target),
     getCurrentRoute: () => currentRoute,

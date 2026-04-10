@@ -175,3 +175,7 @@ export const Debug = {
         }
     },
 };
+
+export function resetDebugHandlers(): void {
+    handlers.clear();
+}

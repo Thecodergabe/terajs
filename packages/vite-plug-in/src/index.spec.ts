@@ -1,8 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import type { HmrContext, Plugin } from "vite";
-import terajsPlugin from "./index";
-import { compileSfcToComponent } from "./compileSfcToComponent";
-import { Debug } from "@terajs/shared";
 import { server } from "@terajs/runtime";
 import { setRuntimeMode } from "@terajs/reactivity";
 import fs from "fs";
@@ -10,18 +7,36 @@ import path from "node:path";
 import { Readable } from "node:stream";
 
 vi.mock("./config", () => ({
+  __esModule: true,
   getAutoImportDirs: () => [path.resolve(process.cwd(), "packages/devtools/src/components")],
   getRouteDirs: () => [path.resolve(process.cwd(), "src/routes")],
   getConfiguredRoutes: () => []
 }));
 
 vi.mock("@terajs/shared", () => ({
+  __esModule: true,
   Debug: { emit: vi.fn() }
 }));
 
 vi.mock("./compileSfcToComponent", () => ({
+  __esModule: true,
   compileSfcToComponent: vi.fn(() => "export default function Comp() {}")
 }));
+
+let terajsPlugin: typeof import("./index").default;
+let compileSfcToComponent: typeof import("./compileSfcToComponent").compileSfcToComponent;
+let Debug: typeof import("@terajs/shared").Debug;
+
+beforeAll(async () => {
+  const pluginModule = await import("./index");
+  terajsPlugin = pluginModule.default;
+
+  const compileModule = await import("./compileSfcToComponent");
+  compileSfcToComponent = compileModule.compileSfcToComponent;
+
+  const sharedModule = await import("@terajs/shared");
+  Debug = sharedModule.Debug;
+});
 
 describe("Terajs Vite Plugin (integration)", () => {
   function createResponseCollector() {
@@ -137,14 +152,14 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it("emits sfc:load when loading a .nbl file", () => {
+  it("emits sfc:load when loading a .tera file", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
     vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Hello</template>");
-    load("Component.nbl");
+    load("Component.tera");
     expect(compileSfcToComponent).toHaveBeenCalled();
     expect(Debug.emit).toHaveBeenCalledWith("sfc:load", {
-      scope: "Component.nbl"
+      scope: "Component.tera"
     });
   });
 
@@ -153,17 +168,17 @@ describe("Terajs Vite Plugin (integration)", () => {
     const handleHotUpdate = requireHook<[HmrContext], unknown>(plugin.handleHotUpdate);
     vi.spyOn(fs, "readFileSync").mockReturnValue("<template>Hello</template>");
     const ctx = {
-      file: "Component.nbl",
+      file: "Component.tera",
       server: {
         moduleGraph: {
-          getModuleById: vi.fn(() => ({ id: "Component.nbl" })),
+          getModuleById: vi.fn(() => ({ id: "Component.tera" })),
           invalidateModule: vi.fn()
         }
       }
     } as unknown as HmrContext;
     handleHotUpdate(ctx);
     expect(Debug.emit).toHaveBeenCalledWith("sfc:hmr", {
-      scope: "Component.nbl"
+      scope: "Component.tera"
     });
   });
 
@@ -181,15 +196,15 @@ describe("Terajs Vite Plugin (integration)", () => {
       if (options && typeof options === "object" && "withFileTypes" in options && options.withFileTypes) {
         if (value === routesDir) {
           return [
-            { name: "layout.nbl", isDirectory: () => false, isFile: () => true },
-            { name: "index.nbl", isDirectory: () => false, isFile: () => true },
+            { name: "layout.tera", isDirectory: () => false, isFile: () => true },
+            { name: "index.tera", isDirectory: () => false, isFile: () => true },
             { name: "products", isDirectory: () => true, isFile: () => false }
           ] as any;
         }
 
         if (value === productDir) {
           return [
-            { name: "[id].nbl", isDirectory: () => false, isFile: () => true }
+            { name: "[id].tera", isDirectory: () => false, isFile: () => true }
           ] as any;
         }
       }
@@ -199,9 +214,9 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
       const value = String(input);
-      if (value.endsWith("layout.nbl")) return "<template><slot /></template>";
-      if (value.endsWith("index.nbl")) return "<template><Home /></template>";
-      if (value.endsWith("[id].nbl")) return "<template><Product /></template>";
+      if (value.endsWith("layout.tera")) return "<template><slot /></template>";
+      if (value.endsWith("index.tera")) return "<template><Home /></template>";
+      if (value.endsWith("[id].tera")) return "<template><Product /></template>";
       return "<template />";
     });
 
@@ -213,9 +228,9 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(resolved).toBe("\0virtual:terajs-routes");
     expect(typeof code).toBe("string");
-    expect(code).toContain('filePath: "/src/routes/index.nbl"');
-    expect(code).toContain('filePath: "/src/routes/products/[id].nbl"');
-    expect(code).toContain('layout: import("./src/routes/layout.nbl")');
+    expect(code).toContain('filePath: "/src/routes/index.tera"');
+    expect(code).toContain('filePath: "/src/routes/products/[id].tera"');
+    expect(code).toContain('layout: import("./src/routes/layout.tera")');
   });
 
   it("resolves hashed asset paths from the build manifest in build mode", async () => {
@@ -233,7 +248,7 @@ describe("Terajs Vite Plugin (integration)", () => {
       if (options && typeof options === "object" && "withFileTypes" in options && options.withFileTypes) {
         if (value === routesDir) {
           return [
-            { name: "index.nbl", isDirectory: () => false, isFile: () => true }
+            { name: "index.tera", isDirectory: () => false, isFile: () => true }
           ] as any;
         }
       }
@@ -242,10 +257,10 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
       const value = String(input);
-      if (value.endsWith("index.nbl")) return "<template><Home /></template>";
+      if (value.endsWith("index.tera")) return "<template><Home /></template>";
       if (value === manifestPath) {
         return JSON.stringify({
-          "src/routes/index.nbl": { file: "assets/index-123.js" }
+          "src/routes/index.tera": { file: "assets/index-123.js" }
         });
       }
       return "<template />";
@@ -267,7 +282,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     const configModule = await import("./config");
     vi.spyOn(configModule, "getConfiguredRoutes").mockReturnValue([
       {
-        filePath: path.resolve(process.cwd(), "src/routes/docs.nbl"),
+        filePath: path.resolve(process.cwd(), "src/routes/docs.tera"),
         path: "/learn",
         middleware: ["docs"],
         prerender: false
@@ -276,7 +291,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
       const value = String(input);
-      if (value.endsWith("docs.nbl")) return "<template><Docs /></template>";
+      if (value.endsWith("docs.tera")) return "<template><Docs /></template>";
       return "<template />";
     });
 

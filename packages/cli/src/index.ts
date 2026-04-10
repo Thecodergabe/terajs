@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { createServer } from "vite";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { scaffoldProject } from "./scaffold.js";
 import terajsPlugin from "@terajs/vite-plugin";
 
@@ -17,6 +19,14 @@ program
   .action(async (name: string) => {
     console.log("Initializing Terajs project...");
     await scaffoldProject(name);
+
+    const vscodeDir = join(process.cwd(), name, ".vscode");
+    await mkdir(vscodeDir, { recursive: true });
+    await writeFile(
+      join(vscodeDir, "settings.json"),
+      JSON.stringify({ files: { associations: { "*.tera": "html" } } }, null, 2)
+    );
+
     console.log(`Project ready. Run 'cd ${name} && tera dev' to start.`);
   });
 

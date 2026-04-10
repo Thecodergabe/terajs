@@ -14,12 +14,12 @@ import { currentEffect, type ReactiveEffect } from "./deps";
 import { scheduleEffect } from "./effect";
 
 import {
+  addDependency,
   createReactiveMetadata,
   registerReactiveInstance,
   updateReactiveValue,
-  Debug, // Replaces emitDebug/addDependency
+  Debug,
 } from "@terajs/shared";
-import { addDependency } from "../../shared/src/debug/core/graphRegistry";
 
 /**
  * A lazily evaluated, cached derived reactive value.

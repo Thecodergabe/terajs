@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src",
+    "rootDir": "../../",
     "outDir": "./dist",
     "composite": true,
     "declaration": true,
@@ -9,5 +9,10 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["src"],
-  "exclude": ["dist"]
+  "exclude": ["dist"],
+  "references": [
+    { "path": "../shared" },
+    { "path": "../adapter-ai" },
+    { "path": "../sfc" }
+  ]
 }

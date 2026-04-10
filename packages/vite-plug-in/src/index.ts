@@ -40,18 +40,18 @@ function toProjectImportPath(filePath: string): string {
   return relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
 }
 
-function readNblFilesRecursively(dir: string): string[] {
+function readTeraFilesRecursively(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   const files: string[] = [];
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...readNblFilesRecursively(fullPath));
+      files.push(...readTeraFilesRecursively(fullPath));
       continue;
     }
 
-    if (entry.isFile() && entry.name.endsWith(".nbl")) {
+    if (entry.isFile() && entry.name.endsWith(".tera")) {
       files.push(fullPath);
     }
   }
@@ -178,9 +178,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     let code = "";
     for (const dir of autoImportDirs) {
       if (!fs.existsSync(dir)) continue;
-      const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".nbl"));
+      const files = fs.readdirSync(dir).filter((fileName) => fileName.endsWith(".tera"));
       for (const f of files) {
-        const name = pascalCase(f.replace(/\.nbl$/, ""));
+        const name = pascalCase(f.replace(/\.tera$/, ""));
         const rel = "./" + f;
         code += `export { default as ${name} } from '${rel}';\n`;
       }
@@ -190,7 +190,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
   function generateRoutesModule() {
     const routeFiles = Array.from(new Set([
-      ...routeDirs.flatMap((dir) => readNblFilesRecursively(dir)),
+      ...routeDirs.flatMap((dir) => readTeraFilesRecursively(dir)),
       ...configuredRoutes.map((route) => route.filePath)
     ])).sort();
 
@@ -246,7 +246,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         return;
       }
 
-      manifest = readBuildManifest(config.root ?? process.cwd(), config.build.outDir ?? "dist");
+      const rootDir = config?.root ?? process.cwd();
+      const outDir = config?.build?.outDir ?? "dist";
+      manifest = readBuildManifest(rootDir, outDir);
     },
 
     configureServer(server) {
@@ -260,7 +262,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     resolveId(id) {
       if (id === AUTO_IMPORT_VIRTUAL_ID) return RESOLVED_AUTO_IMPORT_VIRTUAL_ID;
       if (id === ROUTES_VIRTUAL_ID) return RESOLVED_ROUTES_VIRTUAL_ID;
-      if (id.endsWith(".nbl")) return id;
+      if (id.endsWith(".tera")) return id;
       return null;
     },
 
@@ -270,17 +272,19 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       }
       if (id === RESOLVED_ROUTES_VIRTUAL_ID) {
         const routeFiles = Array.from(new Set([
-          ...routeDirs.flatMap((dir) => readNblFilesRecursively(dir)),
+          ...routeDirs.flatMap((dir) => readTeraFilesRecursively(dir)),
           ...configuredRoutes.map((route) => route.filePath)
         ])).sort();
 
         if (config?.command === "build" && !manifest) {
-          manifest = readBuildManifest(config.root ?? process.cwd(), config.build.outDir ?? "dist");
+          const rootDir = config?.root ?? process.cwd();
+          const outDir = config?.build?.outDir ?? "dist";
+          manifest = readBuildManifest(rootDir, outDir);
         }
 
         return generateRouteConfigWithAssets(routeFiles, manifest, configuredRoutes);
       }
-      if (!id.endsWith(".nbl")) return null;
+      if (!id.endsWith(".tera")) return null;
 
       const code = fs.readFileSync(id, "utf8");
       const sfc = parseSFC(code, id);
@@ -295,7 +299,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     },
 
     handleHotUpdate(ctx) {
-      if (!ctx.file.endsWith(".nbl")) return;
+      if (!ctx.file.endsWith(".tera")) return;
 
       const code = fs.readFileSync(ctx.file, "utf8");
       const sfc = parseSFC(code, ctx.file);
@@ -312,7 +316,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       ctx.server.moduleGraph.invalidateModule(mod);
 
       const normalizedFile = normalizePath(ctx.file);
-      if (normalizedFile.endsWith(".nbl")) {
+      if (normalizedFile.endsWith(".tera")) {
         if (routeDirs.some((dir) => normalizedFile.startsWith(normalizePath(dir)))) {
           invalidateVirtualModule(ctx.server, RESOLVED_ROUTES_VIRTUAL_ID);
         }

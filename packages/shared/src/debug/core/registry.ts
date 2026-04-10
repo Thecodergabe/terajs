@@ -128,3 +128,8 @@ export function getReactiveByRid(rid: string): ReactiveInstanceInfo | undefined 
 export function getComponentInstance(scope: string, instance: number): ComponentInstanceInfo | undefined {
   return components.get(componentKey(scope, instance));
 }
+
+export function resetDebugRegistry(): void {
+  components.clear();
+  reactives.clear();
+}

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@terajs/reactivity": "*",
-    "@terajs/shared": "*"
+    "@terajs/shared": "*",
+    "@terajs/adapter-ai": "*"
   }
 }

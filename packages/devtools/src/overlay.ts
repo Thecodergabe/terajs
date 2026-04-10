@@ -5,7 +5,7 @@ let cleanupOverlay: (() => void) | null = null;
 let visible = true;
 
 export function mountDevtoolsOverlay(): void {
-  if (process.env.NODE_ENV !== "development") return;
+  if (process.env.NODE_ENV === "production") return;
   if (typeof document === "undefined" || overlayEl) return;
 
   overlayEl = document.createElement("div");
@@ -37,7 +37,7 @@ export function mountDevtoolsOverlay(): void {
 }
 
 export function toggleDevtoolsOverlay(): void {
-  if (process.env.NODE_ENV !== "development") return;
+  if (process.env.NODE_ENV === "production") return;
   if (!overlayEl) {
     mountDevtoolsOverlay();
     return;
@@ -48,7 +48,7 @@ export function toggleDevtoolsOverlay(): void {
 }
 
 export function unmountDevtoolsOverlay(): void {
-  if (process.env.NODE_ENV !== "development") return;
+  if (process.env.NODE_ENV === "production") return;
   cleanupOverlay?.();
   cleanupOverlay = null;
 

@@ -13,9 +13,8 @@
 
 import { describe, it, expect } from "vitest";
 import { mount, unmount } from "./mount";
-import { state } from "../../reactivity/src/state";
 import { onCleanup } from "@terajs/runtime";
-import { effect, dispose } from "@terajs/reactivity";
+import { dispose, effect, state } from "@terajs/reactivity";
 
 describe("Component Lifecycle", () => {
 

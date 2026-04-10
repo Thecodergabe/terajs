@@ -81,3 +81,7 @@ export function getGraphSnapshot(): DependencyNode[] {
     dependents: new Set(node.dependents)
   }));
 }
+
+export function resetDebugGraphRegistry(): void {
+  nodes.clear();
+}

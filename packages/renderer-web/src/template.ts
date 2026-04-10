@@ -8,7 +8,7 @@
  * changes, the template re-runs and updates the DOM by replacing its root node.
  */
 
-import { effect, getCurrentEffect } from "@terajs/reactivity";
+import { dispose, effect, getCurrentEffect, type ReactiveEffect } from "@terajs/reactivity";
 import { getCurrentContext, onCleanup } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
 import { addNodeCleanup, removeNodeCleanup, disposeNodeTree } from "./dom";
@@ -38,10 +38,15 @@ export function template(fn: TemplateFn): Node {
     const ownerName = getCurrentContext()?.name;
     const isNestedTemplate = !!getCurrentEffect();
 
-    let stop: () => void;
-    const cleanup = () => stop?.();
+    let effectRef: ReactiveEffect | null = null;
+    const cleanup = () => {
+        if (effectRef) {
+            dispose(effectRef);
+            effectRef = null;
+        }
+    };
 
-    stop = effect(() => {
+    effectRef = effect(() => {
         let next: Node;
 
         try {
@@ -113,7 +118,7 @@ export function template(fn: TemplateFn): Node {
             templateFn: fn,
             node: current
         });
-        stop();
+        cleanup();
     });
 
     return current!;

@@ -1,6 +1,6 @@
 ﻿import { describe, it, expect } from "vitest";
 import { unwrap } from "./unwrap";
-import { signal } from "../../reactivity/src/signal";
+import { signal } from "@terajs/reactivity";
 import { ref, reactive } from "@terajs/reactivity";
 
 describe("unwrap()", () => {
