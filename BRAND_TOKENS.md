@@ -6,14 +6,17 @@ Use this file as the quick reference for the public website, docs, landing pages
 
 ```css
 :root {
-  --tera-black: #0D0D0D;
-  --tera-carbon: #1A1A1A;
-  --tera-graphite: #2E2E2E;
-  --tera-blue: #3A7BFF;
-  --tera-cyan: #4FE3FF;
-  --tera-purple: #8A5CFF;
-  --tera-mist: #B3B3B3;
-  --tera-cloud: #F5F5F5;
+  --tera-black: #05070F;
+  --tera-carbon: #0D1320;
+  --tera-graphite: #1D2940;
+  --tera-blue: #2F6DFF;
+  --tera-cyan: #32D7FF;
+  --tera-purple: #6F6DFF;
+  --tera-mint: #25D39F;
+  --tera-amber: #FFBE55;
+  --tera-rose: #FF6F91;
+  --tera-mist: #93A7CB;
+  --tera-cloud: #F2F7FF;
 }
 ```
 
@@ -49,8 +52,11 @@ font-family: "JetBrains Mono", "Fira Code", monospace;
 - Use `--tera-carbon` for cards, panels, and elevated surfaces.
 - Use `--tera-graphite` for borders, dividers, and inactive controls.
 - Use `--tera-blue` for primary actions.
-- Use `--tera-cyan` for hover states and interactive emphasis.
-- Use `--tera-purple` for featured accents, highlights, and branded emphasis.
+- Use `--tera-cyan` for active states, selection, and queue/live indicators.
+- Use `--tera-purple` for AI and analytics emphasis.
+- Use `--tera-mint` for success and healthy sync states.
+- Use `--tera-amber` for warnings and queue latency hints.
+- Use `--tera-rose` for error/severity accents.
 - Use `--tera-mist` for muted text and secondary labels.
 - Use `--tera-cloud` for primary text on dark UI.
 

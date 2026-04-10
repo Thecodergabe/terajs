@@ -66,21 +66,21 @@ const overlayStyles = `
   }
 
   .overlay-frame {
-    --tera-black: #0d0d0d;
-    --tera-carbon: #1a1a1a;
-    --tera-graphite: #2e2e2e;
-    --tera-blue: #3a7bff;
-    --tera-cyan: #4fe3ff;
-    --tera-purple: #8a5cff;
-    --tera-mist: #b3b3b3;
-    --tera-cloud: #f5f5f5;
+    --tera-black: #05070f;
+    --tera-carbon: #0d1320;
+    --tera-graphite: #1d2940;
+    --tera-blue: #2f6dff;
+    --tera-cyan: #32d7ff;
+    --tera-purple: #6f6dff;
+    --tera-mist: #93a7cb;
+    --tera-cloud: #f2f7ff;
     --tera-body-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --tera-heading-font: "Space Grotesk", "Inter", sans-serif;
     --tera-code-font: "JetBrains Mono", "Fira Code", monospace;
     --tera-surface: var(--tera-carbon);
-    --tera-border: rgba(179, 179, 179, 0.14);
-    --tera-panel-glow: linear-gradient(145deg, rgba(58, 123, 255, 0.14), rgba(138, 92, 255, 0.12) 46%, rgba(79, 227, 255, 0.08));
-    --tera-shadow: 0 22px 55px rgba(0, 0, 0, 0.42);
+    --tera-border: rgba(147, 167, 203, 0.18);
+    --tera-panel-glow: linear-gradient(145deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.11) 44%, rgba(111, 109, 255, 0.1));
+    --tera-shadow: 0 24px 60px rgba(2, 8, 20, 0.52);
     position: relative;
     width: 100%;
     height: 100%;
@@ -89,8 +89,8 @@ const overlayStyles = `
     overflow: hidden;
     box-shadow: var(--tera-shadow);
     background:
-      radial-gradient(circle at top right, rgba(79, 227, 255, 0.14), transparent 28%),
-      radial-gradient(circle at bottom left, rgba(138, 92, 255, 0.16), transparent 34%),
+      radial-gradient(circle at top right, rgba(50, 215, 255, 0.16), transparent 28%),
+      radial-gradient(circle at bottom left, rgba(111, 109, 255, 0.16), transparent 34%),
       var(--tera-black);
     color: var(--tera-cloud);
     font-family: var(--tera-body-font);
@@ -124,14 +124,14 @@ const overlayStyles = `
     padding: 14px 16px;
     border-bottom: 1px solid var(--tera-border);
     background:
-      linear-gradient(120deg, rgba(58, 123, 255, 0.14), rgba(138, 92, 255, 0.08) 58%, transparent),
-      rgba(26, 26, 26, 0.94);
+      linear-gradient(120deg, rgba(47, 109, 255, 0.18), rgba(50, 215, 255, 0.1) 58%, transparent),
+      rgba(13, 19, 32, 0.94);
     backdrop-filter: blur(14px);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-header {
     background:
-      linear-gradient(120deg, rgba(58, 123, 255, 0.1), rgba(79, 227, 255, 0.08) 60%, transparent),
+      linear-gradient(120deg, rgba(47, 109, 255, 0.1), rgba(50, 215, 255, 0.09) 60%, transparent),
       rgba(255, 255, 255, 0.92);
     border-bottom-color: rgba(46, 46, 46, 0.12);
   }
@@ -211,8 +211,8 @@ const overlayStyles = `
   .toolbar-button:hover,
   .filter-button:hover,
   .select-button:hover {
-    border-color: rgba(79, 227, 255, 0.28);
-    background: rgba(79, 227, 255, 0.12);
+    border-color: rgba(50, 215, 255, 0.32);
+    background: rgba(50, 215, 255, 0.14);
     transform: translateY(-1px);
   }
 
@@ -228,9 +228,9 @@ const overlayStyles = `
   .tab-button.is-active,
   .filter-button.is-active,
   .select-button.is-selected {
-    background: linear-gradient(135deg, var(--tera-blue), var(--tera-purple));
+    background: linear-gradient(135deg, var(--tera-blue), var(--tera-cyan));
     color: #ffffff;
-    box-shadow: 0 10px 24px rgba(58, 123, 255, 0.24);
+    box-shadow: 0 10px 24px rgba(47, 109, 255, 0.3);
   }
 
   .danger-button {
@@ -252,30 +252,30 @@ const overlayStyles = `
   }
 
   .ai-panel {
-    border: 1px solid rgba(138, 92, 255, 0.26);
-    background: linear-gradient(180deg, rgba(57, 17, 107, 0.18), rgba(6, 9, 35, 0.88));
-    box-shadow: 0 0 32px rgba(138, 92, 255, 0.22), 0 0 60px rgba(79, 227, 255, 0.14);
+    border: 1px solid rgba(50, 215, 255, 0.3);
+    background: linear-gradient(180deg, rgba(17, 45, 94, 0.46), rgba(5, 11, 24, 0.92));
+    box-shadow: 0 0 34px rgba(47, 109, 255, 0.2), 0 0 62px rgba(50, 215, 255, 0.16);
     border-radius: 18px;
     padding: 18px;
     margin-bottom: 12px;
   }
 
   .ask-ai-button {
-    background: linear-gradient(135deg, var(--tera-purple), var(--tera-cyan));
+    background: linear-gradient(135deg, var(--tera-cyan), var(--tera-blue));
     color: #ffffff;
-    border: 1px solid rgba(79, 227, 255, 0.32);
-    box-shadow: 0 14px 32px rgba(79, 227, 255, 0.18);
+    border: 1px solid rgba(50, 215, 255, 0.38);
+    box-shadow: 0 14px 32px rgba(50, 215, 255, 0.2);
   }
 
   .ai-prompt {
     display: block;
     width: 100%;
     min-height: 180px;
-    border: 1px solid rgba(138, 92, 255, 0.22);
+    border: 1px solid rgba(111, 109, 255, 0.28);
     border-radius: 14px;
     padding: 14px;
-    background: rgba(11, 8, 30, 0.94);
-    color: #e7e7ff;
+    background: rgba(8, 14, 30, 0.95);
+    color: #dfe9ff;
     font-family: var(--tera-code-font);
     font-size: 13px;
     white-space: pre-wrap;
@@ -286,7 +286,7 @@ const overlayStyles = `
   .ai-hint {
     display: block;
     margin-top: 6px;
-    color: rgba(179, 179, 255, 0.88);
+    color: rgba(147, 167, 203, 0.96);
   }
 
   .panel-title {
@@ -347,7 +347,7 @@ const overlayStyles = `
   #terajs-devtools-root[data-theme="light"] .stack-item,
   #terajs-devtools-root[data-theme="light"] .detail-card,
   #terajs-devtools-root[data-theme="light"] .metric-card {
-    background: linear-gradient(145deg, rgba(58, 123, 255, 0.06), rgba(138, 92, 255, 0.04) 52%, rgba(255, 255, 255, 0.94));
+    background: linear-gradient(145deg, rgba(47, 109, 255, 0.06), rgba(50, 215, 255, 0.05) 52%, rgba(255, 255, 255, 0.94));
     border-color: rgba(46, 46, 46, 0.12);
   }
 
