@@ -31,6 +31,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [x] Local-first foundation gate integrated in `.github/workflows/quality-gate.yml`
 - [x] Optional: add `typecheck` to quality gate before RC tag
 - [x] External scaffold smoke run passes (`npm run smoke:external`)
+- [x] External scaffold smoke workflow integrated in `.github/workflows/external-smoke.yml`
 
 ## 5. Local-First Foundation
 
@@ -42,6 +43,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 
 ## 6. Release Packaging
 
+- [x] Automated package exports audit passes (`npm run audit:exports`)
 - [ ] Finalize version bump strategy and changelog entries
 - [ ] Confirm package exports and public API freeze for RC
 - [ ] Tag RC branch and publish dry-run
