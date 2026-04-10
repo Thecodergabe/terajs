@@ -2,8 +2,13 @@ import { useEffect, useRef } from "react";
 import { mount, unmount } from "@terajs/renderer-web";
 import { signal } from "@terajs/reactivity";
 
+/**
+ * Props for mounting a Terajs component inside a React tree.
+ */
 export interface TerajsWrapperProps {
+  /** Terajs component module default export or component function. */
   component: any;
+  /** Optional initial and reactive props forwarded into Terajs signals. */
   props?: Record<string, unknown>;
 }
 

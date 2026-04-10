@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { createServer } from "vite";
+import { build as viteBuild, createServer } from "vite";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { scaffoldProject } from "./scaffold.js";
@@ -54,7 +54,25 @@ program
   .description("Compile for production (Streaming SSR + Edge Optimized)")
   .action(async () => {
     console.log("Building for production...");
-    // TODO: invoke Vite build with Terajs manifest generation
+
+    try {
+      await viteBuild({
+        plugins: [
+          terajsPlugin({
+            serverFunctions: { endpoint: "/_terajs/server" }
+          })
+        ],
+        build: {
+          manifest: true
+        }
+      });
+
+      console.log("Terajs production build complete.");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error(`Terajs build failed: ${reason}`);
+      process.exitCode = 1;
+    }
   });
 
 program.parse();

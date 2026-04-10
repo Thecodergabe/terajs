@@ -1,8 +1,13 @@
 import { mount, unmount } from "@terajs/renderer-web";
 import { signal } from "@terajs/reactivity";
 
+/**
+ * Binding contract used by the Vue directive and mount helper.
+ */
 export interface TerajsVueBinding {
+  /** Terajs component module default export or component function. */
   component: any;
+  /** Optional initial and reactive props forwarded into Terajs signals. */
   props?: Record<string, unknown>;
 }
 

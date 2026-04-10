@@ -1,7 +1,24 @@
 {
   "name": "@terajs/adapter-react",
   "version": "0.0.1",
+  "description": "React interoperability adapter for mounting Terajs components in React applications.",
+  "author": "Terajs Labs",
   "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.d.ts.map"
+  ],
+  "keywords": [
+    "terajs",
+    "react",
+    "adapter",
+    "interop",
+    "local-first"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -15,8 +32,11 @@
     "react-dom": "^18.0.0"
   },
   "dependencies": {
-    "@terajs/reactivity": "*",
-    "@terajs/renderer-web": "*",
-    "@terajs/runtime": "*"
+    "@terajs/reactivity": "^0.0.1",
+    "@terajs/renderer-web": "^0.0.1",
+    "@terajs/runtime": "^0.0.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

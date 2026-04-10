@@ -29,7 +29,7 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [x] Sanity gate integrated in `.github/workflows/quality-gate.yml`
 - [x] Docs validation integrated in `.github/workflows/quality-gate.yml`
 - [x] Local-first foundation gate integrated in `.github/workflows/quality-gate.yml`
-- [ ] Optional: add `typecheck` to quality gate before RC tag
+- [x] Optional: add `typecheck` to quality gate before RC tag
 
 ## 5. Local-First Foundation
 

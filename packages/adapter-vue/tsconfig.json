@@ -9,7 +9,10 @@
     "types": ["node", "vitest/globals"]
   },
   "include": ["src"],
-  "exclude": ["dist"],
+  "exclude": [
+    "dist",
+    "src/**/*.spec.ts"
+  ],
   "references": [
     { "path": "../renderer-web" },
     { "path": "../runtime" },

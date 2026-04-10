@@ -13,7 +13,10 @@
   },
 
   "include": ["src"],
-  "exclude": ["dist"],
+  "exclude": [
+    "dist",
+    "src/**/*.spec.ts"
+  ],
 
   "references": [
     { "path": "../shared" },

@@ -1,7 +1,27 @@
 {
   "name": "@terajs/vite-plugin",
   "version": "0.0.1",
+  "description": "Vite plugin for Terajs SFC compilation, route manifest generation, and dev integration.",
+  "author": "Terajs Labs",
   "type": "module",
+  "sideEffects": false,
+
+  "files": [
+    "dist",
+    "README.md",
+    "!dist/**/*.spec.js",
+    "!dist/**/*.spec.d.ts",
+    "!dist/**/*.spec.d.ts.map"
+  ],
+
+  "keywords": [
+    "terajs",
+    "vite",
+    "plugin",
+    "sfc",
+    "routing",
+    "local-first"
+  ],
 
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,15 +35,19 @@
   },
 
   "dependencies": {
-    "@terajs/shared": "*",
-    "@terajs/runtime": "*",
-    "@terajs/router-manifest": "*",
-    "@terajs/router": "*",
-    "@terajs/sfc": "*",
-    "@terajs/compiler": "*"
+    "@terajs/shared": "^0.0.1",
+    "@terajs/runtime": "^0.0.1",
+    "@terajs/router-manifest": "^0.0.1",
+    "@terajs/router": "^0.0.1",
+    "@terajs/sfc": "^0.0.1",
+    "@terajs/compiler": "^0.0.1"
   },
 
   "peerDependencies": {
     "vite": "^8.0.0"
+  },
+
+  "publishConfig": {
+    "access": "public"
   }
 }
