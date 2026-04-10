@@ -28,6 +28,8 @@
     { "path": "./packages/router-manifest" },
     { "path": "./packages/ui" },
     { "path": "./packages/vite-plug-in" },
-    { "path": "./packages/cli" }
+    { "path": "./packages/cli" },
+    { "path": "./packages/adapter-react" },
+    { "path": "./packages/adapter-vue" }
   ]
 }

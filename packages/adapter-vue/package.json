@@ -1,0 +1,21 @@
+{
+  "name": "@terajs/adapter-vue",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "vue": "^3.0.0"
+  },
+  "dependencies": {
+    "@terajs/reactivity": "*",
+    "@terajs/renderer-web": "*",
+    "@terajs/runtime": "*"
+  }
+}

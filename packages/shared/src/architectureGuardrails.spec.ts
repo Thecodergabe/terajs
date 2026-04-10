@@ -34,12 +34,17 @@ const adapterImports = [
 
 const allowedRootDevDependencies = new Set([
   "@types/node",
+  "@types/react",
+  "@types/react-dom",
+  "@types/vue",
   "jsdom",
   "typescript",
   "vitest"
 ]);
 
 const allowedPackageExternalDependencies = new Map<string, Set<string>>([
+  ["adapter-react", new Set<string>()],
+  ["adapter-vue", new Set<string>()],
   ["cli", new Set(["commander", "vite"])],
   ["vite-plug-in", new Set<string>()],
   ["renderer-web", new Set<string>()],
@@ -57,7 +62,9 @@ const allowedPackageExternalDependencies = new Map<string, Set<string>>([
 ]);
 
 const allowedPackageExternalPeerDependencies = new Map<string, Set<string>>([
-  ["vite-plug-in", new Set(["vite"])]
+  ["vite-plug-in", new Set(["vite"])],
+  ["adapter-react", new Set(["react", "react-dom"])],
+  ["adapter-vue", new Set(["vue"])]
 ]);
 
 const frameworkImportPattern = /from\s+["'](?:react|react\/[^"']*|vue|vue\/[^"']*)["']/i;
@@ -66,7 +73,13 @@ const vitestImportPattern = /from\s+["']vitest["']/i;
 describe("architecture guardrails", () => {
   it("prevents React or Vue imports in package source files", () => {
     const violations = collectFiles(path.join(packagesRoot), (filePath) => isSourceFile(filePath))
-      .filter((filePath) => frameworkImportPattern.test(read(filePath)));
+      .filter((filePath) => {
+        const packageName = getPackageName(filePath);
+        if (packageName === "adapter-react" || packageName === "adapter-vue") {
+          return false;
+        }
+        return frameworkImportPattern.test(read(filePath));
+      });
 
     expect(violations).toEqual([]);
   });
@@ -183,6 +196,14 @@ describe("architecture guardrails", () => {
         }
 
         if (packageName === "cli" && importPath === "commander") {
+          continue;
+        }
+
+        if (packageName === "adapter-react" && (importPath === "react" || importPath === "react-dom")) {
+          continue;
+        }
+
+        if (packageName === "adapter-vue" && importPath === "vue") {
           continue;
         }
 

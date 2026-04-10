@@ -1,0 +1,22 @@
+{
+  "name": "@terajs/adapter-react",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {
+    "@terajs/reactivity": "*",
+    "@terajs/renderer-web": "*",
+    "@terajs/runtime": "*"
+  }
+}
