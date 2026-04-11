@@ -30,6 +30,7 @@ export type DebugEventType =
     | "queue:enqueue" | "queue:retry" | "queue:flush" | "queue:drained" | "queue:fail" | "queue:conflict"
     | "queue:backoff" | "queue:skip:backoff" | "queue:skip:missing-handler"
     | "server:function:invoke" | "server:function:transport" | "server:function:error"
+    | "hub:connect" | "hub:disconnect" | "hub:error" | "hub:push:received" | "hub:sync:start" | "hub:sync:complete"
 
     /* ------------------------------- Renderer ------------------------------- */
     | "component:context:get" | "component:context:set" | "component:context:create" | "component:context:cleanup"

@@ -117,7 +117,32 @@ Middleware files in `router.middlewareDir` are auto-registered:
 
 When route navigation resolves a `mountTarget` (from route config or `<route>` block), the app view mounts into that target id. If the target element is missing, Terajs auto-creates it.
 
-### 5. Canonical App Shell
+### 5. Realtime sync hub (SignalR-first)
+
+You can enable realtime server push and transport-backed server actions through `sync.hub`.
+
+```js
+module.exports = {
+  sync: {
+    hub: {
+      type: "signalr",
+      url: "https://api.myapp.com/chat-hub",
+      autoConnect: true,
+      retryPolicy: "exponential"
+    }
+  }
+};
+```
+
+Install the SignalR adapter in your app:
+
+```bash
+npm install @terajs/hub-signalr @microsoft/signalr
+```
+
+Current release slice supports `signalr` hub type. `socket.io` and `websockets` are planned on the same config contract.
+
+### 6. Canonical App Shell
 
 Terajs apps can mount a single opinionated shell around the route graph.
 
@@ -149,7 +174,7 @@ Terajs apps can mount a single opinionated shell around the route graph.
 
 This shell keeps the route graph, nested layouts, and portal layer aligned across dev and production.
 
-### 5. Devtools Overlay
+### 7. Devtools Overlay
 
 To enable the Terajs DevTools overlay, import and call:
 

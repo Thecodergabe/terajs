@@ -154,6 +154,46 @@ export interface ServerFunctionErrorEvent extends DebugEventBase {
   message: string;
 }
 
+export interface HubConnectEvent extends DebugEventBase {
+  type: "hub:connect";
+  transport: string;
+  url: string;
+  retryPolicy?: string;
+}
+
+export interface HubDisconnectEvent extends DebugEventBase {
+  type: "hub:disconnect";
+  transport: string;
+  url?: string;
+  reason?: string;
+}
+
+export interface HubErrorEvent extends DebugEventBase {
+  type: "hub:error";
+  transport: string;
+  message: string;
+  call?: string;
+}
+
+export interface HubPushReceivedEvent extends DebugEventBase {
+  type: "hub:push:received";
+  transport: string;
+  keys?: string[];
+}
+
+export interface HubSyncStartEvent extends DebugEventBase {
+  type: "hub:sync:start";
+  transport: string;
+  call: string;
+}
+
+export interface HubSyncCompleteEvent extends DebugEventBase {
+  type: "hub:sync:complete";
+  transport: string;
+  call: string;
+  invalidated?: number;
+}
+
 /**
  * Union of all debug events.
  * * Using these specific types in a switch(event.type) block 
@@ -179,4 +219,10 @@ export type DebugEvent =
   | ResourceInvalidateEvent
   | ServerFunctionInvokeEvent
   | ServerFunctionTransportEvent
-  | ServerFunctionErrorEvent;
+  | ServerFunctionErrorEvent
+  | HubConnectEvent
+  | HubDisconnectEvent
+  | HubErrorEvent
+  | HubPushReceivedEvent
+  | HubSyncStartEvent
+  | HubSyncCompleteEvent;

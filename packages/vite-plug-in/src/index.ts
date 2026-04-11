@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs.js";
-import { getConfiguredRoutes, getRouteDirs, getRouterConfig } from "./config.js";
+import { getConfiguredRoutes, getRouteDirs, getRouterConfig, getSyncHubConfig } from "./config.js";
 import { compileSfcToComponent } from "./compileSfcToComponent.js";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
@@ -235,9 +235,16 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   const routeDirs = getRouteDirs();
   const configuredRoutes = getConfiguredRoutes();
   const routerConfig = getRouterConfig();
+  const syncHubConfig = getSyncHubConfig();
   const serverFunctionOptions = options.serverFunctions === false
     ? false
     : options.serverFunctions ?? {};
+
+  if (syncHubConfig && syncHubConfig.type !== "signalr") {
+    throw new Error(
+      `sync.hub.type \"${syncHubConfig.type}\" is not implemented yet. Use \"signalr\" for this release slice.`
+    );
+  }
 
   let config: any;
   let manifest: Record<string, any> | undefined;
@@ -352,16 +359,46 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     const middlewareEntries = middlewareModules.modules.map(
       (entry, index) => `  ${JSON.stringify(entry.key)}: resolveMiddlewareGuard(${JSON.stringify(entry.key)}, middlewareModule${index})`
     );
+    const hubImports = syncHubConfig?.type === "signalr"
+      ? [`import { createSignalRHubTransport } from '@terajs/hub-signalr';`]
+      : [];
+    const hubBootstrap = syncHubConfig?.type === "signalr"
+      ? [
+        `async function initializeHubTransport() {`,
+        `  if (!HUB_CONFIG) {`,
+        `    return;`,
+        `  }`,
+        `  hubTransport = await createSignalRHubTransport({`,
+        `    url: HUB_CONFIG.url,`,
+        `    autoConnect: HUB_CONFIG.autoConnect,`,
+        `    retryPolicy: HUB_CONFIG.retryPolicy`,
+        `  });`,
+        `  hubTransport.subscribe((message) => {`,
+        `    if (message.type === 'invalidate' && Array.isArray(message.keys) && message.keys.length > 0) {`,
+        `      void invalidateResources(message.keys);`,
+        `    }`,
+        `  });`,
+        `  setServerFunctionTransport(hubTransport);`,
+        `}`
+      ]
+      : [
+        `async function initializeHubTransport() {`,
+        `  return;`,
+        `}`
+      ];
 
     return [
       `import { createBrowserHistory, createRouter } from '@terajs/router';`,
       `import { createRouteView } from '@terajs/renderer-web';`,
-      `import { component, onCleanup, onMounted } from '@terajs/runtime';`,
+      `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from '@terajs/runtime';`,
       `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
       ...middlewareImports,
+      ...hubImports,
       `const ROOT_TARGET_ID = ${JSON.stringify(routerConfig.rootTarget)};`,
       `const GLOBAL_MIDDLEWARE = ${JSON.stringify(middlewareModules.globalKeys)};`,
+      `const HUB_CONFIG = ${JSON.stringify(syncHubConfig)};`,
       `const MOUNT_TARGET_PATTERN = /^[A-Za-z][\\w:-]*$/;`,
+      `let hubTransport = null;`,
       `function resolveMiddlewareGuard(name, moduleRecord) {`,
       `  const candidate = moduleRecord.default ?? moduleRecord.middleware;`,
       `  if (typeof candidate !== 'function') {`,
@@ -412,6 +449,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `  const routeTarget = match?.route?.mountTarget;`,
       `  return normalizeMountTargetId(routeTarget);`,
       `}`,
+      ...hubBootstrap,
       `const routed = applyGlobalMiddleware(routes);`,
       `export const router = createRouter(routed, { history: createBrowserHistory(), middleware });`,
       `const routeView = createRouteView(router, {`,
@@ -460,6 +498,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `      event.preventDefault();`,
       `      void router.navigate(href);`,
       `    };`,
+      `    void initializeHubTransport().catch((error) => {`,
+      `      console.error('[terajs] sync.hub initialization failed', error);`,
+      `    });`,
       `    const unsubscribe = router.subscribe((match) => {`,
       `      moveRouteView(match);`,
       `    });`,
@@ -470,6 +511,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `    document.addEventListener('click', onClick);`,
       `    onCleanup(() => {`,
       `      unsubscribe();`,
+      `      if (hubTransport && typeof hubTransport.disconnect === 'function') {`,
+      `        void hubTransport.disconnect();`,
+      `      }`,
       `      document.removeEventListener('click', onClick);`,
       `    });`,
       `  });`,

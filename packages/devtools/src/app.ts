@@ -32,7 +32,7 @@ interface DevtoolsState {
   events: DevtoolsEvent[];
   eventCount: number;
   selectedMetaKey: string | null;
-  logFilter: "all" | "component" | "signal" | "effect" | "error";
+  logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub";
   timelineCursor: number;
   theme: "dark" | "light";
   aiPrompt: string | null;
@@ -406,7 +406,7 @@ function renderLogsPanel(state: DevtoolsState): string {
       <div class="panel-title is-blue">Event Logs</div>
       <div class="panel-subtitle">Total events: ${state.events.length}</div>
       <div class="button-row">
-        ${(["all", "component", "signal", "effect", "error"] as const).map((filter) => `
+        ${(["all", "component", "signal", "effect", "error", "hub"] as const).map((filter) => `
           <button class="filter-button ${state.logFilter === filter ? "is-active" : ""}" data-log-filter="${filter}">${filter}</button>
         `).join("")}
       </div>
@@ -470,6 +470,10 @@ function renderPerformancePanel(events: DevtoolsEvent[]): string {
         ${renderMetricCard("Queue Failed", String(metrics.queueFailed))}
         ${renderMetricCard("Queue Flushed", String(metrics.queueFlushed))}
         ${renderMetricCard("Queue Depth Est.", String(metrics.queueDepthEstimate))}
+        ${renderMetricCard("Hub Connects", String(metrics.hubConnections))}
+        ${renderMetricCard("Hub Disconnects", String(metrics.hubDisconnections))}
+        ${renderMetricCard("Hub Errors", String(metrics.hubErrors))}
+        ${renderMetricCard("Hub Push", String(metrics.hubPushReceived))}
       </div>
       <div class="panel-subtitle">Hot event types: ${metrics.hotTypes.length === 0 ? "none" : escapeHtml(metrics.hotTypes.join(", "))}</div>
       ${metrics.byType.length === 0 ? `<div class="empty-state">No performance data yet.</div>` : `

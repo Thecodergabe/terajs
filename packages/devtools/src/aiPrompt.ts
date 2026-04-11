@@ -75,6 +75,8 @@ function isIssueEvent(event: AIPromptEvent): boolean {
     event.type.startsWith("error:") ||
     event.type.includes("warn") ||
     event.type.includes("hydration") ||
+    event.type === "hub:error" ||
+    event.type === "hub:disconnect" ||
     event.type === "queue:fail" ||
     event.type === "queue:conflict" ||
     event.type === "queue:skip:missing-handler"
@@ -107,6 +109,18 @@ function summarizeIssue(event: AIPromptEvent): string {
   if (event.type === "queue:skip:missing-handler") {
     const type = readString(payload, "type") ?? "unknown";
     return `Queue handler missing for mutation type ${type}`;
+  }
+
+  if (event.type === "hub:error") {
+    const transport = readString(payload, "transport") ?? "hub";
+    const message = readString(payload, "message") ?? "unknown error";
+    return `Realtime ${transport} transport error: ${message}`;
+  }
+
+  if (event.type === "hub:disconnect") {
+    const transport = readString(payload, "transport") ?? "hub";
+    const reason = readString(payload, "reason") ?? "connection closed";
+    return `Realtime ${transport} disconnected: ${reason}`;
   }
 
   const message = payload.message;

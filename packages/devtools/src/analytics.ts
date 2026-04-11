@@ -23,6 +23,10 @@ export interface PerformanceMetrics {
   updatesPerSecond: number;
   effectRuns: number;
   renderEvents: number;
+  hubConnections: number;
+  hubDisconnections: number;
+  hubErrors: number;
+  hubPushReceived: number;
   queueEnqueued: number;
   queueConflicts: number;
   queueRetried: number;
@@ -95,6 +99,10 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
       updatesPerSecond: 0,
       effectRuns: 0,
       renderEvents: 0,
+      hubConnections: 0,
+      hubDisconnections: 0,
+      hubErrors: 0,
+      hubPushReceived: 0,
       queueEnqueued: 0,
       queueConflicts: 0,
       queueRetried: 0,
@@ -113,6 +121,10 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
   const map = new Map<string, { count: number; last: number | null; deltaTotal: number; deltaMax: number }>();
   let effectRuns = 0;
   let renderEvents = 0;
+  let hubConnections = 0;
+  let hubDisconnections = 0;
+  let hubErrors = 0;
+  let hubPushReceived = 0;
   let queueEnqueued = 0;
   let queueConflicts = 0;
   let queueRetried = 0;
@@ -122,6 +134,10 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
   for (const event of windowed) {
     if (event.type === "effect:run") effectRuns++;
     if (event.type.startsWith("component:render:")) renderEvents++;
+    if (event.type === "hub:connect") hubConnections++;
+    if (event.type === "hub:disconnect") hubDisconnections++;
+    if (event.type === "hub:error") hubErrors++;
+    if (event.type === "hub:push:received") hubPushReceived++;
     if (event.type === "queue:enqueue") queueEnqueued++;
     if (event.type === "queue:conflict") queueConflicts++;
     if (event.type === "queue:retry") queueRetried++;
@@ -160,6 +176,10 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
     updatesPerSecond,
     effectRuns,
     renderEvents,
+    hubConnections,
+    hubDisconnections,
+    hubErrors,
+    hubPushReceived,
     queueEnqueued,
     queueConflicts,
     queueRetried,

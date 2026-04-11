@@ -63,6 +63,10 @@ describe("devtools analytics", () => {
     expect(metrics.totalEvents).toBe(7);
     expect(metrics.effectRuns).toBe(5);
     expect(metrics.renderEvents).toBe(1);
+    expect(metrics.hubConnections).toBe(0);
+    expect(metrics.hubDisconnections).toBe(0);
+    expect(metrics.hubErrors).toBe(0);
+    expect(metrics.hubPushReceived).toBe(0);
     expect(metrics.queueEnqueued).toBe(0);
     expect(metrics.queueConflicts).toBe(0);
     expect(metrics.queueRetried).toBe(0);
@@ -94,9 +98,29 @@ describe("devtools analytics", () => {
     expect(metrics.queueDepthEstimate).toBe(0);
   });
 
+  it("tracks hub connectivity and push metrics", () => {
+    const events: DevtoolsEventLike[] = [
+      { type: "hub:connect", timestamp: 1000, payload: { transport: "signalr" } },
+      { type: "hub:push:received", timestamp: 1100, payload: { type: "invalidate", keys: ["docs"] } },
+      { type: "hub:error", timestamp: 1200, payload: { message: "socket closed" } },
+      { type: "hub:disconnect", timestamp: 1300, payload: { reason: "network" } }
+    ];
+
+    const metrics = computePerformanceMetrics(events, 2000);
+
+    expect(metrics.hubConnections).toBe(1);
+    expect(metrics.hubDisconnections).toBe(1);
+    expect(metrics.hubErrors).toBe(1);
+    expect(metrics.hubPushReceived).toBe(1);
+  });
+
   it("returns empty metrics when no events are present", () => {
     const metrics = computePerformanceMetrics([]);
     expect(metrics.totalEvents).toBe(0);
+    expect(metrics.hubConnections).toBe(0);
+    expect(metrics.hubDisconnections).toBe(0);
+    expect(metrics.hubErrors).toBe(0);
+    expect(metrics.hubPushReceived).toBe(0);
     expect(metrics.queueDepthEstimate).toBe(0);
     expect(metrics.byType).toEqual([]);
     expect(metrics.hotTypes).toEqual([]);

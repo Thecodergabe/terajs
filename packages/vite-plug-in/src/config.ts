@@ -8,6 +8,14 @@ const require = createRequire(import.meta.url);
 interface TerajsUserConfig {
   autoImportDirs?: string[];
   routeDirs?: string[];
+  sync?: {
+    hub?: {
+      type?: string;
+      url?: string;
+      autoConnect?: boolean;
+      retryPolicy?: string;
+    };
+  };
   router?: {
     rootTarget?: string;
     middlewareDir?: string;
@@ -30,7 +38,8 @@ interface TerajsUserConfig {
 function resolveConfigPath(cwd: string): string | null {
   const candidates = [
     path.resolve(cwd, "terajs.config.cjs"),
-    path.resolve(cwd, "terajs.config.js")
+    path.resolve(cwd, "terajs.config.js"),
+    path.resolve(cwd, "terajs.config.ts")
   ];
 
   for (const candidate of candidates) {
@@ -42,6 +51,25 @@ function resolveConfigPath(cwd: string): string | null {
   return null;
 }
 
+function readTypeScriptConfig(configPath: string): TerajsUserConfig {
+  const source = fs.readFileSync(configPath, "utf8");
+  const exportDefault = source.match(/export\s+default\s+([\s\S]+)$/);
+
+  if (!exportDefault) {
+    throw new Error("terajs.config.ts must use a default export.");
+  }
+
+  const expression = exportDefault[1].trim().replace(/;\s*$/, "");
+  const evaluate = new Function(`return (${expression});`) as () => unknown;
+  const config = evaluate();
+
+  if (!config || typeof config !== "object") {
+    throw new Error("terajs.config.ts default export must be an object.");
+  }
+
+  return config as TerajsUserConfig;
+}
+
 function readTerajsConfig(): TerajsUserConfig {
   const cwd = process.cwd();
   const configPath = resolveConfigPath(cwd);
@@ -51,6 +79,10 @@ function readTerajsConfig(): TerajsUserConfig {
   }
 
   try {
+    if (configPath.endsWith(".ts")) {
+      return readTypeScriptConfig(configPath);
+    }
+
     return (require(configPath) as TerajsUserConfig | undefined) ?? {};
   } catch {
     return {};
@@ -133,8 +165,63 @@ export interface TerajsRouterConfig {
   applyMeta: boolean;
 }
 
+export type TerajsHubType = "signalr" | "socket.io" | "websockets";
+export type TerajsHubRetryPolicy = "none" | "exponential";
+
+export interface TerajsHubConfig {
+  type: TerajsHubType;
+  url: string;
+  autoConnect: boolean;
+  retryPolicy: TerajsHubRetryPolicy;
+}
+
 function isMountTargetId(value: string): boolean {
   return /^[A-Za-z][\w:-]*$/.test(value);
+}
+
+function isHubType(value: string): value is TerajsHubType {
+  return value === "signalr" || value === "socket.io" || value === "websockets";
+}
+
+function isHubRetryPolicy(value: string): value is TerajsHubRetryPolicy {
+  return value === "none" || value === "exponential";
+}
+
+export function getSyncHubConfig(): TerajsHubConfig | null {
+  const config = readTerajsConfig();
+  const hub = config.sync?.hub;
+
+  if (!hub || typeof hub !== "object") {
+    return null;
+  }
+
+  const configuredType = typeof hub.type === "string" ? hub.type.trim() : "signalr";
+  if (!isHubType(configuredType)) {
+    throw new Error(
+      `Invalid terajs sync.hub.type "${configuredType}". Expected one of: signalr, socket.io, websockets.`
+    );
+  }
+
+  const url = typeof hub.url === "string" ? hub.url.trim() : "";
+  if (!url) {
+    throw new Error("terajs sync.hub.url is required when sync.hub is configured.");
+  }
+
+  const configuredRetryPolicy = typeof hub.retryPolicy === "string"
+    ? hub.retryPolicy.trim()
+    : "exponential";
+  if (!isHubRetryPolicy(configuredRetryPolicy)) {
+    throw new Error(
+      `Invalid terajs sync.hub.retryPolicy "${configuredRetryPolicy}". Expected one of: none, exponential.`
+    );
+  }
+
+  return {
+    type: configuredType,
+    url,
+    autoConnect: typeof hub.autoConnect === "boolean" ? hub.autoConnect : true,
+    retryPolicy: configuredRetryPolicy
+  };
 }
 
 export function getRouterConfig(): TerajsRouterConfig {

@@ -38,7 +38,13 @@
     "@terajs/compiler": "^0.0.1"
   },
   "peerDependencies": {
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "@terajs/hub-signalr": "^0.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@terajs/hub-signalr": {
+      "optional": true
+    }
   },
   "publishConfig": {
     "access": "public"

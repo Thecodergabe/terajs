@@ -136,4 +136,45 @@ describe("devtools ai prompt builder", () => {
     expect(prompt).toContain("Queue handler missing for mutation type draft:sync");
     expect(prompt).not.toContain('"type": "queue:retry"');
   });
+
+  it("adds hub connectivity failures to AI triage issues", () => {
+    const prompt = buildAIPrompt({
+      snapshot: {
+        "@context": "https://schema.org",
+        "@type": "TerajsStateSnapshot",
+        generatedAt: "2026-04-10T00:00:00.000Z",
+        signals: []
+      },
+      sanity: {
+        activeEffects: 0,
+        effectCreates: 0,
+        effectDisposes: 0,
+        effectRunsPerSecond: 0,
+        effectImbalance: 0,
+        debugListenerCount: 0,
+        alerts: []
+      },
+      events: [
+        {
+          type: "hub:error",
+          timestamp: 1,
+          payload: {
+            transport: "signalr",
+            message: "handshake timeout"
+          }
+        },
+        {
+          type: "hub:disconnect",
+          timestamp: 2,
+          payload: {
+            transport: "signalr",
+            reason: "network"
+          }
+        }
+      ]
+    });
+
+    expect(prompt).toContain("Realtime signalr transport error: handshake timeout");
+    expect(prompt).toContain("Realtime signalr disconnected: network");
+  });
 });

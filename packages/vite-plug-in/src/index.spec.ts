@@ -11,6 +11,7 @@ vi.mock("./config", () => ({
   getAutoImportDirs: () => [path.resolve(process.cwd(), "packages/devtools/src/components")],
   getRouteDirs: () => [path.resolve(process.cwd(), "src/routes")],
   getConfiguredRoutes: () => [],
+  getSyncHubConfig: () => null,
   getRouterConfig: () => ({
     rootTarget: "app",
     middlewareDir: path.resolve(process.cwd(), "src/middleware"),
@@ -294,7 +295,7 @@ describe("Terajs Vite Plugin (integration)", () => {
         middleware: ["docs"],
         prerender: false
       }
-    ]);
+    ] as any);
 
     vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
       const value = String(input);
@@ -361,6 +362,28 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain('"auth": resolveMiddlewareGuard("auth"');
     expect(code).toContain('"trace": resolveMiddlewareGuard("trace"');
     expect(code).toContain('const GLOBAL_MIDDLEWARE = ["trace"]');
+  });
+
+  it("generates signalr hub bootstrap code when sync.hub is configured", async () => {
+    const configModule = await import("./config");
+    const syncSpy = vi.spyOn(configModule, "getSyncHubConfig").mockReturnValue({
+      type: "signalr",
+      url: "https://api.myapp.com/chat-hub",
+      autoConnect: true,
+      retryPolicy: "exponential"
+    });
+
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("createSignalRHubTransport");
+    expect(code).toContain('const HUB_CONFIG = {"type":"signalr","url":"https://api.myapp.com/chat-hub","autoConnect":true,"retryPolicy":"exponential"}');
+    expect(code).toContain("setServerFunctionTransport(hubTransport)");
+    expect(code).toContain("invalidateResources(message.keys)");
+
+    syncSpy.mockRestore();
   });
 
   it("generates a virtual app module with router defaults", () => {
