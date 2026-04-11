@@ -435,7 +435,8 @@ export async function createWebSocketHubTransport(
         await transport.connect();
       }
 
-      if (!socket) {
+      const activeSocket = socket;
+      if (!activeSocket) {
         throw new Error("WebSocket hub is not connected.");
       }
 
@@ -462,7 +463,7 @@ export async function createWebSocketHubTransport(
           });
 
           try {
-            socket.send(
+            activeSocket.send(
               JSON.stringify({
                 type: "invoke",
                 requestId,
