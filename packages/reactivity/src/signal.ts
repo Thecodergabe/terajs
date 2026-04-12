@@ -94,16 +94,6 @@ export function signal<T>(
     column: options?.column
   });
 
-  // Register in the global reactive registry
-  registerReactiveInstance(meta, { scope, instance });
-
-  // Emit creation event
-  emitDebug({
-    type: "reactive:created",
-    timestamp: Date.now(),
-    meta
-  });
-
   const sig = function () {
     // Track dependency if inside an effect
     if (currentEffect) {
@@ -137,9 +127,6 @@ export function signal<T>(
     registerActiveSignal(sig);
   }
 
-  // Track initial value
-  updateReactiveValue(meta.rid, value);
-
   /**
    * Updates the signal's value and notifies all dependents.
    * * @param next - The new value to set.
@@ -168,6 +155,19 @@ export function signal<T>(
       scheduleEffect(eff);
     }
   };
+
+  registerReactiveInstance(meta, { scope, instance }, {
+    setValue: (next) => sig.set(next as T)
+  });
+
+  // Track the initial value once the debug registry can mutate the signal.
+  updateReactiveValue(meta.rid, value);
+
+  emitDebug({
+    type: "reactive:created",
+    timestamp: Date.now(),
+    meta
+  });
 
   /**
    * Updates the signal's value using a transformation function.

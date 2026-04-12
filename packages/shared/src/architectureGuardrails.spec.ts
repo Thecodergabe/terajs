@@ -13,13 +13,11 @@ const strictNeutralPackages = [
   "reactivity",
   "renderer",
   "compiler",
-  "sfc"
-];
-
-const guardedPackages = [
-  ...strictNeutralPackages,
+  "sfc",
   "router"
 ];
+
+const guardedPackages = [...strictNeutralPackages];
 
 const adapterImports = [
   "terajs",
@@ -114,7 +112,7 @@ describe("architecture guardrails", () => {
   });
 
   it("prevents browser globals in strict neutral packages", () => {
-    const browserPattern = /\bwindow\b|\bdocument\b|\bIntersectionObserver\b|\brequestIdleCallback\b/;
+    const browserPattern = /\bwindow\b|\bdocument\b|\bnavigator\b|\blocalStorage\b|\bsessionStorage\b|\bCustomEvent\b|\bMutationObserver\b|\bcustomElements\b|\bWindow\b|\bDocument\b|\bHTMLElement\b|\bIntersectionObserver\b|\brequestIdleCallback\b/;
     const violations: string[] = [];
 
     for (const packageName of strictNeutralPackages) {
@@ -125,6 +123,14 @@ describe("architecture guardrails", () => {
         }
       }
     }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("prevents tracked temporary diagnostic files in the workspace", () => {
+    const violations = collectFiles(workspaceRoot, (filePath) => isTrackedWorkspaceFile(filePath))
+      .filter((filePath) => isTemporaryDiagnosticFile(filePath))
+      .map((filePath) => path.relative(workspaceRoot, filePath).replace(/\\/g, "/"));
 
     expect(violations).toEqual([]);
   });
@@ -272,6 +278,30 @@ function isSourceFile(filePath: string): boolean {
 
 function isProductionSourceFile(filePath: string): boolean {
   return isSourceFile(filePath) && !/\.spec\.tsx?$/.test(filePath) && !/\.test\.tsx?$/.test(filePath);
+}
+
+function isTrackedWorkspaceFile(filePath: string): boolean {
+  const relativePath = path.relative(workspaceRoot, filePath).replace(/\\/g, "/");
+  if (!relativePath || relativePath.startsWith("..")) {
+    return false;
+  }
+
+  if (relativePath.startsWith(".git/") || relativePath.startsWith("node_modules/") || relativePath.includes("/node_modules/") || relativePath.includes("/dist/")) {
+    return false;
+  }
+
+  return true;
+}
+
+function isTemporaryDiagnosticFile(filePath: string): boolean {
+  const relativePath = path.relative(workspaceRoot, filePath).replace(/\\/g, "/");
+  const fileName = path.basename(relativePath).toLowerCase();
+
+  return /^\.?tmp[-_.]/.test(fileName)
+    || fileName.includes("scratch")
+    || fileName.includes("probe")
+    || relativePath.startsWith("tmp/")
+    || relativePath.includes("/tmp/");
 }
 
 function read(filePath: string): string {

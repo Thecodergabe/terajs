@@ -34,6 +34,10 @@ export * from "./portal.js";
 // Router-aware link primitive
 export * from "./link.js";
 
+// Browser router integration
+export * from "./browserHistory.js";
+export * from "./clientMeta.js";
+
 // Enhanced form primitive
 export * from "./form.js";
 

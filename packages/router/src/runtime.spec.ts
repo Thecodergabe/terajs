@@ -206,4 +206,28 @@ describe("createRouter", () => {
     );
     debugSpy.mockRestore();
   });
+
+  it("does not mutate document head during navigation", async () => {
+    document.head.innerHTML = '<meta name="description" content="baseline">';
+    document.title = "Baseline";
+
+    const router = createRouter(
+      [
+        route({ path: "/", filePath: "/pages/index.tera" }),
+        route({
+          path: "/docs",
+          filePath: "/pages/docs.tera",
+          meta: { title: "Docs", description: "Read the docs" }
+        })
+      ],
+      { history: createMemoryHistory("/") }
+    );
+
+    await router.start();
+    await router.navigate("/docs");
+
+    expect(document.title).toBe("Baseline");
+    expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe("baseline");
+    expect(document.head.querySelector('meta[name="terajs-ai-hint"]')).toBeNull();
+  });
 });

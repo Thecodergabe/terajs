@@ -15,8 +15,17 @@
  * This suite ensures the core reactive graph behaves predictably and efficiently.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect } from "vitest";
+import {
+    getAllReactives,
+    getReactiveByRid,
+    resetDebugRegistry,
+    setReactiveValue
+} from "@terajs/shared";
 import { effect } from "./effect";
+import { reactive } from "./reactive";
+import { ref } from "./ref";
+import { signal } from "./signal";
 import { state } from "./state";
 import { computed } from "./computed";
 import { onEffectCleanup } from "./dx/cleanup";
@@ -279,4 +288,70 @@ describe("Reactivity Core", () => {
         expect(inner).toBe(3);
     });
 
+});
+
+describe("Debug registry integration", () => {
+    beforeEach(() => {
+        resetDebugRegistry();
+    });
+
+    afterEach(() => {
+        resetDebugRegistry();
+    });
+
+    it("registers signals immediately with a live setter", () => {
+        const count = signal(1, {
+            scope: "Counter",
+            instance: 1,
+            key: "count"
+        });
+
+        const entry = getReactiveByRid(count._meta.rid);
+
+        expect(entry?.currentValue).toBe(1);
+        expect(typeof entry?.setValue).toBe("function");
+        expect(setReactiveValue(count._meta.rid, 2)).toBe(true);
+        expect(count()).toBe(2);
+        expect(getReactiveByRid(count._meta.rid)?.currentValue).toBe(2);
+    });
+
+    it("registers refs immediately for DevTools inspection", () => {
+        const count = ref(1, {
+            scope: "Counter",
+            instance: 1,
+            key: "count"
+        });
+
+        const entry = getAllReactives().find((candidate) =>
+            candidate.meta.scope === "Counter"
+            && candidate.meta.instance === 1
+            && candidate.meta.key === "count"
+            && candidate.currentValue === 1
+            && typeof candidate.setValue === "function"
+        );
+
+        expect(entry).toBeDefined();
+        expect(setReactiveValue(entry!.meta.rid, 3)).toBe(true);
+        expect(count.value).toBe(3);
+    });
+
+    it("registers reactive properties immediately for DevTools inspection", () => {
+        const user = reactive({ name: "Ada" }, {
+            scope: "ProfileCard",
+            instance: 2
+        });
+
+        const entry = getAllReactives().find((candidate) =>
+            candidate.meta.type === "reactive"
+            && candidate.meta.scope === "ProfileCard"
+            && candidate.meta.instance === 2
+            && candidate.meta.key === "name"
+            && candidate.currentValue === "Ada"
+            && typeof candidate.setValue === "function"
+        );
+
+        expect(entry).toBeDefined();
+        expect(setReactiveValue(entry!.meta.rid, "Grace")).toBe(true);
+        expect(user.name).toBe("Grace");
+    });
 });

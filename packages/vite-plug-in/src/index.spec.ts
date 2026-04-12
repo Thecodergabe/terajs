@@ -110,6 +110,20 @@ describe("Terajs Vite Plugin (integration)", () => {
     throw new Error("Expected Vite configureServer hook to be defined.");
   }
 
+  function requireIndexHtmlTransform(
+    hook: Plugin["transformIndexHtml"]
+  ): (html: string | { raw: string }, ctx?: unknown) => unknown {
+    if (typeof hook === "function") {
+      return hook as unknown as (html: string | { raw: string }, ctx?: unknown) => unknown;
+    }
+
+    if (hook && typeof hook === "object" && "handler" in hook && typeof hook.handler === "function") {
+      return hook.handler as unknown as (html: string | { raw: string }, ctx?: unknown) => unknown;
+    }
+
+    throw new Error("Expected transformIndexHtml hook to be defined.");
+  }
+
   it("mounts a dev middleware for server function requests", async () => {
     setRuntimeMode("server");
     const getGreeting = server(async (name: string) => `hello ${name}`, { id: "getGreeting" });
@@ -465,13 +479,98 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("export function bootstrapTerajsApp()");
   });
 
+  it("resolves terajs runtime imports to /@fs specifiers in dev mode", () => {
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("/@fs/");
+    expect(code).toContain("mountDevtoolsOverlay");
+  });
+
+  it("keeps bare terajs imports in build mode virtual modules", () => {
+    const plugin = terajsPlugin();
+    const configResolved = plugin.configResolved as ((config: any) => void);
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    configResolved({ command: "build" });
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("from 'terajs';");
+    expect(code).toContain("import('terajs/devtools')");
+  });
+
+  it("loads virtual app module when the id carries query suffixes", () => {
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const code = load("\0virtual:terajs-app?t=171");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("export function bootstrapTerajsApp()");
+  });
+
+  it("returns a JavaScript error module when virtual app generation fails", async () => {
+    const configModule = await import("./config");
+    const syncSpy = vi.spyOn(configModule, "getSyncHubConfig").mockReturnValue({
+      type: "invalid-transport",
+      url: "https://example.invalid/hub"
+    } as any);
+
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("__TERAJS_VIRTUAL_MODULE_ERROR__");
+    expect(code).toContain("Unsupported sync.hub.type: invalid-transport");
+
+    syncSpy.mockRestore();
+  });
+
+  it("returns a JavaScript error module when loading a .tera file fails", () => {
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      if (String(input).endsWith("Broken.tera")) {
+        throw new Error("ENOENT: missing Broken.tera");
+      }
+
+      return "<template />";
+    });
+
+    const code = load("Broken.tera?import");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("__TERAJS_VIRTUAL_MODULE_ERROR__");
+    expect(code).toContain("ENOENT: missing Broken.tera");
+
+    readSpy.mockRestore();
+  });
+
+  it("generates routes module even when route directories are missing", async () => {
+    const configModule = await import("./config");
+    const routesSpy = vi.spyOn(configModule, "getConfiguredRoutes").mockReturnValue([] as any);
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
+
+    const code = load("\0virtual:terajs-routes");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("const routeSources = [");
+    expect(code).toContain("buildRouteManifest(routeSources, { routeConfigs })");
+
+    existsSpy.mockRestore();
+    routesSpy.mockRestore();
+  });
+
   it("injects a bootstrap module when index.html has no module script", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -488,11 +587,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
   it("injects bootstrap when only the Vite client module script exists", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -511,11 +606,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
   it("injects bootstrap when helper module scripts are marked as bootstrap-ignored", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -536,11 +627,7 @@ describe("Terajs Vite Plugin (integration)", () => {
   it("injects virtual app id in build mode", () => {
     const plugin = terajsPlugin();
     const configResolved = plugin.configResolved as ((config: any) => void);
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     configResolved({ command: "build" });
     const html = transform(`<!doctype html>
@@ -558,11 +645,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
   it("does not inject bootstrap when a module script already exists", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -575,5 +658,17 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof html).toBe("string");
     expect(html).not.toContain("bootstrapTerajsApp");
+  });
+
+  it("passes through non-string html payloads without throwing", () => {
+    const plugin = terajsPlugin();
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
+
+    const payload = {
+      raw: "html"
+    } as any;
+
+    const result = transform(payload);
+    expect(result).toBe(payload);
   });
 });

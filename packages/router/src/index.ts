@@ -19,12 +19,10 @@ export {
 } from "./resourceKeys.js";
 
 export {
-  createBrowserHistory,
   createMemoryHistory,
   createRouter,
   matchRoute
 } from "./runtime.js";
-export { updateHead } from "./clientMeta.js";
 
 export type { RouteDefinition, RouteLayoutDefinition, RouteMetaConfig } from "./definition.js";
 export type {

@@ -1,6 +1,5 @@
 import { Debug } from "@terajs/shared";
 import type { RouteDefinition } from "./definition.js";
-import { updateHead } from "./clientMeta.js";
 
 export type RouteParams = Record<string, string>;
 export type RouteQueryValue = string | string[];
@@ -247,34 +246,6 @@ export function createMemoryHistory(initialPath = "/"): RouterHistory {
   };
 }
 
-/**
- * Creates a browser history implementation backed by `window.history`.
- */
-export function createBrowserHistory(browserWindow: Window = window): RouterHistory {
-  const getLocation = () =>
-    `${browserWindow.location.pathname}${browserWindow.location.search}${browserWindow.location.hash}`;
-
-  return {
-    getLocation,
-    push: (path) => {
-      browserWindow.history.pushState(null, "", path);
-    },
-    replace: (path) => {
-      browserWindow.history.replaceState(null, "", path);
-    },
-    listen: (listener) => {
-      const onPopState = () => {
-        listener(getLocation());
-      };
-
-      browserWindow.addEventListener("popstate", onPopState);
-      return () => {
-        browserWindow.removeEventListener("popstate", onPopState);
-      };
-    }
-  };
-}
-
 async function runMiddleware(
   middlewareMap: Record<string, NavigationGuard>,
   route: RouteMatch,
@@ -464,7 +435,6 @@ export function createRouter(routes: RouteDefinition[], options: RouterOptions =
       }
 
       currentRoute = nextRoute;
-      updateHead(nextRoute.route.meta, nextRoute.route.ai);
       Debug.emit("route:changed", {
         from: from?.fullPath ?? null,
         to: nextRoute.fullPath,

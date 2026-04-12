@@ -173,6 +173,24 @@ describe("mount() / unmount()", () => {
         expect(mountedCalls).toBe(1);
     });
 
+    it("attaches live component context to rendered roots for DevTools", () => {
+        const App = component({ name: "InspectableCard" }, (props: { enabled: boolean }) => {
+            return () => {
+                const article = document.createElement("article");
+                article.textContent = props.enabled ? "enabled" : "disabled";
+                return article;
+            };
+        });
+
+        const root = document.createElement("div");
+        mount(App, root, { enabled: true });
+
+        const article = root.firstElementChild as (Element & { __terajsComponentContext?: { props?: unknown } }) | null;
+        expect(article?.getAttribute("data-terajs-component-scope")).toBe("InspectableCard");
+        expect(article?.getAttribute("data-terajs-component-instance")).toBe("1");
+        expect(article?.__terajsComponentContext?.props).toEqual({ enabled: true });
+    });
+
     it("mounts portal children into the document body by default", () => {
         const root = document.createElement("div");
 

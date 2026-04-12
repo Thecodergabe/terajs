@@ -99,18 +99,36 @@ export function ref<T>(
     column: options?.column
   });
 
-  // Register in global registry
-  registerReactiveInstance(meta, { scope, instance });
+  const refObj = { _sig: sig } as Ref<T>;
+
+  const applyRefValue = (next: T) => {
+    const prev = sig();
+
+    sig.set(next);
+    updateReactiveValue(meta.rid, next);
+
+    Debug.emit("reactive:updated", {
+      type: "reactive:updated",
+      timestamp: Date.now(),
+      rid: meta.rid,
+      prev,
+      next
+    });
+  };
+
+  registerReactiveInstance(meta, { scope, instance }, {
+    setValue: (next) => {
+      applyRefValue(next as T);
+    }
+  });
   updateReactiveValue(meta.rid, initial);
 
-  // Emit creation event
+  // Emit creation event after the live DevTools setter is registered.
   Debug.emit("reactive:created", {
     type: "reactive:created",
     timestamp: Date.now(),
     meta
   });
-
-  const refObj = { _sig: sig } as Ref<T>;
 
   return new Proxy(refObj, {
     get(target, prop) {
@@ -130,18 +148,7 @@ export function ref<T>(
 
     set(target, prop, value) {
       if (prop === "value") {
-        const prev = target._sig();
-
-        target._sig.set(value);
-        updateReactiveValue(meta.rid, value);
-
-        Debug.emit("reactive:updated", {
-          type: "reactive:updated",
-          timestamp: Date.now(),
-          rid: meta.rid,
-          prev,
-          next: value
-        });
+        applyRefValue(value as T);
 
         return true;
       }

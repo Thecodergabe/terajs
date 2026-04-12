@@ -27,6 +27,13 @@ import { Debug } from "@terajs/shared";
 import { renderAst } from "./astToJsx.js";
 import type { ASTNode } from "@terajs/renderer";
 
+const COMPONENT_SCOPE_ATTR = "data-terajs-component-scope";
+const COMPONENT_INSTANCE_ATTR = "data-terajs-component-instance";
+
+type InspectableComponentElement = Element & {
+    __terajsComponentContext?: ComponentContext;
+};
+
 /**
  * A framework component.
  * It may return either:
@@ -109,6 +116,10 @@ export function renderComponent(
         throw new Error("Invalid component return value.");
     }
 
+    if (process.env.NODE_ENV !== "production") {
+        attachComponentIdentity(node, ctx);
+    }
+
     // Restore previous context AFTER template() has run
     setCurrentContext(prev);
 
@@ -119,6 +130,39 @@ export function renderComponent(
     });
 
     return { node, ctx };
+}
+
+function attachComponentIdentity(node: Node, ctx: ComponentContext): void {
+    if (
+        !ctx.name
+        || ctx.name === "Unknown"
+        || !Number.isFinite(ctx.instance)
+        || ctx.instance <= 0
+    ) {
+        return;
+    }
+
+    const scope = String(ctx.name);
+    const instance = String(ctx.instance);
+
+    if (node instanceof Element) {
+        node.setAttribute(COMPONENT_SCOPE_ATTR, scope);
+        node.setAttribute(COMPONENT_INSTANCE_ATTR, instance);
+        (node as InspectableComponentElement).__terajsComponentContext = ctx;
+        return;
+    }
+
+    if (node instanceof DocumentFragment) {
+        for (const child of Array.from(node.childNodes)) {
+            if (!(child instanceof Element)) {
+                continue;
+            }
+
+            child.setAttribute(COMPONENT_SCOPE_ATTR, scope);
+            child.setAttribute(COMPONENT_INSTANCE_ATTR, instance);
+            (child as InspectableComponentElement).__terajsComponentContext = ctx;
+        }
+    }
 }
 
 /**

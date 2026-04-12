@@ -95,4 +95,39 @@ describe("compileScript (dependency‑free analyzer)", () => {
 
     expect(compiled.setupCode).toContain("mode === \"lossy-50\" ? 700 : 120");
   });
+
+  it("hoists top-level import declarations above setup", () => {
+    const raw = `
+      import { signal } from "@terajs/reactivity";
+      import "./styles.css";
+      const count = signal(0);
+    `;
+
+    const compiled = compileScript(raw);
+    const setupStart = compiled.setupCode.indexOf("function __ssfc");
+    const signalImport = compiled.setupCode.indexOf("import { signal } from \"@terajs/reactivity\";");
+    const styleImport = compiled.setupCode.indexOf("import \"./styles.css\";");
+    const setupSegment = compiled.setupCode.slice(setupStart);
+
+    expect(signalImport).toBeGreaterThanOrEqual(0);
+    expect(styleImport).toBeGreaterThanOrEqual(0);
+    expect(signalImport).toBeLessThan(setupStart);
+    expect(styleImport).toBeLessThan(setupStart);
+    expect(setupSegment).not.toContain("import { signal }");
+    expect(setupSegment).not.toContain("import \"./styles.css\"");
+  });
+
+  it("keeps dynamic import expressions inside setup code", () => {
+    const raw = `
+      async function loadHelpers() {
+        return import("./helpers.js");
+      }
+    `;
+
+    const compiled = compileScript(raw);
+    const setupStart = compiled.setupCode.indexOf("function __ssfc");
+    const setupSegment = compiled.setupCode.slice(setupStart);
+
+    expect(setupSegment).toContain("return import(\"./helpers.js\")");
+  });
 });

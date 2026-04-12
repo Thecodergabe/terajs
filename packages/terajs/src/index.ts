@@ -17,6 +17,8 @@ export {
 	mount,
 	unmount,
 	type MountOptions,
+	createBrowserHistory,
+	updateHead,
 	createRouteView,
 	Link,
 	Form,

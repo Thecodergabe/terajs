@@ -2,6 +2,7 @@ import type { LoadedRouteMatch, RouteHydrationSnapshot, RouteMatch, Router } fro
 import { getRouteDataResourceKeys, loadRouteMatch } from "@terajs/router";
 import { onCleanup, registerResourceInvalidation } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
+import { updateHead } from "./clientMeta.js";
 import { withErrorBoundary } from "./errorBoundary.js";
 import { readHydrationPayload } from "./hydrate.js";
 import { mount, unmount } from "./mount.js";
@@ -49,41 +50,7 @@ function resolveFrameworkComponent(value: unknown, label: string): FrameworkComp
 }
 
 function applyResolvedRouteMetadata(loaded: LoadedRouteMatch<unknown>): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  const { meta } = loaded.resolved;
-
-  if (typeof meta.title === "string") {
-    document.title = meta.title;
-  }
-
-  syncMetaTag("description", typeof meta.description === "string" ? meta.description : undefined);
-  syncMetaTag(
-    "keywords",
-    Array.isArray(meta.keywords) ? meta.keywords.join(", ") : typeof meta.keywords === "string" ? meta.keywords : undefined
-  );
-}
-
-function syncMetaTag(name: string, content: string | undefined): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  let tag = document.head.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
-  if (!content) {
-    tag?.remove();
-    return;
-  }
-
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute("name", name);
-    document.head.appendChild(tag);
-  }
-
-  tag.setAttribute("content", content);
+  updateHead(loaded.resolved.meta, loaded.resolved.ai);
 }
 
 function composeLoadedMatch<TData>(
@@ -262,17 +229,27 @@ export function createRouteView<TData = unknown>(
           return;
         }
 
+        const errorMessage = error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : "Unknown route render error.";
+
         renderPendingNode(null);
 
+        if (typeof console !== "undefined" && typeof console.error === "function") {
+          console.error(`[terajs/router] Route render failed for ${lastTarget}`, error);
+        }
+
         Debug.emit("error:router", {
-          message: error instanceof Error ? error.message : "Failed to render route.",
+          message: errorMessage,
           to: lastTarget,
           error
         });
 
         renderContentNode(
           options.error?.({ router, target: lastTarget, error, retry }) ??
-            createTextNode(`Route render failed: ${lastTarget}`)
+            createTextNode(`Route render failed: ${lastTarget} (${errorMessage})`)
         );
       }
     };

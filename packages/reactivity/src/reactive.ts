@@ -105,7 +105,9 @@ function createTrackedSignal<T>(
 
   (sig as any)._meta = meta;
 
-  registerReactiveInstance(meta, { scope: ctx.scope, instance: ctx.instance });
+  registerReactiveInstance(meta, { scope: ctx.scope, instance: ctx.instance }, {
+    setValue: (next) => sig.set(next as T)
+  });
   updateReactiveValue(meta.rid, initial);
 
   Debug.emit("reactive:created", {

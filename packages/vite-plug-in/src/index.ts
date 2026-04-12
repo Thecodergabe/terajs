@@ -6,6 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { getAutoImportDirs } from "./autoImportDirs.js";
 import {
   getConfiguredRoutes,
@@ -40,7 +41,7 @@ export interface TerajsVitePluginOptions {
   devtools?: false | {
     enabled?: boolean;
     startOpen?: boolean;
-    position?: "bottom-left" | "bottom-right" | "bottom-center";
+    position?: "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center";
     panelShortcut?: string;
     visibilityShortcut?: string;
     ai?: {
@@ -56,9 +57,63 @@ function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
 }
 
+function stripQueryAndHash(id: string): string {
+  const queryIndex = id.indexOf("?");
+  const hashIndex = id.indexOf("#");
+  const cutIndex = queryIndex === -1
+    ? hashIndex
+    : hashIndex === -1
+      ? queryIndex
+      : Math.min(queryIndex, hashIndex);
+
+  if (cutIndex === -1) {
+    return id;
+  }
+
+  return id.slice(0, cutIndex);
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function createVirtualErrorModule(moduleId: string, error: unknown): string {
+  const message = describeError(error);
+
+  return [
+    `const __terajsVirtualModuleId = ${JSON.stringify(moduleId)};`,
+    `const __terajsVirtualModuleMessage = ${JSON.stringify(message)};`,
+    `export const __TERAJS_VIRTUAL_MODULE_ERROR__ = {`,
+    `  id: __terajsVirtualModuleId,`,
+    `  message: __terajsVirtualModuleMessage`,
+    `};`,
+    `console.error('[terajs/vite] Failed to load module', __TERAJS_VIRTUAL_MODULE_ERROR__);`,
+    `throw new Error('[terajs/vite] Failed to load ' + __terajsVirtualModuleId + ': ' + __terajsVirtualModuleMessage);`
+  ].join("\n");
+}
+
 function toProjectImportPath(filePath: string): string {
   const relativePath = normalizePath(path.relative(process.cwd(), filePath));
   return relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
+}
+
+function toViteFsSpecifier(filePath: string): string {
+  const normalized = normalizePath(filePath);
+  return normalized.startsWith("/")
+    ? `/@fs${normalized}`
+    : `/@fs/${normalized}`;
 }
 
 function readTeraFilesRecursively(dir: string): string[] {
@@ -271,6 +326,24 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   let config: any;
   let manifest: Record<string, any> | undefined;
 
+  function resolveRuntimeSpecifier(specifier: string): string {
+    if (config?.command === "build") {
+      return specifier;
+    }
+
+    if (specifier !== "terajs" && specifier !== "terajs/devtools") {
+      return specifier;
+    }
+
+    try {
+      const requireFromCwd = createRequire(path.join(process.cwd(), "package.json"));
+      const resolvedPath = requireFromCwd.resolve(specifier);
+      return toViteFsSpecifier(resolvedPath);
+    } catch {
+      return specifier;
+    }
+  }
+
   function pascalCase(str: string) {
     return str
       .replace(/[-_](.)/g, (_, c) => c.toUpperCase())
@@ -293,7 +366,13 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
   function generateRoutesModule() {
     const routeFiles = Array.from(new Set([
-      ...routeDirs.flatMap((dir) => readTeraFilesRecursively(dir)),
+      ...routeDirs.flatMap((dir) => {
+        if (!fs.existsSync(dir)) {
+          return [];
+        }
+
+        return readTeraFilesRecursively(dir);
+      }),
       ...configuredRoutes.map((route) => route.filePath)
     ])).sort();
 
@@ -319,8 +398,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     ${typeof routeConfig.edge === "boolean" ? `edge: ${JSON.stringify(routeConfig.edge)},` : ""}
   }`);
 
+    const runtimeSpecifier = resolveRuntimeSpecifier("terajs");
+
     return [
-      `import { buildRouteManifest } from 'terajs';`,
+      `import { buildRouteManifest } from '${runtimeSpecifier}';`,
       `const routeSources = [`,
       routeSources.join(",\n"),
       `];`,
@@ -454,7 +535,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `    return;`,
       `  }`,
       `  try {`,
-      `    const { mountDevtoolsOverlay } = await import('terajs/devtools');`,
+      `    const { mountDevtoolsOverlay } = await import('${resolveRuntimeSpecifier("terajs/devtools")}');`,
       `    if (typeof mountDevtoolsOverlay === 'function') {`,
       `      mountDevtoolsOverlay({`,
       `        startOpen: DEVTOOLS_CONFIG.startOpen,`,
@@ -476,10 +557,12 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `}`
     ];
 
+    const runtimeSpecifier = resolveRuntimeSpecifier("terajs");
+
     return [
-      `import { createBrowserHistory, createRouter } from 'terajs';`,
-      `import { createRouteView, mount } from 'terajs';`,
-      `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from 'terajs';`,
+      `import { createBrowserHistory, createRouter } from '${runtimeSpecifier}';`,
+      `import { createRouteView, mount } from '${runtimeSpecifier}';`,
+      `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from '${runtimeSpecifier}';`,
       `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
       ...middlewareImports,
       ...hubImports,
@@ -657,6 +740,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     },
 
     transformIndexHtml(html) {
+      if (typeof html !== "string") {
+        return html;
+      }
+
       const moduleScriptPattern = /<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
       let hasAppEntry = false;
       let match: RegExpExecArray | null = null;
@@ -717,33 +804,51 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     },
 
     load(id) {
-      if (id === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
-        return generateAutoImports();
-      }
-      if (id === RESOLVED_ROUTES_VIRTUAL_ID) {
-        if (config?.command === "build" && !manifest) {
-          const rootDir = config?.root ?? process.cwd();
-          const outDir = config?.build?.outDir ?? "dist";
-          manifest = readBuildManifest(rootDir, outDir);
+      const normalizedId = stripQueryAndHash(id);
+
+      if (normalizedId === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
+        try {
+          return generateAutoImports();
+        } catch (error) {
+          return createVirtualErrorModule(normalizedId, error);
         }
-
-        return generateRoutesModule();
       }
-      if (id === RESOLVED_APP_VIRTUAL_ID) {
-        return generateAppModule();
+      if (normalizedId === RESOLVED_ROUTES_VIRTUAL_ID) {
+        try {
+          if (config?.command === "build" && !manifest) {
+            const rootDir = config?.root ?? process.cwd();
+            const outDir = config?.build?.outDir ?? "dist";
+            manifest = readBuildManifest(rootDir, outDir);
+          }
+
+          return generateRoutesModule();
+        } catch (error) {
+          return createVirtualErrorModule(normalizedId, error);
+        }
       }
-      if (!id.endsWith(".tera")) return null;
+      if (normalizedId === RESOLVED_APP_VIRTUAL_ID) {
+        try {
+          return generateAppModule();
+        } catch (error) {
+          return createVirtualErrorModule(normalizedId, error);
+        }
+      }
+      if (!normalizedId.endsWith(".tera")) return null;
 
-      const code = fs.readFileSync(id, "utf8");
-      const sfc = parseSFC(code, id);
+      try {
+        const code = fs.readFileSync(normalizedId, "utf8");
+        const sfc = parseSFC(code, normalizedId);
 
-      Debug.emit("sfc:load", { scope: id });
+        Debug.emit("sfc:load", { scope: normalizedId });
 
-      // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-      let compiled = compileSfcToComponent(sfc);
-      compiled = autoImport + compiled;
-      return compiled;
+        // Inject auto-imports at the top of every SFC
+        const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
+        let compiled = compileSfcToComponent(sfc);
+        compiled = autoImport + compiled;
+        return compiled;
+      } catch (error) {
+        return createVirtualErrorModule(normalizedId, error);
+      }
     },
 
     handleHotUpdate(ctx) {

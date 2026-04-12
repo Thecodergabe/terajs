@@ -29,4 +29,6 @@ export interface ReactiveInstanceInfo {
     scope: string;
     instance: number;
   };
+  /** Optional live mutation hook used by DevTools for editable inspection. */
+  setValue?: (value: unknown) => void;
 }

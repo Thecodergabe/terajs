@@ -1,8 +1,13 @@
 import { mountDevtoolsApp, type DevtoolsAIAssistantOptions } from "./app.js";
 
+type DevtoolsOverlayPosition = "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center" | "center";
+type DevtoolsOverlaySize = "normal" | "large";
+
 export interface DevtoolsOverlayOptions {
   startOpen?: boolean;
-  position?: "bottom-left" | "bottom-right" | "bottom-center";
+  position?: DevtoolsOverlayPosition;
+  panelSize?: DevtoolsOverlaySize;
+  persistPreferences?: boolean;
   panelShortcut?: string;
   visibilityShortcut?: string;
   ai?: DevtoolsAIAssistantOptions;
@@ -10,7 +15,9 @@ export interface DevtoolsOverlayOptions {
 
 interface NormalizedOverlayOptions {
   startOpen: boolean;
-  position: "bottom-left" | "bottom-right" | "bottom-center";
+  position: DevtoolsOverlayPosition;
+  panelSize: DevtoolsOverlaySize;
+  persistPreferences: boolean;
   panelShortcut: string;
   visibilityShortcut: string;
   ai: {
@@ -24,6 +31,8 @@ interface NormalizedOverlayOptions {
 const DEFAULT_OPTIONS: NormalizedOverlayOptions = {
   startOpen: false,
   position: "bottom-right",
+  panelSize: "normal",
+  persistPreferences: true,
   panelShortcut: "Ctrl+Shift+D",
   visibilityShortcut: "Ctrl+Shift+H",
   ai: {
@@ -34,16 +43,564 @@ const DEFAULT_OPTIONS: NormalizedOverlayOptions = {
   }
 };
 
+const DEVTOOLS_INSPECT_MODE_EVENT = "terajs:devtools:inspect-mode";
+const DEVTOOLS_COMPONENT_SELECT_EVENT = "terajs:devtools:component-select";
+const DEVTOOLS_COMPONENT_PICKED_EVENT = "terajs:devtools:component-picked";
+const DEVTOOLS_COMPONENT_HOVER_EVENT = "terajs:devtools:component-hover";
+const DEVTOOLS_LAYOUT_PREFERENCES_EVENT = "terajs:devtools:layout-preferences";
+
+const OVERLAY_PREFERENCES_STORAGE_KEY = "terajs:devtools:overlay-preferences";
+
+interface OverlayPreferencesPayload {
+  position?: DevtoolsOverlayPosition;
+  panelSize?: DevtoolsOverlaySize;
+  persistPreferences?: boolean;
+}
+
+interface OverlayStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+const COMPONENT_SCOPE_ATTR = "data-terajs-component-scope";
+const COMPONENT_INSTANCE_ATTR = "data-terajs-component-instance";
+
+const INSPECT_STYLE_ID = "terajs-devtools-inspect-style";
+const INSPECT_HOVER_CLASS = "terajs-devtools-hover-component";
+const INSPECT_SELECTED_CLASS = "terajs-devtools-selected-component";
+
 let overlayEl: HTMLDivElement | null = null;
 let cleanupOverlay: (() => void) | null = null;
 let keyListener: ((event: KeyboardEvent) => void) | null = null;
 let wheelListener: EventListener | null = null;
+let inspectModeListener: EventListener | null = null;
+let componentSelectListener: EventListener | null = null;
+let componentHoverListener: EventListener | null = null;
+let layoutPreferencesListener: EventListener | null = null;
+let pointerMoveListener: ((event: PointerEvent) => void) | null = null;
+let inspectClickListener: ((event: MouseEvent) => void) | null = null;
+let requestedInspectMode = false;
+let inspectModeEnabled = false;
+let treeHoverPreviewActive = false;
+let highlightedHoverEl: HTMLElement | null = null;
+let highlightedSelectedEl: HTMLElement | null = null;
 let panelVisible = false;
 let overlayVisible = true;
 let activeOptions: NormalizedOverlayOptions = {
   ...DEFAULT_OPTIONS,
   ai: { ...DEFAULT_OPTIONS.ai }
 };
+
+function isOverlayPosition(value: unknown): value is DevtoolsOverlayPosition {
+  return value === "bottom-left"
+    || value === "bottom-right"
+    || value === "bottom-center"
+    || value === "top-left"
+    || value === "top-right"
+    || value === "top-center"
+    || value === "center";
+}
+
+function isOverlaySize(value: unknown): value is DevtoolsOverlaySize {
+  return value === "normal" || value === "large";
+}
+
+function getOverlayStorage(): OverlayStorage | null {
+  const windowStorage = typeof window !== "undefined"
+    ? (window as Window & { localStorage?: unknown }).localStorage
+    : undefined;
+  const globalStorage = (globalThis as typeof globalThis & { localStorage?: unknown }).localStorage;
+
+  const candidates = [windowStorage, globalStorage];
+  for (const candidate of candidates) {
+    if (
+      candidate
+      && typeof (candidate as OverlayStorage).getItem === "function"
+      && typeof (candidate as OverlayStorage).setItem === "function"
+      && typeof (candidate as OverlayStorage).removeItem === "function"
+    ) {
+      return candidate as OverlayStorage;
+    }
+  }
+
+  return null;
+}
+
+function loadPersistedOverlayPreferences(): OverlayPreferencesPayload {
+  const storage = getOverlayStorage();
+  if (!storage) {
+    return {};
+  }
+
+  try {
+    const raw = storage.getItem(OVERLAY_PREFERENCES_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const position = parsed.position;
+    const panelSize = parsed.panelSize;
+
+    return {
+      position: isOverlayPosition(position) ? position : undefined,
+      panelSize: isOverlaySize(panelSize) ? panelSize : undefined
+    };
+  } catch {
+    return {};
+  }
+}
+
+function savePersistedOverlayPreferences(): void {
+  const storage = getOverlayStorage();
+  if (!storage || !activeOptions.persistPreferences) {
+    return;
+  }
+
+  try {
+    storage.setItem(OVERLAY_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      position: activeOptions.position,
+      panelSize: activeOptions.panelSize
+    }));
+  } catch {
+    // Swallow storage errors so DevTools remains interactive in restricted contexts.
+  }
+}
+
+function clearPersistedOverlayPreferences(): void {
+  const storage = getOverlayStorage();
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.removeItem(OVERLAY_PREFERENCES_STORAGE_KEY);
+  } catch {
+    // Ignore storage cleanup failures in restricted contexts.
+  }
+}
+
+function resolveShellClass(position: DevtoolsOverlayPosition): string {
+  const classes = ["fab-shell"];
+
+  if (position === "bottom-left" || position === "top-left") {
+    classes.push("is-left");
+  }
+
+  if (position === "bottom-center" || position === "top-center" || position === "center") {
+    classes.push("is-center");
+  }
+
+  if (position === "top-left" || position === "top-right" || position === "top-center") {
+    classes.push("is-top");
+  }
+
+  return classes.join(" ");
+}
+
+function applyOverlayPosition(position: DevtoolsOverlayPosition): void {
+  if (!overlayEl) {
+    return;
+  }
+
+  overlayEl.style.left = "";
+  overlayEl.style.right = "";
+  overlayEl.style.top = "";
+  overlayEl.style.bottom = "";
+  overlayEl.style.transform = "";
+
+  if (position === "bottom-left") {
+    overlayEl.style.left = "20px";
+    overlayEl.style.bottom = "16px";
+    overlayEl.style.transform = "none";
+  } else if (position === "top-left") {
+    overlayEl.style.left = "20px";
+    overlayEl.style.top = "16px";
+    overlayEl.style.transform = "none";
+  } else if (position === "bottom-right") {
+    overlayEl.style.right = "20px";
+    overlayEl.style.bottom = "16px";
+    overlayEl.style.transform = "none";
+  } else if (position === "top-right") {
+    overlayEl.style.right = "20px";
+    overlayEl.style.top = "16px";
+    overlayEl.style.transform = "none";
+  } else if (position === "bottom-center") {
+    overlayEl.style.left = "50%";
+    overlayEl.style.bottom = "16px";
+    overlayEl.style.transform = "translateX(-50%)";
+  } else if (position === "top-center") {
+    overlayEl.style.left = "50%";
+    overlayEl.style.top = "16px";
+    overlayEl.style.transform = "translateX(-50%)";
+  } else {
+    overlayEl.style.left = "50%";
+    overlayEl.style.top = "50%";
+    overlayEl.style.transform = "translate(-50%, -50%)";
+  }
+
+  const shell = overlayEl.shadowRoot?.querySelector(".fab-shell") as HTMLDivElement | null;
+  if (shell) {
+    shell.className = resolveShellClass(position);
+  }
+}
+
+function applyOverlayPanelSize(panelSize: DevtoolsOverlaySize): void {
+  if (!overlayEl) {
+    return;
+  }
+
+  if (panelSize === "large") {
+    overlayEl.style.setProperty("--terajs-overlay-panel-width", "980px");
+    overlayEl.style.setProperty("--terajs-overlay-panel-height", "920px");
+    return;
+  }
+
+  overlayEl.style.setProperty("--terajs-overlay-panel-width", "760px");
+  overlayEl.style.setProperty("--terajs-overlay-panel-height", "840px");
+}
+
+function ensureInspectStyles(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  if (document.getElementById(INSPECT_STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = INSPECT_STYLE_ID;
+  style.textContent = `
+body[data-terajs-inspect-mode="true"] [${COMPONENT_SCOPE_ATTR}] {
+  cursor: crosshair !important;
+}
+
+.${INSPECT_HOVER_CLASS} {
+  outline: 2px solid rgba(50, 215, 255, 0.72) !important;
+  outline-offset: 2px !important;
+}
+
+.${INSPECT_SELECTED_CLASS} {
+  outline: 2px solid rgba(47, 109, 255, 0.96) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px rgba(50, 215, 255, 0.36) !important;
+}
+`;
+
+  document.head.appendChild(style);
+}
+
+function clearHoverHighlight(): void {
+  if (highlightedHoverEl) {
+    highlightedHoverEl.classList.remove(INSPECT_HOVER_CLASS);
+    highlightedHoverEl = null;
+  }
+}
+
+function setHoverHighlight(nextEl: HTMLElement | null): void {
+  if (highlightedHoverEl === nextEl) {
+    return;
+  }
+
+  clearHoverHighlight();
+  if (!nextEl) {
+    return;
+  }
+
+  highlightedHoverEl = nextEl;
+  highlightedHoverEl.classList.add(INSPECT_HOVER_CLASS);
+}
+
+function clearSelectedHighlight(): void {
+  if (highlightedSelectedEl) {
+    highlightedSelectedEl.classList.remove(INSPECT_SELECTED_CLASS);
+    highlightedSelectedEl = null;
+  }
+}
+
+function setSelectedHighlight(nextEl: HTMLElement | null): void {
+  if (highlightedSelectedEl === nextEl) {
+    return;
+  }
+
+  clearSelectedHighlight();
+  if (!nextEl) {
+    return;
+  }
+
+  highlightedSelectedEl = nextEl;
+  highlightedSelectedEl.classList.add(INSPECT_SELECTED_CLASS);
+}
+
+function parseComponentIdentityFromElement(element: HTMLElement): { scope: string; instance: number } | null {
+  const scope = element.getAttribute(COMPONENT_SCOPE_ATTR);
+  const instanceRaw = element.getAttribute(COMPONENT_INSTANCE_ATTR);
+  const instance = instanceRaw !== null ? Number(instanceRaw) : Number.NaN;
+
+  if (!scope || !Number.isFinite(instance)) {
+    return null;
+  }
+
+  return {
+    scope,
+    instance
+  };
+}
+
+function findComponentElementFromTarget(target: EventTarget | null): HTMLElement | null {
+  let current = target instanceof Element ? target : null;
+
+  while (current) {
+    if (current instanceof HTMLElement && current.hasAttribute(COMPONENT_SCOPE_ATTR) && current.hasAttribute(COMPONENT_INSTANCE_ATTR)) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function isOverlayEventTarget(event: Event): boolean {
+  if (!overlayEl) {
+    return false;
+  }
+
+  const path = event.composedPath();
+  return path.includes(overlayEl);
+}
+
+function escapeAttributeValue(value: string): string {
+  const css = globalThis.CSS;
+  if (css && typeof css.escape === "function") {
+    return css.escape(value);
+  }
+
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function findElementForComponent(scope: string, instance: number): HTMLElement | null {
+  const scopeSelector = escapeAttributeValue(scope);
+  const selector = `[${COMPONENT_SCOPE_ATTR}="${scopeSelector}"][${COMPONENT_INSTANCE_ATTR}="${instance}"]`;
+  const match = document.querySelector(selector);
+  return match instanceof HTMLElement ? match : null;
+}
+
+function setInspectMode(enabled: boolean): void {
+  inspectModeEnabled = enabled;
+  document.body.toggleAttribute("data-terajs-inspect-mode", enabled);
+
+  if (!enabled) {
+    clearHoverHighlight();
+    clearSelectedHighlight();
+  }
+}
+
+function applyInspectModeContext(): void {
+  setInspectMode(requestedInspectMode && panelVisible && overlayVisible);
+}
+
+function setupInspectBridge(): void {
+  ensureInspectStyles();
+
+  inspectModeListener = (rawEvent: Event) => {
+    const detail = (rawEvent as CustomEvent<unknown>).detail;
+    if (!detail || typeof detail !== "object") {
+      return;
+    }
+
+    const payload = detail as Record<string, unknown>;
+    requestedInspectMode = payload.enabled === true;
+    applyInspectModeContext();
+  };
+
+  componentSelectListener = (rawEvent: Event) => {
+    const detail = (rawEvent as CustomEvent<unknown>).detail;
+    if (!detail || typeof detail !== "object") {
+      return;
+    }
+
+    const payload = detail as Record<string, unknown>;
+    const scope = typeof payload.scope === "string" ? payload.scope : null;
+    const instance = typeof payload.instance === "number" ? payload.instance : null;
+
+    if (!scope || instance === null) {
+      clearSelectedHighlight();
+      return;
+    }
+
+    setSelectedHighlight(findElementForComponent(scope, instance));
+  };
+
+  componentHoverListener = (rawEvent: Event) => {
+    const detail = (rawEvent as CustomEvent<unknown>).detail;
+    if (!detail || typeof detail !== "object") {
+      return;
+    }
+
+    const payload = detail as Record<string, unknown>;
+    const scope = typeof payload.scope === "string" ? payload.scope : null;
+    const instance = typeof payload.instance === "number" ? payload.instance : null;
+
+    if (!scope || instance === null) {
+      treeHoverPreviewActive = false;
+      clearHoverHighlight();
+      return;
+    }
+
+    treeHoverPreviewActive = true;
+    setHoverHighlight(findElementForComponent(scope, instance));
+  };
+
+  pointerMoveListener = (event: PointerEvent) => {
+    if (!inspectModeEnabled) {
+      return;
+    }
+
+    if (treeHoverPreviewActive) {
+      return;
+    }
+
+    if (isOverlayEventTarget(event)) {
+      setHoverHighlight(null);
+      return;
+    }
+
+    setHoverHighlight(findComponentElementFromTarget(event.target));
+  };
+
+  inspectClickListener = (event: MouseEvent) => {
+    if (!inspectModeEnabled || event.button !== 0) {
+      return;
+    }
+
+    if (isOverlayEventTarget(event)) {
+      return;
+    }
+
+    const componentEl = findComponentElementFromTarget(event.target);
+    if (!componentEl) {
+      return;
+    }
+
+    const identity = parseComponentIdentityFromElement(componentEl);
+    if (!identity) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    setSelectedHighlight(componentEl);
+    window.dispatchEvent(new CustomEvent(DEVTOOLS_COMPONENT_PICKED_EVENT, {
+      detail: {
+        scope: identity.scope,
+        instance: identity.instance,
+        source: "picker"
+      }
+    }));
+  };
+
+  window.addEventListener(DEVTOOLS_INSPECT_MODE_EVENT, inspectModeListener);
+  window.addEventListener(DEVTOOLS_COMPONENT_SELECT_EVENT, componentSelectListener);
+  window.addEventListener(DEVTOOLS_COMPONENT_HOVER_EVENT, componentHoverListener);
+  document.addEventListener("pointermove", pointerMoveListener, true);
+  document.addEventListener("click", inspectClickListener, true);
+}
+
+function teardownInspectBridge(): void {
+  if (inspectModeListener) {
+    window.removeEventListener(DEVTOOLS_INSPECT_MODE_EVENT, inspectModeListener);
+    inspectModeListener = null;
+  }
+
+  if (componentSelectListener) {
+    window.removeEventListener(DEVTOOLS_COMPONENT_SELECT_EVENT, componentSelectListener);
+    componentSelectListener = null;
+  }
+
+  if (componentHoverListener) {
+    window.removeEventListener(DEVTOOLS_COMPONENT_HOVER_EVENT, componentHoverListener);
+    componentHoverListener = null;
+  }
+
+  if (pointerMoveListener) {
+    document.removeEventListener("pointermove", pointerMoveListener, true);
+    pointerMoveListener = null;
+  }
+
+  if (inspectClickListener) {
+    document.removeEventListener("click", inspectClickListener, true);
+    inspectClickListener = null;
+  }
+
+  inspectModeEnabled = false;
+  requestedInspectMode = false;
+  treeHoverPreviewActive = false;
+  document.body.removeAttribute("data-terajs-inspect-mode");
+  clearHoverHighlight();
+  clearSelectedHighlight();
+}
+
+function setupLayoutPreferencesBridge(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  layoutPreferencesListener = (rawEvent: Event) => {
+    const detail = (rawEvent as CustomEvent<unknown>).detail;
+    if (!detail || typeof detail !== "object") {
+      return;
+    }
+
+    const payload = detail as OverlayPreferencesPayload;
+    let layoutChanged = false;
+    let persistenceChanged = false;
+
+    if (typeof payload.persistPreferences === "boolean" && payload.persistPreferences !== activeOptions.persistPreferences) {
+      activeOptions.persistPreferences = payload.persistPreferences;
+      persistenceChanged = true;
+    }
+
+    if (isOverlayPosition(payload.position) && payload.position !== activeOptions.position) {
+      activeOptions.position = payload.position;
+      applyOverlayPosition(activeOptions.position);
+      layoutChanged = true;
+    }
+
+    if (isOverlaySize(payload.panelSize) && payload.panelSize !== activeOptions.panelSize) {
+      activeOptions.panelSize = payload.panelSize;
+      applyOverlayPanelSize(activeOptions.panelSize);
+      layoutChanged = true;
+    }
+
+    if (!layoutChanged && !persistenceChanged) {
+      return;
+    }
+
+    if (activeOptions.persistPreferences) {
+      savePersistedOverlayPreferences();
+      return;
+    }
+
+    if (persistenceChanged) {
+      clearPersistedOverlayPreferences();
+    }
+  };
+
+  window.addEventListener(DEVTOOLS_LAYOUT_PREFERENCES_EVENT, layoutPreferencesListener);
+}
+
+function teardownLayoutPreferencesBridge(): void {
+  if (!layoutPreferencesListener || typeof window === "undefined") {
+    return;
+  }
+
+  window.removeEventListener(DEVTOOLS_LAYOUT_PREFERENCES_EVENT, layoutPreferencesListener);
+  layoutPreferencesListener = null;
+}
 
 function normalizeAIAssistantOptions(options?: DevtoolsAIAssistantOptions): NormalizedOverlayOptions["ai"] {
   const endpoint = typeof options?.endpoint === "string" && options.endpoint.trim().length > 0
@@ -70,9 +627,13 @@ function normalizeOptions(options?: DevtoolsOverlayOptions): NormalizedOverlayOp
   const startOpen = typeof options?.startOpen === "boolean"
     ? options.startOpen
     : DEFAULT_OPTIONS.startOpen;
-  const position = options?.position === "bottom-left" || options?.position === "bottom-right" || options?.position === "bottom-center"
+  const position = isOverlayPosition(options?.position)
     ? options.position
     : DEFAULT_OPTIONS.position;
+  const panelSize = isOverlaySize(options?.panelSize)
+    ? options.panelSize
+    : DEFAULT_OPTIONS.panelSize;
+  const persistPreferences = options?.persistPreferences !== false;
   const panelShortcut = typeof options?.panelShortcut === "string" && options.panelShortcut.trim().length > 0
     ? options.panelShortcut.trim()
     : DEFAULT_OPTIONS.panelShortcut;
@@ -83,9 +644,35 @@ function normalizeOptions(options?: DevtoolsOverlayOptions): NormalizedOverlayOp
   return {
     startOpen,
     position,
+    panelSize,
+    persistPreferences,
     panelShortcut,
     visibilityShortcut,
     ai: normalizeAIAssistantOptions(options?.ai)
+  };
+}
+
+function applyPersistedOptions(
+  normalized: NormalizedOverlayOptions,
+  rawOptions?: DevtoolsOverlayOptions
+): NormalizedOverlayOptions {
+  if (!normalized.persistPreferences) {
+    return normalized;
+  }
+
+  const persisted = loadPersistedOverlayPreferences();
+
+  const usePersistedPosition = !rawOptions || !isOverlayPosition(rawOptions.position);
+  const usePersistedSize = !rawOptions || !isOverlaySize(rawOptions.panelSize);
+
+  return {
+    ...normalized,
+    position: usePersistedPosition && persisted.position
+      ? persisted.position
+      : normalized.position,
+    panelSize: usePersistedSize && persisted.panelSize
+      ? persisted.panelSize
+      : normalized.panelSize
   };
 }
 
@@ -147,6 +734,7 @@ function applyPanelState(): void {
 
   panel.classList.toggle("is-hidden", !panelVisible);
   fab.setAttribute("aria-expanded", panelVisible ? "true" : "false");
+  applyInspectModeContext();
 }
 
 function applyOverlayVisibility(): void {
@@ -155,39 +743,25 @@ function applyOverlayVisibility(): void {
   }
 
   overlayEl.style.display = overlayVisible ? "block" : "none";
+  applyInspectModeContext();
 }
 
 export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
   if (process.env.NODE_ENV === "production") return;
   if (typeof document === "undefined" || overlayEl) return;
 
-  activeOptions = normalizeOptions(options);
+  activeOptions = applyPersistedOptions(normalizeOptions(options), options);
   panelVisible = activeOptions.startOpen;
   overlayVisible = true;
 
   overlayEl = document.createElement("div");
   overlayEl.id = "terajs-overlay-container";
   overlayEl.style.position = "fixed";
-  overlayEl.style.bottom = "16px";
-  if (activeOptions.position === "bottom-left") {
-    overlayEl.style.left = "20px";
-    overlayEl.style.transform = "none";
-  } else if (activeOptions.position === "bottom-right") {
-    overlayEl.style.right = "20px";
-    overlayEl.style.transform = "none";
-  } else {
-    overlayEl.style.left = "50%";
-    overlayEl.style.transform = "translateX(-50%)";
-  }
   overlayEl.style.zIndex = "999999";
   overlayEl.style.pointerEvents = "none";
 
   const shadowRoot = overlayEl.attachShadow({ mode: "open" });
-  const shellClass = activeOptions.position === "bottom-left"
-    ? "fab-shell is-left"
-    : activeOptions.position === "bottom-center"
-    ? "fab-shell is-center"
-    : "fab-shell";
+  const shellClass = resolveShellClass(activeOptions.position);
   shadowRoot.innerHTML = `
     <style>${overlayStyles}</style>
     <div class="${shellClass}">
@@ -199,6 +773,12 @@ export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
   `;
 
   document.body.appendChild(overlayEl);
+  applyOverlayPosition(activeOptions.position);
+  applyOverlayPanelSize(activeOptions.panelSize);
+
+  if (activeOptions.persistPreferences) {
+    savePersistedOverlayPreferences();
+  }
 
   const fab = fabElement();
   fab?.addEventListener("click", () => {
@@ -210,8 +790,16 @@ export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
     throw new Error("Terajs devtools failed to create its mount root.");
   }
 
+  setupInspectBridge();
+  setupLayoutPreferencesBridge();
+
   cleanupOverlay = mountDevtoolsApp(mountRoot, {
-    ai: activeOptions.ai
+    ai: activeOptions.ai,
+    layout: {
+      position: activeOptions.position,
+      panelSize: activeOptions.panelSize,
+      persistPreferences: activeOptions.persistPreferences
+    }
   });
 
   keyListener = (event: KeyboardEvent) => {
@@ -314,6 +902,9 @@ export function unmountDevtoolsOverlay(): void {
   cleanupOverlay?.();
   cleanupOverlay = null;
 
+  teardownLayoutPreferencesBridge();
+  teardownInspectBridge();
+
   if (overlayEl) {
     overlayEl.remove();
     overlayEl = null;
@@ -347,6 +938,10 @@ const overlayStyles = `
 
   .fab-shell.is-center {
     align-items: center;
+  }
+
+  .fab-shell.is-top {
+    flex-direction: column-reverse;
   }
 
   .devtools-fab {
@@ -397,8 +992,8 @@ const overlayStyles = `
     --tera-panel-glow: linear-gradient(145deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.11) 44%, rgba(111, 109, 255, 0.1));
     --tera-shadow: 0 24px 60px rgba(2, 8, 20, 0.52);
     position: relative;
-    width: min(760px, calc(100vw - 24px));
-    height: min(72vh, 840px);
+    width: min(var(--terajs-overlay-panel-width, 760px), calc(100vw - 24px));
+    height: min(72vh, var(--terajs-overlay-panel-height, 840px));
     border: 1px solid var(--tera-border);
     border-radius: 18px;
     overflow: hidden;
@@ -416,10 +1011,22 @@ const overlayStyles = `
     transform-origin: bottom center;
   }
 
+  .fab-shell.is-top .overlay-frame {
+    transform-origin: top right;
+  }
+
+  .fab-shell.is-top.is-left .overlay-frame {
+    transform-origin: top left;
+  }
+
+  .fab-shell.is-top.is-center .overlay-frame {
+    transform-origin: top center;
+  }
+
   @media (max-width: 860px) {
     .overlay-frame {
-      width: min(94vw, 760px);
-      height: min(70vh, 760px);
+      width: min(94vw, var(--terajs-overlay-panel-width, 760px));
+      height: min(70vh, var(--terajs-overlay-panel-height, 760px));
     }
   }
 
@@ -567,6 +1174,7 @@ const overlayStyles = `
 
   .tab-button.is-active,
   .filter-button.is-active,
+  .toolbar-button.is-active,
   .select-button.is-selected {
     background: linear-gradient(135deg, var(--tera-blue), var(--tera-cyan));
     color: #ffffff;
@@ -597,6 +1205,65 @@ const overlayStyles = `
     scrollbar-color: rgba(54, 118, 210, 0.5) rgba(209, 223, 246, 0.8);
   }
 
+  .devtools-page {
+    display: grid;
+    gap: 12px;
+  }
+
+  .panel-hero {
+    display: grid;
+    gap: 6px;
+    padding: 16px 18px;
+    border: 1px solid var(--tera-border);
+    border-radius: 18px;
+    background:
+      linear-gradient(135deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.08) 58%, rgba(111, 109, 255, 0.12)),
+      rgba(8, 16, 31, 0.92);
+    box-shadow: 0 18px 36px rgba(2, 8, 20, 0.24);
+  }
+
+  .panel-hero-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .panel-hero-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(50, 215, 255, 0.2);
+    background: rgba(7, 18, 35, 0.72);
+    color: var(--tera-mist);
+    font-size: 11px;
+    font-family: var(--tera-code-font);
+  }
+
+  .panel-section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .panel-section-card {
+    min-height: 0;
+  }
+
+  .panel-section-card.is-full {
+    grid-column: 1 / -1;
+  }
+
+  .panel-section-heading {
+    margin-bottom: 10px;
+    font-family: var(--tera-heading-font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--tera-cloud);
+  }
+
   .ai-panel {
     border: 1px solid rgba(50, 215, 255, 0.3);
     background: linear-gradient(180deg, rgba(17, 45, 94, 0.46), rgba(5, 11, 24, 0.92));
@@ -610,6 +1277,24 @@ const overlayStyles = `
     background: linear-gradient(180deg, rgba(235, 245, 255, 0.96), rgba(225, 239, 255, 0.94));
     border-color: rgba(54, 118, 210, 0.28);
     box-shadow: 0 10px 30px rgba(63, 120, 203, 0.18);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .panel-hero {
+    background:
+      linear-gradient(135deg, rgba(47, 109, 255, 0.08), rgba(50, 215, 255, 0.08) 58%, rgba(111, 109, 255, 0.08)),
+      rgba(255, 255, 255, 0.96);
+    border-color: rgba(54, 118, 210, 0.16);
+    box-shadow: 0 16px 30px rgba(63, 120, 203, 0.1);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .panel-hero-pill {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: rgba(54, 118, 210, 0.16);
+    color: #516178;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .panel-section-heading {
+    color: #10213f;
   }
 
   .ask-ai-button {
@@ -662,6 +1347,610 @@ const overlayStyles = `
     display: block;
     margin-top: 6px;
     color: rgba(147, 167, 203, 0.96);
+  }
+
+  .component-select-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+  }
+
+  .component-row-title {
+    display: inline-block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .component-row-meta {
+    font-family: var(--tera-code-font);
+    white-space: nowrap;
+  }
+
+  .component-detail-card {
+    margin-top: 12px;
+  }
+
+  .components-layout {
+    display: grid;
+    gap: 10px;
+  }
+
+  .components-split-pane {
+    display: grid;
+    grid-template-columns: minmax(260px, 44%) minmax(320px, 56%);
+    border: 1px solid var(--tera-border);
+    border-radius: 14px;
+    overflow: hidden;
+    min-height: 340px;
+    background: linear-gradient(180deg, rgba(7, 18, 35, 0.84), rgba(5, 11, 24, 0.95));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .components-split-pane {
+    background: linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(236, 244, 255, 0.96));
+    border-color: rgba(54, 118, 210, 0.24);
+  }
+
+  .components-tree-pane,
+  .components-inspector-pane {
+    min-width: 0;
+    min-height: 0;
+    padding: 10px 12px;
+    overflow: auto;
+  }
+
+  .components-tree-pane {
+    border-right: 1px solid rgba(50, 215, 255, 0.26);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .components-tree-pane {
+    border-right-color: rgba(54, 118, 210, 0.22);
+  }
+
+  .component-tree-toolbar {
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+
+  .component-tree-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .component-tree-children {
+    margin-top: 2px;
+  }
+
+  .component-tree-node {
+    margin: 0;
+    padding: 0;
+  }
+
+  .component-tree-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    gap: 3px;
+    min-height: 28px;
+  }
+
+  .component-tree-guides {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .tree-indent-guide {
+    width: 12px;
+    height: 24px;
+    display: inline-block;
+    position: relative;
+  }
+
+  .tree-indent-guide.is-continuing::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(50, 215, 255, 0.28);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .tree-indent-guide.is-continuing::before {
+    background: rgba(54, 118, 210, 0.32);
+  }
+
+  .component-tree-toggle {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: rgba(47, 109, 255, 0.08);
+    color: rgba(144, 219, 255, 0.95);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+  }
+
+  .component-tree-toggle:hover {
+    border-color: rgba(50, 215, 255, 0.48);
+    background: rgba(50, 215, 255, 0.16);
+  }
+
+  .component-tree-toggle.is-placeholder {
+    cursor: default;
+    opacity: 0.28;
+  }
+
+  .component-tree-select {
+    appearance: none;
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--tera-cloud);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 24px;
+    padding: 2px 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .component-tree-select:hover {
+    background: rgba(50, 215, 255, 0.12);
+    border-color: rgba(50, 215, 255, 0.36);
+  }
+
+  .component-tree-select.is-active {
+    background: linear-gradient(135deg, rgba(19, 183, 255, 0.35), rgba(30, 234, 255, 0.28));
+    border-color: rgba(78, 241, 255, 0.92);
+    box-shadow: inset 0 0 0 1px rgba(18, 232, 255, 0.78), 0 0 0 1px rgba(18, 232, 255, 0.42), 0 8px 22px rgba(19, 183, 255, 0.24);
+    color: #ecfbff;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .component-tree-select {
+    color: #10213f;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .component-tree-select.is-active {
+    color: #072544;
+    background: linear-gradient(135deg, rgba(86, 206, 255, 0.35), rgba(115, 236, 255, 0.4));
+    border-color: rgba(25, 166, 214, 0.74);
+    box-shadow: inset 0 0 0 1px rgba(44, 189, 226, 0.6), 0 6px 16px rgba(40, 152, 205, 0.2);
+  }
+
+  .component-tree-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 600;
+  }
+
+  .component-tree-instance {
+    font-family: var(--tera-code-font);
+    opacity: 0.82;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .component-ai-hint {
+    margin-left: 36px;
+    margin-top: 2px;
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  .component-inspector-header {
+    margin-top: 10px;
+  }
+
+  .inspector-selected-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .inspector-selected-summary {
+    display: flex;
+    gap: 10px;
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  .inspector-selected-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 74px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #ecfbff;
+    background: linear-gradient(135deg, rgba(19, 183, 255, 0.52), rgba(30, 234, 255, 0.22));
+    border: 1px solid rgba(78, 241, 255, 0.46);
+  }
+
+  .inspector-stats-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .inspector-stat-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(50, 215, 255, 0.22);
+    background: rgba(6, 16, 34, 0.86);
+    font-size: 11px;
+  }
+
+  .inspector-stat-label {
+    color: var(--tera-mist);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .inspector-stat-value {
+    color: var(--tera-cloud);
+    font-family: var(--tera-code-font);
+    font-weight: 700;
+  }
+
+  .inspector-tab-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .inspector-tab-button {
+    appearance: none;
+    border: 1px solid rgba(50, 215, 255, 0.18);
+    border-radius: 999px;
+    padding: 7px 12px;
+    background: rgba(7, 18, 35, 0.72);
+    color: var(--tera-mist);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 120ms ease;
+  }
+
+  .inspector-tab-button:hover {
+    border-color: rgba(50, 215, 255, 0.4);
+    color: var(--tera-cloud);
+    transform: translateY(-1px);
+  }
+
+  .inspector-tab-button.is-selected {
+    background: linear-gradient(135deg, rgba(19, 183, 255, 0.88), rgba(30, 234, 255, 0.55));
+    color: #04111f;
+    border-color: rgba(78, 241, 255, 0.88);
+    box-shadow: 0 10px 24px rgba(19, 183, 255, 0.24);
+  }
+
+  .inspector-surface {
+    display: grid;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .inspector-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .inspector-card {
+    min-height: 0;
+  }
+
+  .reactive-feed,
+  .activity-feed {
+    margin-top: 10px;
+    max-height: 320px;
+  }
+
+  .inspector-control-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .inspector-control-row {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(50, 215, 255, 0.14);
+    background: rgba(4, 10, 22, 0.52);
+  }
+
+  .inspector-control-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .inspector-control-labels {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .inspector-control-preview {
+    color: var(--tera-mist);
+    font-family: var(--tera-code-font);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .inspector-live-input {
+    min-width: min(220px, 100%);
+    max-width: 100%;
+    border: 1px solid rgba(50, 215, 255, 0.24);
+    border-radius: 10px;
+    background: rgba(6, 16, 34, 0.9);
+    color: var(--tera-cloud);
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .inspector-live-input:focus {
+    outline: 2px solid rgba(50, 215, 255, 0.36);
+    outline-offset: 1px;
+  }
+
+  .inspector-toggle-button {
+    min-width: 92px;
+  }
+
+  .reactive-feed-item {
+    align-items: flex-start;
+  }
+
+  .value-explorer {
+    display: grid;
+    gap: 6px;
+  }
+
+  .value-node,
+  .value-leaf {
+    border: 1px solid rgba(50, 215, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(4, 10, 22, 0.6);
+  }
+
+  .value-node-toggle,
+  .value-leaf {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--tera-cloud);
+  }
+
+  .value-node-toggle {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .value-node-toggle:hover {
+    background: rgba(50, 215, 255, 0.08);
+  }
+
+  .value-node-chevron {
+    color: var(--tera-cyan);
+    width: 12px;
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .value-key {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-family: var(--tera-code-font);
+  }
+
+  .value-badge {
+    justify-self: end;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(47, 109, 255, 0.16);
+    border: 1px solid rgba(50, 215, 255, 0.16);
+    color: var(--tera-mist);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .value-node-children {
+    display: grid;
+    gap: 6px;
+    padding: 0 10px 10px 22px;
+  }
+
+  .value-preview {
+    grid-column: 2 / span 2;
+    color: var(--tera-mist);
+    overflow-wrap: anywhere;
+  }
+
+  .value-empty {
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(4, 10, 22, 0.42);
+    color: var(--tera-mist);
+    font-family: var(--tera-code-font);
+    font-size: 12px;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-selected-chip {
+    color: #072544;
+    background: linear-gradient(135deg, rgba(86, 206, 255, 0.48), rgba(115, 236, 255, 0.22));
+    border-color: rgba(25, 166, 214, 0.44);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-stat-pill,
+  #terajs-devtools-root[data-theme="light"] .inspector-control-row,
+  #terajs-devtools-root[data-theme="light"] .value-node,
+  #terajs-devtools-root[data-theme="light"] .value-leaf,
+  #terajs-devtools-root[data-theme="light"] .value-empty {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(54, 118, 210, 0.18);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-tab-button {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(54, 118, 210, 0.18);
+    color: #4e5f7a;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-tab-button.is-selected {
+    color: #072544;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-live-input {
+    background: rgba(255, 255, 255, 0.96);
+    border-color: rgba(54, 118, 210, 0.22);
+    color: #10213f;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .value-badge {
+    background: rgba(64, 126, 213, 0.08);
+    color: #516178;
+  }
+
+  .inspector-section {
+    margin-top: 8px;
+    border: 1px solid var(--tera-border);
+    border-radius: 12px;
+    background: rgba(10, 18, 33, 0.72);
+    overflow: hidden;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-section {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(46, 46, 46, 0.16);
+  }
+
+  .inspector-section-toggle {
+    width: 100%;
+    appearance: none;
+    border: 0;
+    border-bottom: 1px solid rgba(50, 215, 255, 0.18);
+    background: rgba(47, 109, 255, 0.08);
+    color: var(--tera-cloud);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .inspector-section-toggle:hover {
+    background: rgba(50, 215, 255, 0.16);
+  }
+
+  .inspector-section-chevron {
+    width: 14px;
+    color: var(--tera-cyan);
+    font-size: 12px;
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .inspector-section-title {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .inspector-section-body {
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .inspector-code {
+    margin: 0;
+    border: 1px solid rgba(50, 215, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(4, 9, 19, 0.94);
+    padding: 10px;
+    color: #dff5ff;
+    max-height: 220px;
+    overflow: auto;
+    font-size: 12px;
+    line-height: 1.44;
+  }
+
+  #terajs-devtools-root[data-theme="light"] .inspector-code {
+    background: rgba(242, 248, 255, 0.96);
+    color: #10213f;
+    border-color: rgba(54, 118, 210, 0.28);
+  }
+
+  .inspector-grid {
+    display: grid;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .components-split-pane {
+      grid-template-columns: 1fr;
+    }
+
+    .panel-section-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .inspector-overview-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .components-tree-pane {
+      border-right: 0;
+      border-bottom: 1px solid rgba(50, 215, 255, 0.24);
+      max-height: 280px;
+    }
   }
 
   .panel-title {

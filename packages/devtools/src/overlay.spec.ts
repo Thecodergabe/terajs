@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Debug, emitDebug, resetDebugListeners } from "@terajs/shared";
+import { ref } from "@terajs/reactivity";
 import {
   mountDevtoolsOverlay,
   toggleDevtoolsOverlay,
@@ -7,11 +8,59 @@ import {
   unmountDevtoolsOverlay
 } from "./overlay";
 
+const OVERLAY_PREFERENCES_STORAGE_KEY = "terajs:devtools:overlay-preferences";
+
+function ensureTestStorage(): Storage {
+  const candidate = (window as Window & { localStorage?: unknown }).localStorage;
+  if (
+    candidate
+    && typeof (candidate as Storage).getItem === "function"
+    && typeof (candidate as Storage).setItem === "function"
+    && typeof (candidate as Storage).removeItem === "function"
+  ) {
+    return candidate as Storage;
+  }
+
+  const store = new Map<string, string>();
+  const fallback: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string): string | null {
+      return store.has(key) ? store.get(key) ?? null : null;
+    },
+    key(index: number): string | null {
+      return Array.from(store.keys())[index] ?? null;
+    },
+    removeItem(key: string): void {
+      store.delete(key);
+    },
+    setItem(key: string, value: string): void {
+      store.set(key, String(value));
+    }
+  };
+
+  Object.defineProperty(window, "localStorage", {
+    value: fallback,
+    configurable: true
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    value: fallback,
+    configurable: true
+  });
+
+  return fallback;
+}
+
 describe("devtools overlay public entry", () => {
   afterEach(() => {
     unmountDevtoolsOverlay();
     resetDebugListeners();
     delete (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__;
+    ensureTestStorage().removeItem(OVERLAY_PREFERENCES_STORAGE_KEY);
     document.body.innerHTML = "";
   });
 
@@ -95,6 +144,135 @@ describe("devtools overlay public entry", () => {
     expect(host?.style.left).toBe("50%");
     expect(host?.style.transform).toBe("translateX(-50%)");
     expect(shell?.classList.contains("is-center")).toBe(true);
+  });
+
+  it("supports top docking presets", () => {
+    mountDevtoolsOverlay({ position: "top-right" });
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const shell = host?.shadowRoot?.querySelector(".fab-shell") as HTMLDivElement | null;
+
+    expect(host?.style.right).toBe("20px");
+    expect(host?.style.top).toBe("16px");
+    expect(host?.style.bottom).toBe("");
+    expect(shell?.classList.contains("is-top")).toBe(true);
+  });
+
+  it("restores persisted layout preferences when explicit layout is not provided", () => {
+    ensureTestStorage().setItem(OVERLAY_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      position: "bottom-left",
+      panelSize: "large"
+    }));
+
+    mountDevtoolsOverlay();
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const shell = host?.shadowRoot?.querySelector(".fab-shell") as HTMLDivElement | null;
+
+    expect(host?.style.left).toBe("20px");
+    expect(host?.style.bottom).toBe("16px");
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("980px");
+    expect(shell?.classList.contains("is-left")).toBe(true);
+  });
+
+  it("updates layout from settings controls and persists changes", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
+    const shadowRoot = host?.shadowRoot;
+
+    const settingsTab = shadowRoot?.querySelector('[data-tab="Settings"]') as HTMLButtonElement | null;
+    settingsTab?.click();
+
+    const centerButton = shadowRoot?.querySelector('[data-layout-position="center"]') as HTMLButtonElement | null;
+    centerButton?.click();
+    expect(host?.style.top).toBe("50%");
+    expect(host?.style.transform).toBe("translate(-50%, -50%)");
+
+    const largeButton = shadowRoot?.querySelector('[data-layout-size="large"]') as HTMLButtonElement | null;
+    largeButton?.click();
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("980px");
+
+    const persisted = JSON.parse(ensureTestStorage().getItem(OVERLAY_PREFERENCES_STORAGE_KEY) ?? "{}");
+    expect(persisted.position).toBe("center");
+    expect(persisted.panelSize).toBe("large");
+
+    const persistToggle = shadowRoot?.querySelector('[data-layout-persist-toggle="true"]') as HTMLButtonElement | null;
+    persistToggle?.click();
+    expect(ensureTestStorage().getItem(OVERLAY_PREFERENCES_STORAGE_KEY)).toBeNull();
+  });
+
+  it("edits live boolean props from the props inspector", () => {
+    const componentRoot = document.createElement("div") as HTMLDivElement & {
+      __terajsComponentContext?: { props: { enabled: boolean } };
+    };
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    componentRoot.__terajsComponentContext = {
+      props: {
+        enabled: true
+      }
+    };
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const propsTab = shadowRoot?.querySelector('[data-inspector-tab="props"]') as HTMLButtonElement | null;
+    propsTab?.click();
+
+    const toggleButton = shadowRoot?.querySelector('[data-action="toggle-live-prop"][data-prop-key="enabled"]') as HTMLButtonElement | null;
+    expect(toggleButton).toBeTruthy();
+    toggleButton?.click();
+
+    expect(componentRoot.__terajsComponentContext?.props.enabled).toBe(false);
+  });
+
+  it("edits live reactive booleans from the reactive inspector", () => {
+    const enabled = ref(true, {
+      scope: "Counter",
+      instance: 1,
+      key: "enabled"
+    });
+
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const reactiveTab = shadowRoot?.querySelector('[data-inspector-tab="reactive"]') as HTMLButtonElement | null;
+    reactiveTab?.click();
+
+    const toggleButton = shadowRoot?.querySelector('[data-action="toggle-live-reactive"]') as HTMLButtonElement | null;
+    expect(toggleButton).toBeTruthy();
+    toggleButton?.click();
+
+    expect(enabled.value).toBe(false);
   });
 
   it("supports keyboard shortcuts for panel and visibility controls", () => {
@@ -204,5 +382,191 @@ describe("devtools overlay public entry", () => {
 
     expect(shadowRoot?.textContent).toContain("Queue Monitor");
     expect(shadowRoot?.textContent).toContain("form:save");
+  });
+
+  it("shows active refs in signals tab without requiring recent updates", () => {
+    const activeRef = ref("ready", {
+      scope: "OverlaySpec",
+      instance: 1,
+      key: "overlay.test.ref"
+    });
+
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const signalsTab = shadowRoot?.querySelector('[data-tab="Signals"]') as HTMLButtonElement | null;
+    signalsTab?.click();
+
+    expect(activeRef.value).toBe("ready");
+    expect(shadowRoot?.textContent).toContain("Active reactive registry");
+    expect(shadowRoot?.textContent).toContain("overlay.test.ref");
+  });
+
+  it("highlights component roots when selected from the components list", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
+  });
+
+  it("highlights component roots when hovering tree rows", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, composed: true }));
+
+    expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(true);
+
+    componentButton?.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, composed: true }));
+
+    expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(false);
+  });
+
+  it("uses tabbed component drill-down instead of accordion toggles", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const domTab = shadowRoot?.querySelector('[data-inspector-tab="dom"]') as HTMLButtonElement | null;
+    domTab?.click();
+
+    const selectedDomTab = shadowRoot?.querySelector('[data-inspector-tab="dom"].is-selected') as HTMLButtonElement | null;
+    expect(selectedDomTab).toBeTruthy();
+
+    const inspectorSurface = shadowRoot?.querySelector('.inspector-surface') as HTMLDivElement | null;
+    inspectorSurface?.click();
+
+    const selectedDomTabAfterBodyClick = shadowRoot?.querySelector('[data-inspector-tab="dom"].is-selected') as HTMLButtonElement | null;
+    expect(selectedDomTabAfterBodyClick).toBeTruthy();
+  });
+
+  it("enables inspect mode immediately when startOpen is true", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay({ startOpen: true });
+
+    expect(document.body.hasAttribute("data-terajs-inspect-mode")).toBe(true);
+  });
+
+  it("supports inspect mode click-to-pick from page components", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    componentRoot.dispatchEvent(new Event("pointermove", { bubbles: true, composed: true }));
+    componentRoot.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true, button: 0 }));
+
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    expect(componentButton?.classList.contains("is-active")).toBe(true);
+    expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
+  });
+
+  it("keeps mounted components visible after large event churn", () => {
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    for (let index = 0; index < 450; index += 1) {
+      Debug.emit("effect:run", { key: `k${index}` });
+    }
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    expect(shadowRoot?.textContent).toContain("Counter");
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    expect(componentButton).toBeTruthy();
+  });
+
+  it("clears selected highlight when leaving the components tab", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
+
+    const logsTab = shadowRoot?.querySelector('[data-tab="Logs"]') as HTMLButtonElement | null;
+    logsTab?.click();
+
+    expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(false);
   });
 });
