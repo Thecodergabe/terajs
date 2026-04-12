@@ -26,6 +26,8 @@ import {
   addNodeCleanup,
 } from "./dom.js";
 
+import { renderComponent, type FrameworkComponent } from "./render.js";
+
 import {
   bindText,
   bindProp,
@@ -42,6 +44,17 @@ import { Portal as WebPortal } from "./portal.js";
 /*                             PUBLIC ENTRY POINTS                            */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Renders a compiled IR module into a detached document fragment.
+ *
+ * This is the primary bridge between compiler output and the web renderer.
+ * It walks the module template, renders each IR node with the provided
+ * execution context, and returns a fragment ready for insertion.
+ *
+ * @param ir - The compiled IR module produced by the compiler or SFC pipeline.
+ * @param ctx - The runtime execution context used to resolve bindings, slots, and events.
+ * @returns A document fragment containing the rendered module output.
+ */
 export function renderIRModuleToFragment(ir: IRModule, ctx: any): DocumentFragment {
   Debug.emit("ir:render:module", { filePath: ir.filePath });
 
@@ -55,6 +68,18 @@ export function renderIRModuleToFragment(ir: IRModule, ctx: any): DocumentFragme
   return frag;
 }
 
+/**
+ * Renders a single IR node into a DOM node.
+ *
+ * The renderer supports text, interpolation, element, portal, slot, `if`,
+ * and `for` node kinds. Unknown node types emit a renderer error and return
+ * `null` so callers can continue rendering surrounding output.
+ *
+ * @param node - The IR node to render.
+ * @param ctx - The runtime execution context used to resolve bindings and slots.
+ * @param isSvg - Whether the current render position is inside an SVG subtree.
+ * @returns The rendered DOM node, or `null` when the node cannot be rendered.
+ */
 export function renderIRNode(node: IRNode, ctx: any, isSvg: boolean = false): Node | null {
   switch (node.type) {
     case "text":
@@ -105,6 +130,11 @@ function renderIRInterpolation(node: IRInterpolationNode, ctx: any): Text {
 /* -------------------------------------------------------------------------- */
 
 function renderIRElement(node: IRElementNode, ctx: any, isSvg: boolean): Element {
+  const component = resolveComponentBinding(ctx, node.tag);
+  if (component) {
+    return renderIRComponent(node, component, ctx, isSvg) as Element;
+  }
+
   Debug.emit("ir:render:element", { tag: node.tag, svg: isSvg });
 
   const nextSvg = isSvg || node.tag === "svg";
@@ -118,6 +148,31 @@ function renderIRElement(node: IRElementNode, ctx: any, isSvg: boolean): Element
   }
 
   return el;
+}
+
+function renderIRComponent(
+  node: IRElementNode,
+  component: FrameworkComponent,
+  ctx: any,
+  isSvg: boolean
+): Node {
+  Debug.emit("ir:render:component", { tag: node.tag });
+
+  const props = buildComponentProps(node, ctx, isSvg);
+  const rendered = renderComponent(component, props);
+  const cleanup = createComponentCleanup(rendered.ctx);
+
+  queueMicrotask(() => {
+    if (!cleanup.active()) {
+      return;
+    }
+
+    runMountedHooks(rendered.ctx);
+  });
+
+  attachComponentCleanup(rendered.node, cleanup.dispose);
+
+  return normalizeRenderedComponentNode(rendered.node);
 }
 
 function renderIRPortal(node: IRPortalNode, ctx: any, isSvg: boolean): Node {
@@ -213,7 +268,7 @@ function applyBindProp(el: Element, p: IRPropNode, ctx: any): void {
 }
 
 function applyEventProp(el: Element, p: IRPropNode, ctx: any): void {
-  const handler = resolveExpr(ctx, String(p.value));
+  const handler = resolveEventHandler(ctx, String(p.value));
 
   if (typeof handler === "function") {
     bindEvent(el, p.name, handler);
@@ -320,24 +375,252 @@ function renderIRFor(node: IRForNode, ctx: any, isSvg: boolean): Node {
 /*                             EXPRESSION RESOLUTION                          */
 /* -------------------------------------------------------------------------- */
 
-function resolveExpr(ctx: any, expr: string): any {
-  if (!ctx) return undefined;
+const SIMPLE_PATH_RE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
+const RESERVED_LITERAL_RE = /^(?:true|false|null|undefined|NaN|Infinity)$/;
+const expressionEvaluatorCache = new Map<string, (ctx: any, event: Event | undefined) => any>();
 
-  if (expr in ctx) {
-    const raw = ctx[expr];
-    return typeof raw === "function" ? raw() : raw;
+function resolveExpr(ctx: any, expr: string): any {
+  const normalized = expr.trim();
+
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  if (isSimplePath(normalized)) {
+    return resolveSimplePath(ctx, normalized, true);
+  }
+
+  return evaluateExpression(ctx, normalized, undefined);
+}
+
+function resolveEventHandler(ctx: any, expr: string): EventListener | undefined {
+  const normalized = expr.trim();
+
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  if (isSimplePath(normalized)) {
+    const handler = resolveSimplePath(ctx, normalized, false);
+    return typeof handler === "function" ? handler as EventListener : undefined;
+  }
+
+  return (event: Event) => {
+    evaluateExpression(ctx, normalized, event);
+  };
+}
+
+function isSimplePath(expr: string): boolean {
+  return SIMPLE_PATH_RE.test(expr) && !RESERVED_LITERAL_RE.test(expr);
+}
+
+function resolveSimplePath(ctx: any, expr: string, invokeFinal: boolean): any {
+  if (!ctx) {
+    return undefined;
   }
 
   const parts = expr.split(".");
   let current: any = ctx;
 
-  for (const part of parts) {
-    if (current == null) return undefined;
-    const value = current[part];
-    current = typeof value === "function" ? value() : value;
+  for (let index = 0; index < parts.length; index += 1) {
+    if (current == null) {
+      return undefined;
+    }
+
+    const value = current[parts[index]];
+    const isLast = index === parts.length - 1;
+    current = typeof value === "function" && (invokeFinal || !isLast) ? value() : value;
   }
 
   return current;
+}
+
+function evaluateExpression(ctx: any, expr: string, event: Event | undefined): any {
+  const evaluator = getExpressionEvaluator(expr);
+
+  try {
+    return evaluator(ctx, event);
+  } catch (error) {
+    Debug.emit("error:renderer", {
+      message: `Failed to evaluate expression '${expr}'`,
+      expression: expr,
+      error,
+    });
+    return undefined;
+  }
+}
+
+function getExpressionEvaluator(expr: string): (ctx: any, event: Event | undefined) => any {
+  const cached = expressionEvaluatorCache.get(expr);
+
+  if (cached) {
+    return cached;
+  }
+
+  const evaluator = new Function(
+    "$ctx",
+    "$event",
+    [
+      "const scope = $ctx ?? {};",
+      "with (scope) {",
+      `  return (${expr});`,
+      "}",
+    ].join("\n"),
+  ) as (ctx: any, event: Event | undefined) => any;
+
+  expressionEvaluatorCache.set(expr, evaluator);
+  return evaluator;
+}
+
+function resolveComponentBinding(ctx: any, tag: string): FrameworkComponent | null {
+  if (!isComponentTag(tag)) {
+    return null;
+  }
+
+  const registry = ctx?.__components;
+
+  if (!registry || typeof registry !== "object") {
+    return null;
+  }
+
+  const resolved = registry[tag];
+  return typeof resolved === "function" ? resolved as FrameworkComponent : null;
+}
+
+function isComponentTag(tag: string): boolean {
+  if (typeof tag !== "string" || tag.length === 0) {
+    return false;
+  }
+
+  const first = tag[0];
+  return first >= "A" && first <= "Z";
+}
+
+function buildComponentProps(node: IRElementNode, ctx: any, isSvg: boolean): Record<string, any> {
+  const props: Record<string, any> = {};
+
+  for (const prop of node.props) {
+    if (prop.kind === "static") {
+      props[prop.name] = prop.value;
+      continue;
+    }
+
+    if (prop.kind === "bind") {
+      props[prop.name] = resolveExpr(ctx, String(prop.value));
+      continue;
+    }
+
+    if (prop.kind === "event") {
+      const handler = resolveEventHandler(ctx, String(prop.value));
+      if (typeof handler === "function") {
+        props["on" + capitalize(prop.name)] = handler;
+      }
+    }
+  }
+
+  if (node.children.length > 0) {
+    props.children = () => {
+      const frag = createFragment();
+
+      for (const child of node.children) {
+        const dom = renderIRNode(child, ctx, isSvg);
+        if (dom) {
+          insert(frag, dom);
+        }
+      }
+
+      return frag;
+    };
+  }
+
+  return props;
+}
+
+function runMountedHooks(ctx: any): void {
+  if (!ctx?.mounted) {
+    return;
+  }
+
+  for (const fn of ctx.mounted) {
+    try {
+      fn();
+    } catch (error) {
+      Debug.emit("error:component", {
+        name: ctx.name,
+        instance: ctx.instance,
+        error,
+      });
+    }
+  }
+}
+
+function createComponentCleanup(ctx: any): { active: () => boolean; dispose: () => void } {
+  let disposed = false;
+
+  const dispose = () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+
+    if (ctx?.unmounted) {
+      for (const fn of ctx.unmounted) {
+        try {
+          fn();
+        } catch (error) {
+          Debug.emit("error:component", {
+            name: ctx.name,
+            instance: ctx.instance,
+            error,
+          });
+        }
+      }
+    }
+
+    if (ctx?.disposers) {
+      for (const cleanup of ctx.disposers) {
+        try {
+          cleanup();
+        } catch {
+          // user cleanup errors are non-fatal during teardown
+        }
+      }
+
+      ctx.disposers.length = 0;
+    }
+  };
+
+  return {
+    active: () => !disposed,
+    dispose,
+  };
+}
+
+function attachComponentCleanup(node: Node, cleanup: () => void): void {
+  if (node instanceof DocumentFragment) {
+    const children = Array.from(node.childNodes);
+
+    for (const child of children) {
+      addNodeCleanup(child, cleanup);
+    }
+
+    return;
+  }
+
+  addNodeCleanup(node, cleanup);
+}
+
+function normalizeRenderedComponentNode(node: Node): Node {
+  if (node instanceof DocumentFragment && node.childNodes.length === 1) {
+    return node.firstChild as Node;
+  }
+
+  return node;
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function resolvePortalTarget(target: IRPropNode | undefined, ctx: any): any {

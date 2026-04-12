@@ -8,20 +8,32 @@ export interface ServerExecutionContext extends ServerContext {
   functionId: string;
 }
 
+/**
+ * Serialized call payload sent across the server-function transport boundary.
+ */
 export interface ServerFunctionCall {
   id: string;
   args: unknown[];
 }
 
+/**
+ * Client transport used to invoke registered server functions remotely.
+ */
 export interface ServerFunctionTransport {
   invoke(call: ServerFunctionCall): Promise<unknown>;
 }
 
+/**
+ * Result returned when a server function execution includes invalidation metadata.
+ */
 export interface ServerFunctionExecutionResult<TResult = unknown> {
   result: TResult;
   invalidated: ResourceKey[];
 }
 
+/**
+ * Configuration for the `server()` wrapper.
+ */
 export interface ServerFunctionOptions {
   id?: string;
 }
@@ -125,16 +137,36 @@ async function invokeTransport<TResult>(id: string, args: unknown[]): Promise<TR
   return serverFunctionTransport.invoke({ id, args }) as Promise<TResult>;
 }
 
+/**
+ * Sets the client transport used for browser-side server function calls.
+ *
+ * @param transport - The transport implementation to install, or `undefined` to clear it.
+ */
 export function setServerFunctionTransport(
   transport?: ServerFunctionTransport
 ): void {
   serverFunctionTransport = transport;
 }
 
+/**
+ * Returns the currently configured client transport for server function calls.
+ *
+ * @returns The active server function transport, if one is configured.
+ */
 export function getServerFunctionTransport(): ServerFunctionTransport | undefined {
   return serverFunctionTransport;
 }
 
+/**
+ * Wraps a handler as a Terajs server function.
+ *
+ * The returned function executes locally on the server and dispatches through
+ * the configured transport on the client.
+ *
+ * @param handler - The server-owned implementation.
+ * @param options - Optional registration metadata.
+ * @returns A callable server-function wrapper with a stable id.
+ */
 export function server<THandler extends ServerFunctionInputHandler>(
   handler: THandler,
   options: ServerFunctionOptions = {}
@@ -176,6 +208,13 @@ export async function executeServerFunctionCall(
   return invokeHandler(call.id, handler, context, call.args);
 }
 
+/**
+ * Executes a serialized server-function call and returns invalidation metadata.
+ *
+ * @param call - The serialized call payload.
+ * @param context - Optional server execution context.
+ * @returns The handler result plus any invalidated resource keys.
+ */
 export async function executeServerFunctionCallWithMetadata(
   call: ServerFunctionCall,
   context: ServerContext = {}
@@ -188,10 +227,27 @@ export async function executeServerFunctionCallWithMetadata(
   return invokeHandlerWithMetadata(call.id, handler, context, call.args);
 }
 
+/**
+ * Checks whether a server function id is registered locally.
+ *
+ * @param id - The server function identifier to look up.
+ * @returns `true` when the id exists in the local server-function registry.
+ */
 export function hasServerFunction(id: string): boolean {
   return serverFunctionRegistry.has(id);
 }
 
+/**
+ * Executes a typed server function directly against the current environment.
+ *
+ * On the server this invokes the registered handler immediately. In the browser
+ * it dispatches through the configured transport.
+ *
+ * @param fn - The wrapped server function to execute.
+ * @param context - Optional server execution context.
+ * @param args - Arguments forwarded to the server function.
+ * @returns The resolved server function result.
+ */
 export async function executeServerFunction<TArgs extends unknown[], TResult>(
   fn: ServerFunction<TArgs, TResult>,
   context: ServerContext = {},

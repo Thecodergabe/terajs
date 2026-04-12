@@ -34,13 +34,14 @@
 <script>
 import { Debug } from '@terajs/shared'
 import { ref, shallowRef } from '@terajs/reactivity'
-import { onMounted, onCleanup } from '@terajs/runtime'
+import { onMounted, onUnmounted } from '@terajs/runtime'
 // SFC components are auto-registered via Terajs auto-imports
 
 const tabs = ['Components', 'Signals', 'Meta', 'Issues', 'Logs', 'Timeline', 'Performance', 'Settings']
 const activeTabRef = ref('Components')
 const eventsRef = shallowRef([])
 const eventCountRef = ref(0)
+let unsubscribeDebug = null
 
 function activeTab() {
   return activeTabRef.value
@@ -65,12 +66,16 @@ function tabClass(tab) {
 }
 
 onMounted(() => {
-  const unsub = Debug.on((event) => {
+  unsubscribeDebug = Debug.on((event) => {
     const prev = eventsRef.value
     eventsRef.value = [...prev.slice(-249), event]
     eventCountRef.value = eventCountRef.value + 1
   })
-  onCleanup(unsub)
+})
+
+onUnmounted(() => {
+  unsubscribeDebug?.()
+  unsubscribeDebug = null
 })
 </script>
 

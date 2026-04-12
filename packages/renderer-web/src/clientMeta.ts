@@ -65,6 +65,15 @@ function syncMetaTag(name: string, content: string | undefined, attrName: "name"
   el.setAttribute("content", content);
 }
 
+/**
+ * Applies resolved route metadata and optional AI hints to the document head.
+ *
+ * Standard metadata keys are written as `name` meta tags, while Open Graph
+ * keys use the `property` attribute. Empty values remove existing tags.
+ *
+ * @param meta - The resolved metadata to apply to the current document.
+ * @param ai - Optional structured AI hint payload serialized into a meta tag.
+ */
 export function updateHead(meta: MetaConfig, ai?: Record<string, unknown>): void {
   if (typeof document === "undefined") return;
   if (!meta || typeof meta !== "object") return;

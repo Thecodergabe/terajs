@@ -17,7 +17,8 @@ import { Debug } from "@terajs/shared";
 
 /**
  * Normalizes a value by resolving signals, refs, or accessors.
- * * @param value - The value to unwrap.
+ *
+ * @param value - The value to unwrap.
  * @returns The resolved raw value.
  */
 export function unwrap(value: any): any {

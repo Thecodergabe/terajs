@@ -7,7 +7,12 @@ vi.mock("@terajs/sfc", async () => {
   const actual = await vi.importActual<typeof import("@terajs/sfc")>("@terajs/sfc");
   return {
     ...actual,
-    compileScript: vi.fn(() => ({ setupCode: "function setup(){}" })),
+    compileScript: vi.fn(() => ({
+      setupCode: "function setup(){}",
+      exposed: ["LocalCard"],
+      importedBindings: ["HeroSection"],
+      hasAsyncResource: false
+    })),
     compileTemplateFromSFC: vi.fn(() => ({ meta: {}, ai: {}, route: null }))
   };
 });
@@ -30,6 +35,9 @@ describe("compileSfcToComponent", () => {
     expect(out).toContain('import { component, applyHMRUpdate, renderIRModuleToFragment } from "terajs";');
     expect(out).toContain("const slots = normalizeSlots(props);");
     expect(out).toContain("__ssfc({ props: componentProps, slots, emit })");
+    expect(out).toContain("__components: createComponentRegistry(ctx)");
+    expect(out).toContain('"HeroSection": typeof HeroSection !== "undefined" ? HeroSection : undefined');
+    expect(out).toContain('...pickBindings(["LocalCard"], ctx)');
     expect(out).toContain("import.meta.hot.accept");
   });
 });

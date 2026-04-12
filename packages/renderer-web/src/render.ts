@@ -113,7 +113,17 @@ export function renderComponent(
         node = template(out);
     }
     else {
-        throw new Error("Invalid component return value.");
+        const componentName = describeComponentName(component);
+        const returnType = describeReturnValue(out);
+
+        Debug.emit("error:renderer", {
+            message: "Invalid component return value.",
+            component: componentName,
+            returnType,
+            value: out
+        });
+
+        throw new Error(`Invalid component return value for ${componentName} (${returnType}).`);
     }
 
     if (process.env.NODE_ENV !== "production") {
@@ -130,6 +140,37 @@ export function renderComponent(
     });
 
     return { node, ctx };
+}
+
+function describeComponentName(component: FrameworkComponent): string {
+    return typeof component === "function" && component.name
+        ? component.name
+        : "anonymous component";
+}
+
+function describeReturnValue(value: unknown): string {
+    if (value === null) {
+        return "null";
+    }
+
+    if (value === undefined) {
+        return "undefined";
+    }
+
+    if (value instanceof Node) {
+        return value.nodeName;
+    }
+
+    if (typeof value === "function") {
+        return "function";
+    }
+
+    if (typeof value === "object") {
+        const constructorName = (value as { constructor?: { name?: string } }).constructor?.name;
+        return constructorName ? `object:${constructorName}` : "object";
+    }
+
+    return typeof value;
 }
 
 function attachComponentIdentity(node: Node, ctx: ComponentContext): void {

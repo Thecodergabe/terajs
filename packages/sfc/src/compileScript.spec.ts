@@ -96,6 +96,75 @@ describe("compileScript (dependency‑free analyzer)", () => {
     expect(compiled.setupCode).toContain("mode === \"lossy-50\" ? 700 : 120");
   });
 
+  it("does not strip string ternary fallback expressions", () => {
+    const raw = `
+      function currentAttr(active) {
+        return active ? "page" : null;
+      }
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain('return active ? "page" : null');
+  });
+
+  it("does not strip template literal ternary fallback expressions", () => {
+    const raw = [
+      "function dropdownItemClass(path) {",
+      "  return isCurrent(path)",
+      "    ? `${BASE} ${ACTIVE}`",
+      "    : `${BASE} ${IDLE}`;",
+      "}"
+    ].join("\n");
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain('return isCurrent(path)');
+    expect(compiled.setupCode).toContain('? `${BASE} ${ACTIVE}`');
+    expect(compiled.setupCode).toContain(': `${BASE} ${IDLE}`');
+  });
+
+  it("still strips optional parameter annotations", () => {
+    const raw = `
+      function label(mode?: string) {
+        return mode ? mode : "fallback";
+      }
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).not.toContain('mode?: string');
+    expect(compiled.setupCode).toContain('return mode ? mode : "fallback"');
+  });
+
+  it("does not strip plain object literal property initializers", () => {
+    const raw = `
+      function createCard(data) {
+        return { title: data.title, count: data.count };
+      }
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain("return { title: data.title, count: data.count }");
+  });
+
+  it("does not strip ternary object literal property initializers", () => {
+    const raw = `
+      function createLine(line) {
+        return {
+          text: typeof line === "string" ? line : "",
+          kind: line ? "present" : "missing"
+        };
+      }
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.setupCode).toContain('text: typeof line === "string" ? line : ""');
+    expect(compiled.setupCode).toContain('kind: line ? "present" : "missing"');
+  });
+
   it("hoists top-level import declarations above setup", () => {
     const raw = `
       import { signal } from "@terajs/reactivity";
@@ -115,6 +184,25 @@ describe("compileScript (dependency‑free analyzer)", () => {
     expect(styleImport).toBeLessThan(setupStart);
     expect(setupSegment).not.toContain("import { signal }");
     expect(setupSegment).not.toContain("import \"./styles.css\"");
+    expect(compiled.importedBindings).toContain("signal");
+  });
+
+  it("tracks default, named, aliased, and namespace imports", () => {
+    const raw = `
+      import Button from "./Button.tera";
+      import { HeroSection, PillarCard as Card } from "./cards";
+      import * as Runtime from "@terajs/runtime";
+      import "./styles.css";
+    `;
+
+    const compiled = compileScript(raw);
+
+    expect(compiled.importedBindings).toEqual([
+      "Button",
+      "HeroSection",
+      "Card",
+      "Runtime"
+    ]);
   });
 
   it("keeps dynamic import expressions inside setup code", () => {

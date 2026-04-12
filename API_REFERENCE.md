@@ -3,11 +3,47 @@
 This reference describes the **current public surface** used by web-first Terajs apps.
 
 Release scope reflected here:
+- `terajs`
+- `terajs/vite`
+- `terajs/devtools`
 - `@terajs/reactivity`
 - `@terajs/runtime`
 - `@terajs/renderer-web`
 - `@terajs/router`
 - `@terajs/renderer-ssr`
+
+---
+
+# 0. App Entry Package (`terajs`)
+
+## 0.1 Main facade
+
+The `terajs` package is the default app-facing entrypoint.
+
+It re-exports the main web-first surface from:
+- `@terajs/reactivity`
+- `@terajs/runtime`
+- `@terajs/router`
+- selected `@terajs/renderer-web` exports
+
+It also exposes route-manifest helpers:
+- `buildRouteManifest(...)`
+- `RouteConfigInput`
+- `RouteManifestOptions`
+- `RouteSourceInput`
+
+## 0.2 Build integration
+
+- `terajs/vite` re-exports the default Terajs Vite plugin.
+- `TerajsVitePluginOptions` is available from `terajs/vite`.
+
+## 0.3 Devtools overlay
+
+- `terajs/devtools` re-exports the devtools overlay controls:
+  - `mountDevtoolsOverlay(...)`
+  - `toggleDevtoolsOverlay()`
+  - `toggleDevtoolsVisibility()`
+  - `unmountDevtoolsOverlay()`
 
 ---
 
@@ -100,6 +136,10 @@ Current context APIs are low-level and explicit:
 
 There is no `<Context.Provider>` component API in the runtime package today.
 
+Built-in runtime components include:
+- `Portal(props)`
+- `Suspense(props)`
+
 ## 2.5 Hydration resource helpers
 
 - `setHydrationState(...)`
@@ -112,8 +152,16 @@ There is no `<Context.Provider>` component API in the runtime package today.
 Runtime exports include:
 - `server(...)`
 - `executeServerFunction(...)`
+- `executeServerFunctionCall(...)`
+- `executeServerFunctionCallWithMetadata(...)`
+- `setServerFunctionTransport(...)`
+- `getServerFunctionTransport()`
+- `hasServerFunction(id)`
 - `createFetchServerFunctionTransport(...)`
+- `createServerContextFromRequest(...)`
 - `createServerFunctionRequestHandler(...)`
+- `handleServerFunctionRequest(...)`
+- `readServerFunctionCall(...)`
 
 Use these for app-owned server boundaries, not as a replacement for your external API contracts.
 
@@ -127,6 +175,30 @@ Use these for app-owned server boundaries, not as a replacement for your externa
 - `createResource(...).mutate(value, { queue, serverCall, ... })`
 
 These APIs provide queue contracts, retry hooks, and persistence-friendly mutation flows. Advanced conflict resolution remains a planned extension.
+
+## 2.8 Resource invalidation
+
+- `invalidateResources(keys)`
+- `registerResourceInvalidation(keys, handler)`
+
+These APIs let runtime resources and route data react to invalidation events without baking environment-specific cache ownership into the core runtime.
+
+## 2.9 Validation
+
+- `createSchemaValidator(schema)`
+
+Associated public types include:
+- `ParseSchema`
+- `SafeParseSchema`
+- `ValidationIssue`
+- `ValidationResult`
+- `Validator`
+
+## 2.10 Development: hot module replacement
+
+- `applyHMRUpdate(name, nextSetup, nextIR)`
+- `registerHMRComponent(handle)`
+- `unregisterHMRComponent(name)`
 
 ---
 
@@ -152,14 +224,35 @@ Hydration uses in-place reconciliation when SSR DOM shape matches and falls back
 
 ## 3.4 Router-aware web primitives
 
+- `createBrowserHistory(window?)`
 - `createRouteView(router, options?)`
 - `Link(props)`
+- `RoutePending(props)`
+- `useIsNavigating(router?)`
+- `usePendingTarget(router?)`
 
-## 3.5 Forms
+## 3.5 Metadata integration
+
+- `updateHead(meta, ai)`
+
+## 3.6 Forms
 
 - `Form(props)`
 - `SubmitButton(props)`
 - `FormStatus(props)`
+- `formDataToObject(formData)`
+
+## 3.7 Error boundaries
+
+- `withErrorBoundary(component, options)`
+
+## 3.8 Web component interop
+
+- `defineCustomElement(name, component)`
+
+## 3.9 Low-level IR rendering
+
+- `renderIRModuleToFragment(ir, ctx)`
 
 ---
 
@@ -169,7 +262,6 @@ Hydration uses in-place reconciliation when SSR DOM shape matches and falls back
 
 - `createRouter(routes, options?)`
 - `createMemoryHistory(initialPath?)`
-- `createBrowserHistory(window?)`
 - `matchRoute(routes, target)`
 
 ## 4.2 Loading and prefetch
@@ -182,7 +274,6 @@ Hydration uses in-place reconciliation when SSR DOM shape matches and falls back
 ## 4.3 Route metadata
 
 - `resolveLoadedRouteMetadata(...)`
-- `updateHead(meta, ai)`
 
 ---
 

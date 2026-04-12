@@ -34,6 +34,14 @@ function registerActiveSignal<T>(sig: Signal<T>): void {
   signalFinalizer.register(sig, ref);
 }
 
+/**
+ * Returns the currently live, debug-registered signals.
+ *
+ * Signals are tracked through weak references, so entries for collected
+ * signals are removed as the registry is traversed.
+ *
+ * @returns A snapshot of active signals that still have live references.
+ */
 export function getActiveSignals(): Signal<unknown>[] {
   const active: Signal<unknown>[] = [];
 
@@ -129,7 +137,8 @@ export function signal<T>(
 
   /**
    * Updates the signal's value and notifies all dependents.
-   * * @param next - The new value to set.
+    *
+    * @param next - The new value to set.
    */
   sig.set = (next: T) => {
     const prev = sig._value;
@@ -171,7 +180,8 @@ export function signal<T>(
 
   /**
    * Updates the signal's value using a transformation function.
-   * * @param fn - A function that takes the current value and returns a new one.
+    *
+    * @param fn - A function that takes the current value and returns a new one.
    */
   sig.update = (fn) => sig.set(fn(sig._value));
 

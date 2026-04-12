@@ -3,13 +3,23 @@ import { mountDevtoolsApp, type DevtoolsAIAssistantOptions } from "./app.js";
 type DevtoolsOverlayPosition = "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center" | "center";
 type DevtoolsOverlaySize = "normal" | "large";
 
+/**
+ * Configuration for the Terajs DevTools overlay.
+ */
 export interface DevtoolsOverlayOptions {
+  /** Opens the panel immediately after mounting. */
   startOpen?: boolean;
+  /** Sets the floating overlay anchor position. */
   position?: DevtoolsOverlayPosition;
+  /** Controls the mounted panel size preset. */
   panelSize?: DevtoolsOverlaySize;
+  /** Persists layout preferences in local storage when available. */
   persistPreferences?: boolean;
+  /** Keyboard shortcut used to toggle the panel open state. */
   panelShortcut?: string;
+  /** Keyboard shortcut used to toggle the overlay visibility. */
   visibilityShortcut?: string;
+  /** Optional AI assistant configuration passed through to the app. */
   ai?: DevtoolsAIAssistantOptions;
 }
 
@@ -746,6 +756,14 @@ function applyOverlayVisibility(): void {
   applyInspectModeContext();
 }
 
+/**
+ * Mounts the Terajs DevTools overlay into the current document.
+ *
+ * The overlay is development-only and is a no-op in production builds.
+ * Repeated calls reuse the existing mount instead of creating duplicates.
+ *
+ * @param options - Optional overlay behavior and layout configuration.
+ */
 export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
   if (process.env.NODE_ENV === "production") return;
   if (typeof document === "undefined" || overlayEl) return;
@@ -864,6 +882,11 @@ export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
   applyOverlayVisibility();
 }
 
+/**
+ * Toggles the devtools panel between open and closed states.
+ *
+ * If the overlay has not been mounted yet, this mounts it first with default options.
+ */
 export function toggleDevtoolsOverlay(): void {
   if (process.env.NODE_ENV === "production") return;
   if (!overlayEl) {
@@ -875,6 +898,11 @@ export function toggleDevtoolsOverlay(): void {
   applyPanelState();
 }
 
+/**
+ * Toggles the visibility of the floating devtools overlay shell.
+ *
+ * If the overlay has not been mounted yet, this mounts it first with default options.
+ */
 export function toggleDevtoolsVisibility(): void {
   if (process.env.NODE_ENV === "production") return;
   if (!overlayEl) {
@@ -886,6 +914,9 @@ export function toggleDevtoolsVisibility(): void {
   applyOverlayVisibility();
 }
 
+/**
+ * Unmounts the Terajs DevTools overlay and removes all attached listeners.
+ */
 export function unmountDevtoolsOverlay(): void {
   if (process.env.NODE_ENV === "production") return;
 

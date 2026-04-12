@@ -402,6 +402,31 @@ describe("devtools overlay public entry", () => {
     expect(shadowRoot?.textContent).toContain("overlay.test.ref");
   });
 
+  it("does not emit lifecycle cleanup warnings when opening the signals tab", () => {
+    const warnings: string[] = [];
+    const stopWarnings = Debug.on((event) => {
+      if (
+        event.type === "lifecycle:warn"
+        && event.payload
+        && typeof event.payload.message === "string"
+      ) {
+        warnings.push(event.payload.message);
+      }
+    });
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const signalsTab = shadowRoot?.querySelector('[data-tab="Signals"]') as HTMLButtonElement | null;
+    signalsTab?.click();
+
+    unmountDevtoolsOverlay();
+    stopWarnings();
+
+    expect(warnings).not.toContain("onCleanup called without context");
+  });
+
   it("highlights component roots when selected from the components list", () => {
     const componentRoot = document.createElement("div");
     componentRoot.setAttribute("data-terajs-component-scope", "Counter");

@@ -90,6 +90,7 @@ export type DebugEventType =
     | "ir:render:text"
     | "ir:render:interp"
     | "ir:render:element"
+    | "ir:render:component"
     | "ir:render:portal"
     | "ir:render:slot"
     | "ir:render:if"

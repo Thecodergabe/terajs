@@ -28,6 +28,11 @@ export interface CompiledScript {
   exposed: string[];
 
   /**
+   * Top-level imported bindings available to the compiled module.
+   */
+  importedBindings: string[];
+
+  /**
    * Whether this script uses createResource and should be treated as async.
    */
   hasAsyncResource: boolean;
@@ -36,6 +41,62 @@ export interface CompiledScript {
 interface HoistedScript {
   imports: string[];
   body: string;
+}
+
+function extractImportedBindings(imports: string[]): string[] {
+  const bindings = new Set<string>();
+
+  for (const statement of imports) {
+    const normalized = statement.replace(/\s+/g, " ").trim().replace(/;$/, "");
+
+    if (/^import\s+["']/.test(normalized)) {
+      continue;
+    }
+
+    const fromIndex = normalized.lastIndexOf(" from ");
+    const clause = fromIndex === -1
+      ? normalized.replace(/^import\s+/, "").trim()
+      : normalized.slice("import ".length, fromIndex).trim();
+
+    if (!clause) {
+      continue;
+    }
+
+    const namespaceMatch = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+    if (namespaceMatch) {
+      bindings.add(namespaceMatch[1]);
+    }
+
+    const namedMatch = clause.match(/\{([^}]+)\}/);
+    if (namedMatch) {
+      for (const entry of namedMatch[1].split(",")) {
+        const trimmed = entry.trim();
+        if (!trimmed) {
+          continue;
+        }
+
+        const aliasMatch = trimmed.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
+        if (aliasMatch) {
+          bindings.add(aliasMatch[2]);
+          continue;
+        }
+
+        bindings.add(trimmed);
+      }
+    }
+
+    const defaultClause = clause
+      .replace(/\{[^}]+\}/, "")
+      .replace(/\*\s+as\s+[A-Za-z_$][\w$]*/, "")
+      .replace(/,/g, " ")
+      .trim();
+
+    if (/^[A-Za-z_$][\w$]*$/.test(defaultClause)) {
+      bindings.add(defaultClause);
+    }
+  }
+
+  return [...bindings];
 }
 
 function isIdentifierChar(value: string | undefined): boolean {
@@ -260,6 +321,7 @@ export function compileScript(script: string): CompiledScript {
 
   // 1.5 Hoist top-level imports so setup() remains valid JavaScript.
   const { imports, body } = hoistTopLevelImports(jsLike);
+  const importedBindings = extractImportedBindings(imports);
 
   // 2. Tokenize
   const tokens = tokenizeScript(jsLike);
@@ -283,6 +345,7 @@ function __ssfc(ctx) {
   return {
     setupCode,
     exposed: identifiers,
+    importedBindings,
     hasAsyncResource
   };
 }
