@@ -53,9 +53,6 @@ export interface ComponentMountedEvent extends DebugEventBase {
   type: "component:mounted";
   scope: string;
   instance: number;
-  meta?: Record<string, unknown>;
-  ai?: Record<string, unknown>;
-  route?: Record<string, unknown>;
 }
 
 /**

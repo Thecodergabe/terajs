@@ -262,13 +262,13 @@ function applyOverlayPanelSize(panelSize: DevtoolsOverlaySize): void {
   }
 
   if (panelSize === "large") {
-    overlayEl.style.setProperty("--terajs-overlay-panel-width", "1120px");
-    overlayEl.style.setProperty("--terajs-overlay-panel-height", "980px");
+    overlayEl.style.setProperty("--terajs-overlay-panel-width", "980px");
+    overlayEl.style.setProperty("--terajs-overlay-panel-height", "920px");
     return;
   }
 
-  overlayEl.style.setProperty("--terajs-overlay-panel-width", "980px");
-  overlayEl.style.setProperty("--terajs-overlay-panel-height", "920px");
+  overlayEl.style.setProperty("--terajs-overlay-panel-width", "760px");
+  overlayEl.style.setProperty("--terajs-overlay-panel-height", "840px");
 }
 
 function ensureInspectStyles(): void {
@@ -977,20 +977,20 @@ const overlayStyles = `
 
   .devtools-fab {
     appearance: none;
-    border: 1px solid rgba(111, 109, 255, 0.42);
+    border: 1px solid rgba(50, 215, 255, 0.36);
     border-radius: 999px;
-    background: linear-gradient(130deg, #1d43a5, #2f6dff 52%, #6f6dff);
+    background: linear-gradient(135deg, #2f6dff, #32d7ff);
     color: #ffffff;
-    font-family: "Manrope", "Satoshi", "Segoe UI", sans-serif;
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    min-width: 112px;
-    height: 44px;
-    padding: 0 20px;
+    min-width: 102px;
+    height: 42px;
+    padding: 0 18px;
     cursor: pointer;
-    box-shadow: 0 14px 34px rgba(7, 24, 58, 0.48);
+    box-shadow: 0 12px 28px rgba(47, 109, 255, 0.32);
     transition: transform 120ms ease, box-shadow 140ms ease;
     position: relative;
     z-index: 3;
@@ -998,11 +998,11 @@ const overlayStyles = `
 
   .devtools-fab:hover {
     transform: translateY(-1px);
-    box-shadow: 0 18px 40px rgba(8, 32, 78, 0.6);
+    box-shadow: 0 16px 30px rgba(50, 215, 255, 0.28);
   }
 
   .devtools-fab:focus-visible {
-    outline: 2px solid rgba(47, 109, 255, 0.78);
+    outline: 2px solid rgba(50, 215, 255, 0.75);
     outline-offset: 2px;
   }
 
@@ -1013,29 +1013,26 @@ const overlayStyles = `
     --tera-blue: #2f6dff;
     --tera-cyan: #32d7ff;
     --tera-purple: #6f6dff;
-    --tera-mint: #25d39f;
-    --tera-amber: #ffbe55;
     --tera-mist: #93a7cb;
     --tera-cloud: #f2f7ff;
-    --tera-body-font: "Manrope", "Satoshi", "Segoe UI", sans-serif;
-    --tera-heading-font: "Sora", "Manrope", "Segoe UI", sans-serif;
-    --tera-code-font: "IBM Plex Mono", "JetBrains Mono", "Consolas", monospace;
+    --tera-body-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --tera-heading-font: "Space Grotesk", "Inter", sans-serif;
+    --tera-code-font: "JetBrains Mono", "Fira Code", monospace;
     --tera-surface: var(--tera-carbon);
-    --tera-border: rgba(147, 167, 203, 0.2);
-    --tera-panel-glow: none;
-    --tera-shadow: 0 32px 72px rgba(0, 0, 0, 0.52);
+    --tera-border: rgba(147, 167, 203, 0.18);
+    --tera-panel-glow: linear-gradient(145deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.11) 44%, rgba(111, 109, 255, 0.1));
+    --tera-shadow: 0 24px 60px rgba(2, 8, 20, 0.52);
     position: relative;
-    width: min(var(--terajs-overlay-panel-width, 980px), calc(100vw - 24px));
-    height: min(82vh, var(--terajs-overlay-panel-height, 920px));
+    width: min(var(--terajs-overlay-panel-width, 760px), calc(100vw - 24px));
+    height: min(72vh, var(--terajs-overlay-panel-height, 840px));
     border: 1px solid var(--tera-border);
     border-radius: 18px;
     overflow: hidden;
     box-shadow: var(--tera-shadow);
     background:
-      radial-gradient(circle at 8% -10%, rgba(47, 109, 255, 0.28), transparent 40%),
-      radial-gradient(circle at 100% 0%, rgba(111, 109, 255, 0.2), transparent 42%),
-      radial-gradient(circle at 100% 100%, rgba(50, 215, 255, 0.1), transparent 35%),
-      linear-gradient(180deg, #0b1119, #0a1017 55%, #090f14);
+      radial-gradient(circle at top right, rgba(50, 215, 255, 0.16), transparent 28%),
+      radial-gradient(circle at bottom left, rgba(111, 109, 255, 0.16), transparent 34%),
+      var(--tera-black);
     color: var(--tera-cloud);
     font-family: var(--tera-body-font);
     z-index: 2;
@@ -1059,9 +1056,8 @@ const overlayStyles = `
 
   @media (max-width: 860px) {
     .overlay-frame {
-      width: min(94vw, var(--terajs-overlay-panel-width, 980px));
-      height: min(72vh, var(--terajs-overlay-panel-height, 760px));
-      border-radius: 14px;
+      width: min(94vw, var(--terajs-overlay-panel-width, 760px));
+      height: min(70vh, var(--terajs-overlay-panel-height, 760px));
     }
   }
 
@@ -1079,7 +1075,6 @@ const overlayStyles = `
   }
 
   .devtools-shell {
-    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -1095,36 +1090,28 @@ const overlayStyles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    padding: 18px 22px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--tera-border);
     background:
-      linear-gradient(135deg, rgba(23, 38, 62, 0.9), rgba(12, 21, 32, 0.95));
-    backdrop-filter: blur(10px);
-  }
-
-  .header-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .command-palette-button {
-    white-space: nowrap;
+      linear-gradient(120deg, rgba(47, 109, 255, 0.18), rgba(50, 215, 255, 0.1) 58%, transparent),
+      rgba(13, 19, 32, 0.94);
+    backdrop-filter: blur(14px);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-header {
-    background: rgba(255, 255, 255, 0.98);
+    background:
+      linear-gradient(120deg, rgba(47, 109, 255, 0.1), rgba(50, 215, 255, 0.09) 60%, transparent),
+      rgba(255, 255, 255, 0.92);
     border-bottom-color: rgba(46, 46, 46, 0.12);
   }
 
   .devtools-title {
     font-family: var(--tera-heading-font);
-    font-size: 23px;
+    font-size: 19px;
     font-weight: 700;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
     color: var(--tera-cloud);
-    line-height: 1.06;
+    text-transform: uppercase;
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-title {
@@ -1138,7 +1125,6 @@ const overlayStyles = `
   .metric-label {
     color: var(--tera-mist);
     font-size: 12px;
-    letter-spacing: 0.01em;
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-subtitle,
@@ -1156,130 +1142,23 @@ const overlayStyles = `
     overscroll-behavior: contain;
   }
 
-  .command-palette-backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: 18;
-    border: 0;
-    padding: 0;
-    margin: 0;
-    background: rgba(0, 0, 0, 0.46);
-    cursor: default;
-  }
-
-  .command-palette {
-    position: absolute;
-    top: 86px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 19;
-    width: min(660px, calc(100% - 24px));
-    max-height: calc(100% - 90px);
-    border: 1px solid var(--tera-border);
-    border-radius: 14px;
-    background: rgba(11, 17, 24, 0.97);
-    box-shadow: 0 26px 54px rgba(0, 0, 0, 0.52);
-    display: grid;
-    gap: 12px;
-    padding: 14px;
-  }
-
-  .command-palette-head {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .command-palette-input {
-    width: 100%;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--tera-cloud);
-    padding: 12px 14px;
-    font: inherit;
-    font-size: 14px;
-    outline: none;
-  }
-
-  .command-palette-input:focus {
-    border-color: rgba(111, 109, 255, 0.36);
-    background: rgba(255, 255, 255, 0.07);
-  }
-
-  .command-list {
-    margin-top: 0;
-    max-height: min(360px, calc(100% - 54px));
-  }
-
-  .command-item {
-    width: 100%;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    color: var(--tera-cloud);
-    display: grid;
-    gap: 3px;
-    padding: 10px 12px;
-    text-align: left;
-    cursor: pointer;
-    font: inherit;
-    transition: background 140ms ease, border-color 140ms ease;
-  }
-
-  .command-item:hover {
-    background: rgba(47, 109, 255, 0.16);
-    border-color: rgba(111, 109, 255, 0.36);
-  }
-
-  .command-item-label {
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .command-item-detail {
-    font-size: 11px;
-    color: var(--tera-mist);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .command-palette {
-    background: rgba(248, 250, 252, 0.99);
-    border-color: rgba(54, 118, 210, 0.18);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .command-palette-input,
-  #terajs-devtools-root[data-theme="light"] .command-item {
-    background: rgba(255, 255, 255, 0.98);
-    border-color: rgba(55, 103, 183, 0.14);
-    color: #10213f;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .command-item:hover {
-    background: rgba(47, 109, 255, 0.12);
-    border-color: rgba(55, 103, 183, 0.24);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .command-item-detail {
-    color: #516178;
-  }
-
   .devtools-tabs {
-    width: 214px;
+    width: 132px;
     border-right: 1px solid var(--tera-border);
-    background: linear-gradient(180deg, rgba(9, 15, 22, 0.96), rgba(10, 17, 24, 0.9));
+    background: rgba(13, 13, 13, 0.84);
     display: flex;
     flex-direction: column;
     overflow: auto;
-    padding: 14px;
-    gap: 9px;
+    padding: 8px;
+    gap: 6px;
+    backdrop-filter: blur(12px);
     overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: rgba(67, 140, 255, 0.55) rgba(7, 17, 33, 0.42);
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-tabs {
-    background: #f6f8fc;
+    background: linear-gradient(180deg, #f4f8ff, #eef4ff);
     border-right-color: rgba(32, 64, 112, 0.16);
     scrollbar-color: rgba(54, 118, 210, 0.5) rgba(209, 223, 246, 0.8);
   }
@@ -1289,17 +1168,15 @@ const overlayStyles = `
   .filter-button,
   .select-button {
     appearance: none;
-    border: 1px solid rgba(146, 211, 255, 0.14);
+    border: 1px solid transparent;
     border-radius: 10px;
-    padding: 10px 13px;
-    background: rgba(255, 255, 255, 0.02);
+    padding: 8px 10px;
+    background: rgba(46, 46, 46, 0.76);
     color: var(--tera-cloud);
     cursor: pointer;
     font: inherit;
-    font-size: 13px;
-    line-height: 1.4;
     text-align: left;
-    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+    transition: transform 120ms ease, background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
   }
 
   .toolbar-button,
@@ -1312,8 +1189,9 @@ const overlayStyles = `
   .toolbar-button:hover,
   .filter-button:hover,
   .select-button:hover {
-    border-color: rgba(47, 109, 255, 0.42);
-    background: rgba(47, 109, 255, 0.08);
+    border-color: rgba(50, 215, 255, 0.32);
+    background: rgba(50, 215, 255, 0.14);
+    transform: translateY(-1px);
   }
 
   #terajs-devtools-root[data-theme="light"] .tab-button,
@@ -1322,30 +1200,20 @@ const overlayStyles = `
   #terajs-devtools-root[data-theme="light"] .select-button {
     background: rgba(255, 255, 255, 0.98);
     color: #14284a;
-    border-color: rgba(55, 103, 183, 0.12);
+    border-color: rgba(55, 103, 183, 0.2);
   }
 
   .tab-button.is-active,
   .filter-button.is-active,
   .toolbar-button.is-active,
   .select-button.is-selected {
-    background: linear-gradient(115deg, rgba(47, 109, 255, 0.22), rgba(111, 109, 255, 0.18));
-    border-color: rgba(111, 109, 255, 0.42);
-    color: var(--tera-cloud);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .tab-button.is-active,
-  #terajs-devtools-root[data-theme="light"] .filter-button.is-active,
-  #terajs-devtools-root[data-theme="light"] .toolbar-button.is-active,
-  #terajs-devtools-root[data-theme="light"] .select-button.is-selected {
-    background: rgba(47, 109, 255, 0.12);
-    border-color: rgba(55, 103, 183, 0.24);
-    color: #0d2a57;
+    background: linear-gradient(135deg, var(--tera-blue), var(--tera-cyan));
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(47, 109, 255, 0.3);
   }
 
   .danger-button {
-    background: rgba(159, 18, 57, 0.16);
-    border-color: rgba(251, 113, 133, 0.3);
+    background: linear-gradient(135deg, #9f1239, #dc2626);
     color: #ffffff;
   }
 
@@ -1354,11 +1222,8 @@ const overlayStyles = `
     min-width: 0;
     min-height: 0;
     overflow: auto;
-    padding: 30px 34px;
-    background:
-      radial-gradient(circle at 100% 0%, rgba(111, 109, 255, 0.1), transparent 34%),
-      radial-gradient(circle at 0% 100%, rgba(47, 109, 255, 0.07), transparent 30%),
-      #0d141c;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(26, 26, 26, 0.72), rgba(13, 13, 13, 0.9));
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
     scrollbar-width: thin;
@@ -1366,41 +1231,42 @@ const overlayStyles = `
   }
 
   #terajs-devtools-root[data-theme="light"] .devtools-panel {
-    background: #f8fafc;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(241, 247, 255, 0.98));
     color: #10213f;
     scrollbar-color: rgba(54, 118, 210, 0.5) rgba(209, 223, 246, 0.8);
   }
 
   .devtools-page {
     display: grid;
-    gap: 20px;
+    gap: 12px;
   }
 
   .panel-hero {
     display: grid;
-    gap: 10px;
-    padding: 24px 26px;
+    gap: 6px;
+    padding: 16px 18px;
     border: 1px solid var(--tera-border);
-    border-radius: 16px;
+    border-radius: 18px;
     background:
-      linear-gradient(140deg, rgba(47, 109, 255, 0.08), rgba(50, 215, 255, 0.06) 44%, rgba(12, 20, 29, 0.88)),
-      rgba(255, 255, 255, 0.02);
+      linear-gradient(135deg, rgba(47, 109, 255, 0.16), rgba(50, 215, 255, 0.08) 58%, rgba(111, 109, 255, 0.12)),
+      rgba(8, 16, 31, 0.92);
+    box-shadow: 0 18px 36px rgba(2, 8, 20, 0.24);
   }
 
   .panel-hero-pills {
     display: flex;
-    gap: 9px;
+    gap: 8px;
     flex-wrap: wrap;
-    margin-top: 6px;
+    margin-top: 4px;
   }
 
   .panel-hero-pill {
     display: inline-flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 999px;
-    border: 1px solid var(--tera-border);
-    background: rgba(8, 20, 27, 0.58);
+    border: 1px solid rgba(50, 215, 255, 0.2);
+    background: rgba(7, 18, 35, 0.72);
     color: var(--tera-mist);
     font-size: 11px;
     font-family: var(--tera-code-font);
@@ -1408,8 +1274,8 @@ const overlayStyles = `
 
   .panel-section-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(320px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .panel-section-card {
@@ -1421,35 +1287,40 @@ const overlayStyles = `
   }
 
   .panel-section-heading {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     font-family: var(--tera-heading-font);
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
     color: var(--tera-cloud);
   }
 
   .ai-panel {
-    border: 1px solid var(--tera-border);
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 12px;
+    border: 1px solid rgba(50, 215, 255, 0.3);
+    background: linear-gradient(180deg, rgba(17, 45, 94, 0.46), rgba(5, 11, 24, 0.92));
+    box-shadow: 0 0 34px rgba(47, 109, 255, 0.2), 0 0 62px rgba(50, 215, 255, 0.16);
+    border-radius: 18px;
     padding: 18px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
   #terajs-devtools-root[data-theme="light"] .ai-panel {
-    background: rgba(255, 255, 255, 0.98);
-    border-color: rgba(54, 118, 210, 0.14);
+    background: linear-gradient(180deg, rgba(235, 245, 255, 0.96), rgba(225, 239, 255, 0.94));
+    border-color: rgba(54, 118, 210, 0.28);
+    box-shadow: 0 10px 30px rgba(63, 120, 203, 0.18);
   }
 
   #terajs-devtools-root[data-theme="light"] .panel-hero {
-    background: rgba(255, 255, 255, 0.98);
-    border-color: rgba(54, 118, 210, 0.12);
+    background:
+      linear-gradient(135deg, rgba(47, 109, 255, 0.08), rgba(50, 215, 255, 0.08) 58%, rgba(111, 109, 255, 0.08)),
+      rgba(255, 255, 255, 0.96);
+    border-color: rgba(54, 118, 210, 0.16);
+    box-shadow: 0 16px 30px rgba(63, 120, 203, 0.1);
   }
 
   #terajs-devtools-root[data-theme="light"] .panel-hero-pill {
-    background: rgba(248, 250, 252, 0.96);
-    border-color: rgba(54, 118, 210, 0.12);
+    background: rgba(255, 255, 255, 0.94);
+    border-color: rgba(54, 118, 210, 0.16);
     color: #516178;
   }
 
@@ -1458,19 +1329,20 @@ const overlayStyles = `
   }
 
   .ask-ai-button {
-    background: rgba(47, 109, 255, 0.16);
-    color: var(--tera-cloud);
-    border: 1px solid rgba(50, 215, 255, 0.34);
+    background: linear-gradient(135deg, var(--tera-cyan), var(--tera-blue));
+    color: #ffffff;
+    border: 1px solid rgba(50, 215, 255, 0.38);
+    box-shadow: 0 14px 32px rgba(50, 215, 255, 0.2);
   }
 
   .ai-prompt {
     display: block;
     width: 100%;
     min-height: 180px;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
+    border: 1px solid rgba(111, 109, 255, 0.28);
+    border-radius: 14px;
     padding: 14px;
-    background: rgba(10, 14, 22, 0.86);
+    background: rgba(8, 14, 30, 0.95);
     color: #dfe9ff;
     font-family: var(--tera-code-font);
     font-size: 13px;
@@ -1483,10 +1355,10 @@ const overlayStyles = `
     display: block;
     width: 100%;
     min-height: 120px;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
+    border: 1px solid rgba(50, 215, 255, 0.34);
+    border-radius: 14px;
     padding: 14px;
-    background: rgba(10, 14, 22, 0.9);
+    background: rgba(6, 16, 34, 0.96);
     color: #d7f2ff;
     font-family: var(--tera-code-font);
     font-size: 13px;
@@ -1534,46 +1406,34 @@ const overlayStyles = `
 
   .components-layout {
     display: grid;
-    gap: 18px;
-  }
-
-  .components-stage-card {
-    padding: 16px 18px;
-  }
-
-  .components-stage-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-    flex-wrap: wrap;
+    gap: 10px;
   }
 
   .components-split-pane {
     display: grid;
-    grid-template-columns: minmax(360px, 44%) minmax(0, 1fr);
+    grid-template-columns: minmax(260px, 44%) minmax(320px, 56%);
     border: 1px solid var(--tera-border);
     border-radius: 14px;
     overflow: hidden;
-    min-height: 500px;
-    background: rgba(255, 255, 255, 0.02);
+    min-height: 340px;
+    background: linear-gradient(180deg, rgba(7, 18, 35, 0.84), rgba(5, 11, 24, 0.95));
   }
 
   #terajs-devtools-root[data-theme="light"] .components-split-pane {
-    background: rgba(255, 255, 255, 0.98);
-    border-color: rgba(54, 118, 210, 0.14);
+    background: linear-gradient(180deg, rgba(246, 250, 255, 0.98), rgba(236, 244, 255, 0.96));
+    border-color: rgba(54, 118, 210, 0.24);
   }
 
   .components-tree-pane,
   .components-inspector-pane {
     min-width: 0;
     min-height: 0;
-    padding: 18px 20px;
+    padding: 10px 12px;
     overflow: auto;
   }
 
   .components-tree-pane {
-    border-right: 1px solid var(--tera-border);
+    border-right: 1px solid rgba(50, 215, 255, 0.26);
   }
 
   #terajs-devtools-root[data-theme="light"] .components-tree-pane {
@@ -1583,96 +1443,6 @@ const overlayStyles = `
   .component-tree-toolbar {
     margin-top: 0;
     margin-bottom: 10px;
-  }
-
-  .component-panel-tools {
-    display: grid;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-
-  .component-search-input {
-    width: 100%;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    color: var(--tera-cloud);
-    padding: 10px 12px;
-    font: inherit;
-    font-size: 13px;
-    outline: none;
-  }
-
-  .component-search-input:focus {
-    border-color: rgba(47, 109, 255, 0.42);
-    background: rgba(47, 109, 255, 0.06);
-  }
-
-  .component-dom-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 6px;
-  }
-
-  .component-dom-item {
-    margin: 0;
-    padding: 0;
-  }
-
-  .component-dom-row {
-    appearance: none;
-    width: 100%;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-    color: var(--tera-cloud);
-    min-height: 34px;
-    padding: 6px 10px;
-    padding-right: 12px;
-    padding-left: calc(10px + (var(--dom-depth, 0) * 16px));
-    text-align: left;
-    display: grid;
-    grid-template-columns: auto max-content minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-  }
-
-  .component-dom-row:hover {
-    border-color: rgba(111, 109, 255, 0.34);
-    background: rgba(47, 109, 255, 0.08);
-  }
-
-  .component-dom-row.is-active {
-    border-color: rgba(111, 109, 255, 0.42);
-    background: linear-gradient(115deg, rgba(47, 109, 255, 0.22), rgba(111, 109, 255, 0.18));
-  }
-
-  .component-dom-branch {
-    width: 10px;
-    height: 1px;
-    background: rgba(166, 220, 255, 0.44);
-    flex: 0 0 auto;
-  }
-
-  .component-dom-tag {
-    font-family: var(--tera-code-font);
-    font-size: 11px;
-    color: var(--tera-mist);
-    white-space: nowrap;
-    max-width: 210px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .component-dom-scope {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 600;
   }
 
   .component-tree-list {
@@ -1696,8 +1466,8 @@ const overlayStyles = `
     display: grid;
     grid-template-columns: auto auto 1fr;
     align-items: center;
-    gap: 6px;
-    min-height: 32px;
+    gap: 3px;
+    min-height: 28px;
   }
 
   .component-tree-guides {
@@ -1733,8 +1503,8 @@ const overlayStyles = `
     height: 20px;
     border: 1px solid transparent;
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--tera-mist);
+    background: rgba(47, 109, 255, 0.08);
+    color: rgba(144, 219, 255, 0.95);
     cursor: pointer;
     font: inherit;
     font-size: 12px;
@@ -1745,8 +1515,8 @@ const overlayStyles = `
   }
 
   .component-tree-toggle:hover {
-    border-color: rgba(111, 109, 255, 0.26);
-    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(50, 215, 255, 0.48);
+    background: rgba(50, 215, 255, 0.16);
   }
 
   .component-tree-toggle.is-placeholder {
@@ -1761,25 +1531,26 @@ const overlayStyles = `
     border-radius: 8px;
     background: transparent;
     color: var(--tera-cloud);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    min-height: 28px;
-    padding: 4px 10px;
+    min-height: 24px;
+    padding: 2px 8px;
     cursor: pointer;
     text-align: left;
   }
 
   .component-tree-select:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(111, 109, 255, 0.24);
+    background: rgba(50, 215, 255, 0.12);
+    border-color: rgba(50, 215, 255, 0.36);
   }
 
   .component-tree-select.is-active {
-    background: rgba(47, 109, 255, 0.16);
-    border-color: rgba(111, 109, 255, 0.4);
-    color: #f5f7fb;
+    background: linear-gradient(135deg, rgba(19, 183, 255, 0.35), rgba(30, 234, 255, 0.28));
+    border-color: rgba(78, 241, 255, 0.92);
+    box-shadow: inset 0 0 0 1px rgba(18, 232, 255, 0.78), 0 0 0 1px rgba(18, 232, 255, 0.42), 0 8px 22px rgba(19, 183, 255, 0.24);
+    color: #ecfbff;
   }
 
   #terajs-devtools-root[data-theme="light"] .component-tree-select {
@@ -1788,15 +1559,14 @@ const overlayStyles = `
 
   #terajs-devtools-root[data-theme="light"] .component-tree-select.is-active {
     color: #072544;
-    background: rgba(47, 109, 255, 0.12);
-    border-color: rgba(25, 166, 214, 0.34);
+    background: linear-gradient(135deg, rgba(86, 206, 255, 0.35), rgba(115, 236, 255, 0.4));
+    border-color: rgba(25, 166, 214, 0.74);
+    box-shadow: inset 0 0 0 1px rgba(44, 189, 226, 0.6), 0 6px 16px rgba(40, 152, 205, 0.2);
   }
 
   .component-tree-label {
     min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
     font-weight: 600;
   }
 
@@ -1833,20 +1603,6 @@ const overlayStyles = `
     align-items: flex-start;
   }
 
-  .inspector-selected-copy {
-    min-width: 0;
-    flex: 1;
-    display: grid;
-    gap: 4px;
-  }
-
-  .inspector-selected-copy .muted-text {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
   .inspector-selected-chip {
     display: inline-flex;
     align-items: center;
@@ -1859,8 +1615,8 @@ const overlayStyles = `
     letter-spacing: 0.03em;
     text-transform: uppercase;
     color: #ecfbff;
-    background: rgba(47, 109, 255, 0.16);
-    border: 1px solid rgba(111, 109, 255, 0.34);
+    background: linear-gradient(135deg, rgba(19, 183, 255, 0.52), rgba(30, 234, 255, 0.22));
+    border: 1px solid rgba(78, 241, 255, 0.46);
   }
 
   .inspector-stats-row {
@@ -1876,8 +1632,8 @@ const overlayStyles = `
     gap: 6px;
     padding: 6px 10px;
     border-radius: 999px;
-    border: 1px solid var(--tera-border);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(50, 215, 255, 0.22);
+    background: rgba(6, 16, 34, 0.86);
     font-size: 11px;
   }
 
@@ -1902,33 +1658,35 @@ const overlayStyles = `
 
   .inspector-tab-button {
     appearance: none;
-    border: 1px solid var(--tera-border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(50, 215, 255, 0.18);
+    border-radius: 999px;
+    padding: 7px 12px;
+    background: rgba(7, 18, 35, 0.72);
     color: var(--tera-mist);
     cursor: pointer;
     font: inherit;
     font-size: 12px;
     font-weight: 600;
-    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 120ms ease;
   }
 
   .inspector-tab-button:hover {
-    border-color: rgba(111, 109, 255, 0.28);
+    border-color: rgba(50, 215, 255, 0.4);
     color: var(--tera-cloud);
+    transform: translateY(-1px);
   }
 
   .inspector-tab-button.is-selected {
-    background: rgba(47, 109, 255, 0.16);
-    color: var(--tera-cloud);
-    border-color: rgba(111, 109, 255, 0.38);
+    background: linear-gradient(135deg, rgba(19, 183, 255, 0.88), rgba(30, 234, 255, 0.55));
+    color: #04111f;
+    border-color: rgba(78, 241, 255, 0.88);
+    box-shadow: 0 10px 24px rgba(19, 183, 255, 0.24);
   }
 
   .inspector-surface {
     display: grid;
-    gap: 14px;
-    margin-top: 14px;
+    gap: 12px;
+    margin-top: 10px;
   }
 
   .inspector-overview-grid {
@@ -1956,10 +1714,10 @@ const overlayStyles = `
   .inspector-control-row {
     display: grid;
     gap: 8px;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--tera-border);
-    background: rgba(255, 255, 255, 0.03);
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(50, 215, 255, 0.14);
+    background: rgba(4, 10, 22, 0.52);
   }
 
   .inspector-control-header {
@@ -1988,9 +1746,9 @@ const overlayStyles = `
   .inspector-live-input {
     min-width: min(220px, 100%);
     max-width: 100%;
-    border: 1px solid var(--tera-border);
+    border: 1px solid rgba(50, 215, 255, 0.24);
     border-radius: 10px;
-    background: rgba(10, 14, 22, 0.86);
+    background: rgba(6, 16, 34, 0.9);
     color: var(--tera-cloud);
     padding: 8px 10px;
     font: inherit;
@@ -2017,9 +1775,9 @@ const overlayStyles = `
 
   .value-node,
   .value-leaf {
-    border: 1px solid var(--tera-border);
+    border: 1px solid rgba(50, 215, 255, 0.14);
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(4, 10, 22, 0.6);
   }
 
   .value-node-toggle,
@@ -2044,7 +1802,7 @@ const overlayStyles = `
   }
 
   .value-node-toggle:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(50, 215, 255, 0.08);
   }
 
   .value-node-chevron {
@@ -2064,8 +1822,8 @@ const overlayStyles = `
     justify-self: end;
     padding: 2px 8px;
     border-radius: 999px;
-    background: rgba(47, 109, 255, 0.12);
-    border: 1px solid rgba(50, 215, 255, 0.14);
+    background: rgba(47, 109, 255, 0.16);
+    border: 1px solid rgba(50, 215, 255, 0.16);
     color: var(--tera-mist);
     font-size: 10px;
     text-transform: uppercase;
@@ -2087,7 +1845,7 @@ const overlayStyles = `
   .value-empty {
     padding: 10px;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(4, 10, 22, 0.42);
     color: var(--tera-mist);
     font-family: var(--tera-code-font);
     font-size: 12px;
@@ -2095,8 +1853,8 @@ const overlayStyles = `
 
   #terajs-devtools-root[data-theme="light"] .inspector-selected-chip {
     color: #072544;
-    background: rgba(47, 109, 255, 0.12);
-    border-color: rgba(25, 166, 214, 0.18);
+    background: linear-gradient(135deg, rgba(86, 206, 255, 0.48), rgba(115, 236, 255, 0.22));
+    border-color: rgba(25, 166, 214, 0.44);
   }
 
   #terajs-devtools-root[data-theme="light"] .inspector-stat-pill,
@@ -2124,22 +1882,6 @@ const overlayStyles = `
     color: #10213f;
   }
 
-  #terajs-devtools-root[data-theme="light"] .component-search-input,
-  #terajs-devtools-root[data-theme="light"] .component-dom-row {
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(54, 118, 210, 0.18);
-    color: #10213f;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .component-dom-tag {
-    color: #6a7688;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .component-dom-row.is-active {
-    border-color: rgba(25, 166, 214, 0.42);
-    background: rgba(47, 109, 255, 0.12);
-  }
-
   #terajs-devtools-root[data-theme="light"] .value-badge {
     background: rgba(64, 126, 213, 0.08);
     color: #516178;
@@ -2148,8 +1890,8 @@ const overlayStyles = `
   .inspector-section {
     margin-top: 8px;
     border: 1px solid var(--tera-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    background: rgba(10, 18, 33, 0.72);
     overflow: hidden;
   }
 
@@ -2162,8 +1904,8 @@ const overlayStyles = `
     width: 100%;
     appearance: none;
     border: 0;
-    border-bottom: 1px solid var(--tera-border);
-    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(50, 215, 255, 0.18);
+    background: rgba(47, 109, 255, 0.08);
     color: var(--tera-cloud);
     display: flex;
     align-items: center;
@@ -2175,7 +1917,7 @@ const overlayStyles = `
   }
 
   .inspector-section-toggle:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(50, 215, 255, 0.16);
   }
 
   .inspector-section-chevron {
@@ -2199,9 +1941,9 @@ const overlayStyles = `
 
   .inspector-code {
     margin: 0;
-    border: 1px solid var(--tera-border);
+    border: 1px solid rgba(50, 215, 255, 0.3);
     border-radius: 10px;
-    background: rgba(10, 14, 22, 0.86);
+    background: rgba(4, 9, 19, 0.94);
     padding: 10px;
     color: #dff5ff;
     max-height: 220px;
@@ -2222,211 +1964,7 @@ const overlayStyles = `
     font-size: 12px;
   }
 
-  .meta-quick-list {
-    max-height: 200px;
-  }
-
-  .meta-quick-button {
-    width: 100%;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    color: var(--tera-cloud);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    text-align: left;
-    cursor: pointer;
-    font: inherit;
-  }
-
-  .meta-quick-button:hover {
-    border-color: rgba(47, 109, 255, 0.32);
-    background: rgba(47, 109, 255, 0.08);
-  }
-
-  .meta-quick-button.is-selected {
-    border-color: rgba(47, 109, 255, 0.44);
-    background: linear-gradient(115deg, rgba(47, 109, 255, 0.18), rgba(50, 215, 255, 0.12));
-  }
-
-  .meta-source-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    padding: 2px 8px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    border: 1px solid var(--tera-border);
-    color: var(--tera-mist);
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  .meta-source-badge.is-component {
-    border-color: rgba(50, 215, 255, 0.36);
-    color: #9fd8ff;
-    background: rgba(50, 215, 255, 0.12);
-  }
-
-  .meta-source-badge.is-route {
-    border-color: rgba(255, 190, 85, 0.36);
-    color: #ffd2a3;
-    background: rgba(255, 190, 85, 0.14);
-  }
-
-  .meta-filter-input {
-    width: 100%;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    color: var(--tera-cloud);
-    padding: 10px 12px;
-    font: inherit;
-    font-size: 13px;
-    outline: none;
-    margin-top: 12px;
-  }
-
-  .meta-filter-input:focus {
-    border-color: rgba(47, 109, 255, 0.42);
-    background: rgba(47, 109, 255, 0.08);
-  }
-
-  .meta-entry-list {
-    max-height: 340px;
-  }
-
-  .meta-entry-button {
-    width: 100%;
-    border: 1px solid var(--tera-border);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    color: var(--tera-cloud);
-    display: grid;
-    gap: 8px;
-    padding: 12px 14px;
-    text-align: left;
-    cursor: pointer;
-    font: inherit;
-  }
-
-  .meta-entry-button:hover {
-    border-color: rgba(47, 109, 255, 0.32);
-    background: rgba(47, 109, 255, 0.08);
-  }
-
-  .meta-entry-button.is-selected {
-    border-color: rgba(47, 109, 255, 0.46);
-    background: linear-gradient(115deg, rgba(47, 109, 255, 0.2), rgba(50, 215, 255, 0.12));
-  }
-
-  .meta-entry-top {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .meta-entry-scope {
-    font-weight: 600;
-  }
-
-  .meta-entry-bottom {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .meta-presence-chip {
-    border: 1px solid var(--tera-border);
-    border-radius: 999px;
-    padding: 2px 8px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--tera-mist);
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .meta-presence-chip.is-on {
-    border-color: rgba(47, 109, 255, 0.4);
-    color: #9fd8ff;
-    background: rgba(47, 109, 255, 0.12);
-  }
-
-  .meta-inspector-summary {
-    display: grid;
-    gap: 6px;
-    margin-bottom: 12px;
-  }
-
-  .meta-detail-tabs {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-
-  .meta-detail-surface {
-    display: grid;
-    gap: 10px;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .meta-quick-button,
-  #terajs-devtools-root[data-theme="light"] .meta-entry-button,
-  #terajs-devtools-root[data-theme="light"] .meta-filter-input {
-    background: rgba(255, 255, 255, 0.96);
-    border-color: rgba(54, 118, 210, 0.18);
-    color: #10213f;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .meta-source-badge.is-component {
-    color: #1c6fa0;
-    background: rgba(50, 215, 255, 0.16);
-    border-color: rgba(50, 215, 255, 0.34);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .meta-source-badge.is-route {
-    color: #8a5100;
-    background: rgba(255, 190, 85, 0.2);
-    border-color: rgba(255, 190, 85, 0.36);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .meta-presence-chip.is-on {
-    color: #0d8f6a;
-  }
-
   @media (max-width: 900px) {
-    .devtools-header {
-      align-items: flex-start;
-      padding: 14px 14px 12px;
-    }
-
-    .header-actions {
-      flex-direction: column;
-      align-items: stretch;
-      width: min(240px, 48vw);
-    }
-
-    .command-palette {
-      top: 78px;
-    }
-
-    .devtools-tabs {
-      width: 170px;
-      padding: 10px;
-    }
-
-    .devtools-panel {
-      padding: 18px 16px;
-    }
-
     .components-split-pane {
       grid-template-columns: 1fr;
     }
@@ -2444,37 +1982,26 @@ const overlayStyles = `
       border-bottom: 1px solid rgba(50, 215, 255, 0.24);
       max-height: 280px;
     }
-
-    .component-dom-row {
-      padding-left: calc(8px + (var(--dom-depth, 0) * 12px));
-    }
-
-    .issues-overview-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .issue-trend-bars {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
   }
 
   .panel-title {
     font-family: var(--tera-heading-font);
-    font-size: 19px;
+    font-size: 15px;
     font-weight: 700;
     margin-bottom: 6px;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
   }
 
   #terajs-devtools-root[data-theme="light"] .is-blue { color: #0a57cc; }
-  #terajs-devtools-root[data-theme="light"] .is-green { color: #0d8f6a; }
+  #terajs-devtools-root[data-theme="light"] .is-green { color: #007e96; }
   #terajs-devtools-root[data-theme="light"] .is-purple { color: #5a43bc; }
   #terajs-devtools-root[data-theme="light"] .is-red { color: #b2204f; }
   #terajs-devtools-root[data-theme="light"] .is-cyan { color: #007da8; }
   #terajs-devtools-root[data-theme="light"] .is-amber { color: #8a5100; }
 
   .is-blue { color: var(--tera-blue); }
-  .is-green { color: var(--tera-mint); }
+  .is-green { color: var(--tera-cyan); }
   .is-purple { color: var(--tera-purple); }
   .is-red { color: #ff6b8b; }
   .is-cyan { color: var(--tera-cyan); }
@@ -2492,11 +2019,11 @@ const overlayStyles = `
 
   .stack-list {
     list-style: none;
-    margin: 16px 0 0;
+    margin: 12px 0 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     max-height: 360px;
     overflow: auto;
     overscroll-behavior: contain;
@@ -2509,41 +2036,35 @@ const overlayStyles = `
   }
 
   .compact-list {
-    max-height: 220px;
+    max-height: 180px;
   }
 
   .log-list {
-    max-height: 360px;
+    max-height: 320px;
   }
 
   .stack-item,
   .detail-card,
   .metric-card {
-    background: rgba(255, 255, 255, 0.025);
+    background: var(--tera-panel-glow), rgba(26, 26, 26, 0.96);
     border: 1px solid var(--tera-border);
     border-radius: 14px;
-    padding: 14px 16px;
-    font-size: 13px;
+    padding: 10px 12px;
+    font-size: 12px;
   }
 
   #terajs-devtools-root[data-theme="light"] .stack-item,
   #terajs-devtools-root[data-theme="light"] .detail-card,
   #terajs-devtools-root[data-theme="light"] .metric-card {
-    background: rgba(255, 255, 255, 0.98);
+    background: linear-gradient(145deg, rgba(47, 109, 255, 0.06), rgba(50, 215, 255, 0.05) 52%, rgba(255, 255, 255, 0.94));
     border-color: rgba(46, 46, 46, 0.12);
   }
 
   .stack-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
-    transition: border-color 140ms ease, background 140ms ease;
-  }
-
-  .stack-item:hover {
-    border-color: rgba(47, 109, 255, 0.34);
-    background: rgba(47, 109, 255, 0.06);
   }
 
   .item-label,
@@ -2557,19 +2078,15 @@ const overlayStyles = `
     font-family: var(--tera-code-font);
   }
 
-  .item-label {
-    letter-spacing: 0.015em;
-  }
-
   .issue-error {
     border-color: rgba(255, 107, 139, 0.28);
-    background: rgba(255, 107, 139, 0.08);
+    background: linear-gradient(145deg, rgba(255, 107, 139, 0.16), rgba(26, 26, 26, 0.98));
     color: #ffd6de;
   }
 
   .issue-warn {
     border-color: rgba(255, 197, 106, 0.28);
-    background: rgba(255, 197, 106, 0.08);
+    background: linear-gradient(145deg, rgba(255, 197, 106, 0.16), rgba(26, 26, 26, 0.98));
     color: #ffe6b0;
   }
 
@@ -2583,176 +2100,8 @@ const overlayStyles = `
     color: #8a5400;
   }
 
-  .issues-overview-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    gap: 14px;
-  }
-
-  .issues-summary-card {
-    border: 1px solid var(--tera-border);
-    border-radius: 14px;
-    padding: 14px;
-    background: rgba(255, 255, 255, 0.025);
-    display: grid;
-    gap: 12px;
-  }
-
-  .issue-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .issue-kpi {
-    border: 1px solid var(--tera-border);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.025);
-    padding: 12px;
-    display: grid;
-    gap: 5px;
-  }
-
-  .issue-kpi.is-error {
-    border-color: rgba(255, 107, 139, 0.28);
-    background: rgba(255, 107, 139, 0.08);
-  }
-
-  .issue-kpi.is-warn {
-    border-color: rgba(255, 197, 106, 0.28);
-    background: rgba(255, 197, 106, 0.08);
-  }
-
-  .issue-kpi-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--tera-mist);
-  }
-
-  .issue-kpi-value {
-    font-family: var(--tera-code-font);
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--tera-cloud);
-  }
-
-  .issue-meta-row {
-    line-height: 1.35;
-    color: var(--tera-mist);
-  }
-
-  .issue-trend-bars {
-    display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    gap: 10px;
-    align-items: end;
-    min-height: 138px;
-  }
-
-  .issue-trend-column {
-    display: grid;
-    gap: 5px;
-    justify-items: center;
-  }
-
-  .issue-trend-bar {
-    width: 100%;
-    min-height: 94px;
-    border: 1px solid var(--tera-border);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    display: flex;
-    flex-direction: column-reverse;
-    overflow: hidden;
-  }
-
-  .issue-trend-segment {
-    width: 100%;
-    display: block;
-  }
-
-  .issue-trend-segment.is-error {
-    background: linear-gradient(180deg, rgba(255, 107, 139, 0.94), rgba(187, 47, 84, 0.92));
-  }
-
-  .issue-trend-segment.is-warn {
-    background: linear-gradient(180deg, rgba(255, 197, 106, 0.92), rgba(179, 120, 39, 0.88));
-  }
-
-  .issue-trend-count,
-  .issue-trend-label,
-  .issue-count-pill {
-    font-family: var(--tera-code-font);
-  }
-
-  .issue-trend-count {
-    font-size: 11px;
-    color: var(--tera-cloud);
-    font-weight: 700;
-  }
-
-  .issue-trend-label {
-    font-size: 10px;
-    color: var(--tera-mist);
-  }
-
-  .issue-fingerprint-item {
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .issue-fingerprint-message {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .issue-count-pill {
-    margin-left: auto;
-    padding: 4px 10px;
-    border: 1px solid var(--tera-border);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--tera-cloud);
-    font-size: 10px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .issues-summary-card,
-  #terajs-devtools-root[data-theme="light"] .issue-kpi,
-  #terajs-devtools-root[data-theme="light"] .issue-trend-bar,
-  #terajs-devtools-root[data-theme="light"] .issue-count-pill {
-    background: rgba(255, 255, 255, 0.96);
-    border-color: rgba(54, 118, 210, 0.18);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .issue-kpi-value,
-  #terajs-devtools-root[data-theme="light"] .issue-trend-count,
-  #terajs-devtools-root[data-theme="light"] .issue-count-pill {
-    color: #12213e;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .issue-trend-label,
-  #terajs-devtools-root[data-theme="light"] .issue-meta-row,
-  #terajs-devtools-root[data-theme="light"] .issue-kpi-label {
-    color: #516178;
-  }
-
-  #terajs-devtools-root[data-theme="light"] .issue-kpi.is-error {
-    background: linear-gradient(145deg, rgba(255, 107, 139, 0.12), rgba(255, 255, 255, 0.96));
-    border-color: rgba(255, 107, 139, 0.3);
-  }
-
-  #terajs-devtools-root[data-theme="light"] .issue-kpi.is-warn {
-    background: linear-gradient(145deg, rgba(255, 197, 106, 0.12), rgba(255, 255, 255, 0.96));
-    border-color: rgba(255, 197, 106, 0.3);
-  }
-
   .timeline-active {
-    border-left: 3px solid rgba(47, 109, 255, 0.92);
+    border-left: 3px solid var(--tera-cyan);
   }
 
   .timeline-inactive {
@@ -2760,26 +2109,26 @@ const overlayStyles = `
   }
 
   .performance-item {
-    border-left: 3px solid rgba(50, 215, 255, 0.9);
+    border-left: 3px solid var(--tera-purple);
   }
 
   .button-row {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
-    margin-top: 16px;
+    margin-top: 12px;
   }
 
   .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
-    margin: 16px 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 12px 0;
   }
 
   .metric-value {
-    margin-top: 8px;
-    font-size: 22px;
+    margin-top: 6px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--tera-cloud);
   }

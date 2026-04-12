@@ -81,9 +81,6 @@ export function component<P = any>(
       type: "component:mounted",
       scope: name,
       instance,
-      meta: options.meta,
-      ai: options.ai,
-      route: options.route,
       timestamp: Date.now()
     });
 
