@@ -79,7 +79,7 @@ You can use `<FancyButton />` in any SFC without importing it.
 
 ### DevTools defaults and overrides
 
-By default, DevTools is enabled in development and starts collapsed as a FAB in the bottom-right corner.
+By default, DevTools is enabled in development and starts collapsed as a FAB in the bottom-center corner.
 You can override this in `terajs.config.cjs`:
 
 ```js
@@ -87,7 +87,7 @@ module.exports = {
   devtools: {
     enabled: true,
     startOpen: false,
-    position: "bottom-right",
+    position: "bottom-center",
     panelShortcut: "Ctrl+Shift+D",
     visibilityShortcut: "Ctrl+Shift+H"
   }

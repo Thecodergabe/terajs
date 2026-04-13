@@ -261,7 +261,7 @@ export function getDevtoolsConfig(): TerajsDevtoolsConfig {
   return {
     enabled: typeof devtools?.enabled === "boolean" ? devtools.enabled : true,
     startOpen: typeof devtools?.startOpen === "boolean" ? devtools.startOpen : false,
-    position: isDevtoolsPosition(position) ? position : "bottom-right",
+    position: isDevtoolsPosition(position) ? position : "bottom-center",
     panelShortcut: normalizeShortcut(devtools?.panelShortcut, "Ctrl+Shift+D"),
     visibilityShortcut: normalizeShortcut(devtools?.visibilityShortcut, "Ctrl+Shift+H"),
     ai: {

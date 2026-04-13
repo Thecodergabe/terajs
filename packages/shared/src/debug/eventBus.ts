@@ -1,4 +1,5 @@
 import type { DebugEvent } from "./types/events.js";
+import { clearDebugHistory, readDebugHistory, recordDebugHistory } from "./history.js";
 
 /**
  * Simple in-memory pub/sub for debug events.
@@ -11,15 +12,6 @@ export interface SubscribeDebugOptions {
 }
 
 const listeners = new Set<DebugEventListener>();
-const eventHistory: DebugEvent[] = [];
-const MAX_EVENT_HISTORY = 300;
-
-function pushEventHistory(event: DebugEvent): void {
-  eventHistory.push(event);
-  if (eventHistory.length > MAX_EVENT_HISTORY) {
-    eventHistory.splice(0, eventHistory.length - MAX_EVENT_HISTORY);
-  }
-}
 
 /**
  * Subscribes a listener to all debug events.
@@ -33,9 +25,9 @@ export function subscribeDebug(listener: DebugEventListener, options?: Subscribe
   listeners.add(listener);
 
   if (options?.replay) {
-    for (const event of eventHistory) {
+    for (const event of readDebugHistory()) {
       try {
-        listener(event);
+        listener(event as DebugEvent);
       } catch {
         // Swallow replay listener errors to keep debug tools non-fatal.
       }
@@ -51,7 +43,7 @@ export function subscribeDebug(listener: DebugEventListener, options?: Subscribe
  */
 export function emitDebug(event: DebugEvent): void {
   if (process.env.NODE_ENV === "production") return;
-  pushEventHistory(event);
+  recordDebugHistory(event);
   if (listeners.size === 0) return;
   for (const listener of listeners) {
     try {
@@ -68,5 +60,5 @@ export function getDebugListenerCount(): number {
 
 export function resetDebugListeners(): void {
   listeners.clear();
-  eventHistory.length = 0;
+  clearDebugHistory();
 }

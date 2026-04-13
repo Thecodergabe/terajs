@@ -161,7 +161,11 @@ export function signal<T>(
     // Trigger effects
     const subs = Array.from(sig._dep);
     for (const eff of subs) {
-      scheduleEffect(eff);
+      if (eff.scheduler) {
+        eff.scheduler();
+      } else {
+        scheduleEffect(eff);
+      }
     }
   };
 

@@ -14,7 +14,7 @@ vi.mock("./config", () => ({
   getDevtoolsConfig: () => ({
     enabled: true,
     startOpen: false,
-    position: "bottom-right",
+    position: "bottom-center",
     panelShortcut: "Ctrl+Shift+D",
     visibilityShortcut: "Ctrl+Shift+H",
     ai: {

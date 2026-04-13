@@ -29,6 +29,7 @@ import { signal } from "./signal";
 import { state } from "./state";
 import { computed } from "./computed";
 import { onEffectCleanup } from "./dx/cleanup";
+import { watch } from "./dx/watch";
 import { watchEffect } from "./dx/watchEffect";
 import { setRuntimeMode } from "./dx/runtime";
 
@@ -114,6 +115,58 @@ describe("Reactivity Core", () => {
         // Cached
         double.get();
         expect(computeRuns).toBe(2);
+    });
+
+    it("propagates computed and watch updates from signals", () => {
+        const count = signal(0);
+        const step = signal(2);
+        const double = computed(() => count() * step());
+        const summary = signal("idle");
+
+        const stop = watch(() => double.get(), (next, prev) => {
+            summary.set(`${prev} -> ${next}`);
+        });
+
+        expect(double.get()).toBe(0);
+        expect(summary()).toBe("idle");
+
+        count.set(2);
+        expect(double.get()).toBe(4);
+        expect(summary()).toBe("0 -> 4");
+
+        step.set(3);
+        expect(double.get()).toBe(6);
+        expect(summary()).toBe("4 -> 6");
+
+        stop();
+    });
+
+    it("keeps computed runners alive across effect and watch updates", () => {
+        const count = signal(0);
+        const step = signal(2);
+        const double = computed(() => count() * step());
+        const summary = signal("idle");
+        const audit = signal("idle");
+
+        effect(() => {
+            audit.set(`double=${double.get()}`);
+        });
+
+        const stop = watch(() => double.get(), (next, prev) => {
+            summary.set(`${prev} -> ${next}`);
+        });
+
+        count.set(2);
+        expect(double.get()).toBe(4);
+        expect(audit()).toBe("double=4");
+        expect(summary()).toBe("0 -> 4");
+
+        step.set(3);
+        expect(double.get()).toBe(6);
+        expect(audit()).toBe("double=6");
+        expect(summary()).toBe("4 -> 6");
+
+        stop();
     });
 
     // ---------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Debug, emitDebug, resetDebugListeners } from "@terajs/shared";
-import { ref } from "@terajs/reactivity";
+import { computed, ref, watch } from "@terajs/reactivity";
 import {
   mountDevtoolsOverlay,
   toggleDevtoolsOverlay,
@@ -99,9 +99,14 @@ describe("devtools overlay public entry", () => {
       instance: 1
     });
 
+    for (let index = 0; index < 360; index += 1) {
+      Debug.emit("effect:run", { key: `before-mount-${index}` });
+    }
+
     mountDevtoolsOverlay();
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    expect(shadowRoot?.textContent).toContain("Events: 361");
     expect(shadowRoot?.textContent).toContain("LandingPage");
   });
 
@@ -158,7 +163,22 @@ describe("devtools overlay public entry", () => {
     expect(shell?.classList.contains("is-top")).toBe(true);
   });
 
-  it("restores persisted layout preferences when explicit layout is not provided", () => {
+  it("caps overlay size to viewport while preserving internal scroll hosts", () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const styleText = shadowRoot?.querySelector("style")?.textContent ?? "";
+
+    expect(styleText).toContain("max-width: calc(100vw - 12px);");
+    expect(styleText).toContain("max-height: calc(100vh - 12px);");
+    expect(styleText).toContain("75vw");
+    expect(styleText).toContain("75vh");
+    expect(styleText).toContain(".devtools-body");
+    expect(styleText).toContain(".devtools-panel");
+    expect(styleText).toContain("overflow: auto;");
+  });
+
+  it("starts from default position while still applying persisted size", () => {
     ensureTestStorage().setItem(OVERLAY_PREFERENCES_STORAGE_KEY, JSON.stringify({
       position: "bottom-left",
       panelSize: "large"
@@ -169,10 +189,11 @@ describe("devtools overlay public entry", () => {
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     const shell = host?.shadowRoot?.querySelector(".fab-shell") as HTMLDivElement | null;
 
-    expect(host?.style.left).toBe("20px");
+    expect(host?.style.left).toBe("50%");
     expect(host?.style.bottom).toBe("16px");
-    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("980px");
-    expect(shell?.classList.contains("is-left")).toBe(true);
+    expect(host?.style.transform).toBe("translateX(-50%)");
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1120px");
+    expect(shell?.classList.contains("is-center")).toBe(true);
   });
 
   it("updates layout from settings controls and persists changes", () => {
@@ -191,7 +212,7 @@ describe("devtools overlay public entry", () => {
 
     const largeButton = shadowRoot?.querySelector('[data-layout-size="large"]') as HTMLButtonElement | null;
     largeButton?.click();
-    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("980px");
+    expect(host?.style.getPropertyValue("--terajs-overlay-panel-width")).toBe("1120px");
 
     const persisted = JSON.parse(ensureTestStorage().getItem(OVERLAY_PREFERENCES_STORAGE_KEY) ?? "{}");
     expect(persisted.position).toBe("center");
@@ -229,14 +250,134 @@ describe("devtools overlay public entry", () => {
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
     componentButton?.click();
 
-    const propsTab = shadowRoot?.querySelector('[data-inspector-tab="props"]') as HTMLButtonElement | null;
-    propsTab?.click();
+    const setupSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    expect(setupSectionToggle?.textContent).toContain("script");
+    if (setupSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      setupSectionToggle?.click();
+    }
 
     const toggleButton = shadowRoot?.querySelector('[data-action="toggle-live-prop"][data-prop-key="enabled"]') as HTMLButtonElement | null;
     expect(toggleButton).toBeTruthy();
     toggleButton?.click();
 
     expect(componentRoot.__terajsComponentContext?.props.enabled).toBe(false);
+  });
+
+  it("renders primitive string props as text-only values", () => {
+    const componentRoot = document.createElement("div") as HTMLDivElement & {
+      __terajsComponentContext?: { props: Record<string, unknown> };
+    };
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    componentRoot.__terajsComponentContext = {
+      props: {
+        live: "",
+        description: "Start on Router or Logs, then move through Signals, Queue, Timeline, and Issues after triggering the controls above."
+      }
+    };
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const setupSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    if (setupSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      setupSectionToggle?.click();
+    }
+
+    const dropdowns = Array.from(shadowRoot?.querySelectorAll(".inspector-dropdown") ?? []);
+    const descriptionDropdown = dropdowns.find((node) => {
+      const keyNode = node.querySelector(".inspector-dropdown-key");
+      return keyNode?.textContent?.trim() === "description";
+    }) as HTMLElement | undefined;
+    const liveDropdown = dropdowns.find((node) => {
+      const keyNode = node.querySelector(".inspector-dropdown-key");
+      return keyNode?.textContent?.trim() === "live";
+    }) as HTMLElement | undefined;
+
+    expect(descriptionDropdown).toBeTruthy();
+    expect(descriptionDropdown?.querySelector(".inspector-dropdown-origin")?.textContent?.trim()).toBe("prop");
+    expect(descriptionDropdown?.querySelector(".inspector-dropdown-summary")?.textContent).toContain("description");
+    expect(descriptionDropdown?.querySelector(".inspector-dropdown-summary")?.textContent).toContain(": string");
+    expect(descriptionDropdown?.querySelector("input.inspector-live-input")).toBeNull();
+    expect(descriptionDropdown?.querySelector(".inspector-inline-value")?.textContent).toContain("\"Start on Router or Logs");
+
+    expect(liveDropdown).toBeTruthy();
+    expect(liveDropdown?.querySelector(".inspector-dropdown-summary")?.textContent).toContain(": string");
+    expect(liveDropdown?.querySelector("input.inspector-live-input")).toBeNull();
+    expect(liveDropdown?.querySelector(".inspector-inline-value")?.textContent?.trim()).toBe("\"\"");
+  });
+
+  it("renders array and object props as prettified JSON blocks", () => {
+    const componentRoot = document.createElement("div") as HTMLDivElement & {
+      __terajsComponentContext?: { props: Record<string, unknown> };
+    };
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    componentRoot.__terajsComponentContext = {
+      props: {
+        tabs: ["Router", "Logs", "Signals"],
+        meta: {
+          panel: "Router",
+          live: true
+        }
+      }
+    };
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const scriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    if (scriptSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      scriptSectionToggle?.click();
+    }
+
+    const dropdowns = Array.from(shadowRoot?.querySelectorAll(".inspector-dropdown") ?? []);
+    const tabsDropdown = dropdowns.find((node) => {
+      const keyNode = node.querySelector(".inspector-dropdown-key");
+      return keyNode?.textContent?.trim() === "tabs";
+    }) as HTMLElement | undefined;
+    const metaDropdown = dropdowns.find((node) => {
+      const keyNode = node.querySelector(".inspector-dropdown-key");
+      return keyNode?.textContent?.trim() === "meta";
+    }) as HTMLElement | undefined;
+
+    const tabsJson = tabsDropdown?.querySelector(".inspector-json")?.textContent ?? "";
+    expect(tabsJson).toContain("[");
+    expect(tabsJson).toContain("\"Router\"");
+    expect(tabsJson).toContain("\"Logs\"");
+    expect(tabsJson).toContain("\"Signals\"");
+    expect(tabsJson).toContain("]");
+    expect(tabsJson).not.toContain("\"0\":");
+
+    const metaJson = metaDropdown?.querySelector(".inspector-json")?.textContent ?? "";
+    expect(metaJson).toContain("{");
+    expect(metaJson).toContain("\"panel\": \"Router\"");
+    expect(metaJson).toContain("\"live\": true");
+    expect(metaJson).toContain("}");
   });
 
   it("edits live reactive booleans from the reactive inspector", () => {
@@ -265,14 +406,93 @@ describe("devtools overlay public entry", () => {
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
     componentButton?.click();
 
-    const reactiveTab = shadowRoot?.querySelector('[data-inspector-tab="reactive"]') as HTMLButtonElement | null;
-    reactiveTab?.click();
+    const reactiveSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="reactive"]') as HTMLButtonElement | null;
+    if (reactiveSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      reactiveSectionToggle?.click();
+    }
+
+    const reactiveOrigin = shadowRoot?.querySelector('[data-inspector-section="reactive"]')
+      ?.closest(".inspector-section")
+      ?.querySelector(".inspector-dropdown-origin")
+      ?.textContent
+      ?.trim();
+    expect(reactiveOrigin).toBe("reactive");
 
     const toggleButton = shadowRoot?.querySelector('[data-action="toggle-live-reactive"]') as HTMLButtonElement | null;
     expect(toggleButton).toBeTruthy();
     toggleButton?.click();
 
     expect(enabled.value).toBe(false);
+  });
+
+  it("shows computed/effect/watch triggers inside the script section", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    const gate = ref(false, {
+      scope: "Counter",
+      instance: 1,
+      key: "gate"
+    });
+    const panel = ref("Router", {
+      scope: "Counter",
+      instance: 1,
+      key: "panel"
+    });
+    const mode = computed(() => gate.value ? `${panel.value}:live` : `${panel.value}:idle`);
+    const stopWatch = watch(() => gate.value, () => {
+      void mode.get();
+    });
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    void mode.get();
+    gate.value = true;
+    panel.value = "Logs";
+    void mode.get();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const scriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    expect(scriptSectionToggle).toBeTruthy();
+    expect(scriptSectionToggle?.textContent).toContain("script");
+    if (scriptSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      scriptSectionToggle?.click();
+    }
+
+    const expandedScriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+
+    const runtimeSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="runtime"]');
+    expect(runtimeSectionToggle).toBeNull();
+
+    const scriptText = expandedScriptSectionToggle?.closest(".inspector-section")?.textContent ?? shadowRoot?.textContent ?? "";
+    expect(scriptText).toContain("computed, watch, and effect activity");
+    expect(scriptText).not.toContain("runtime monitor");
+    expect(scriptText).toContain("computed");
+    expect(scriptText).toContain("watch");
+    expect(scriptText).toContain("effect");
+    expect(scriptText).not.toContain("effect#");
+    expect(scriptText).toContain("history");
+    expect(scriptText).toContain("false -> true");
+
+    const historyPanel = expandedScriptSectionToggle?.closest(".inspector-section")?.querySelector(".runtime-history-panel") as HTMLDivElement | null;
+    const historyScroll = historyPanel?.querySelector(".runtime-history-scroll") as HTMLDivElement | null;
+    expect(historyPanel?.textContent).toContain("Most recent first.");
+    expect(historyScroll).toBeTruthy();
+
+    stopWatch();
   });
 
   it("supports keyboard shortcuts for panel and visibility controls", () => {
@@ -318,6 +538,13 @@ describe("devtools overlay public entry", () => {
     clearButton?.click();
 
     expect(shadowRoot?.textContent).toContain("Events: 0");
+
+    unmountDevtoolsOverlay();
+    mountDevtoolsOverlay();
+
+    const remountedShadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    expect(remountedShadowRoot?.textContent).toContain("Events: 0");
+    expect(remountedShadowRoot?.textContent).not.toContain("Counter");
   });
 
   it("uses global AI assistant hook when available", async () => {
@@ -477,7 +704,46 @@ describe("devtools overlay public entry", () => {
     expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(false);
   });
 
-  it("uses tabbed component drill-down instead of accordion toggles", () => {
+  it("renders tree chevrons without duplicating instance ids in the left navigator", () => {
+    const parentRoot = document.createElement("div");
+    parentRoot.setAttribute("data-terajs-component-scope", "Layout");
+    parentRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const childRoot = document.createElement("div");
+    childRoot.setAttribute("data-terajs-component-scope", "DevtoolsEmbed");
+    childRoot.setAttribute("data-terajs-component-instance", "1");
+    parentRoot.appendChild(childRoot);
+    document.body.appendChild(parentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Layout",
+      instance: 1
+    });
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "DevtoolsEmbed",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const parentButton = shadowRoot?.querySelector('[data-component-key="Layout#1"]') as HTMLButtonElement | null;
+    const childRow = shadowRoot?.querySelector('[data-component-key="DevtoolsEmbed#1"]')?.closest(".component-tree-row") as HTMLDivElement | null;
+    const childPlaceholder = childRow?.querySelector(".component-tree-toggle.is-placeholder") as HTMLSpanElement | null;
+
+    expect(parentButton?.textContent).toContain("Layout");
+    expect(parentButton?.textContent).not.toContain("#1");
+    expect(childRow?.querySelector(".component-tree-branch")?.classList.contains("is-terminal")).toBe(true);
+    expect(childPlaceholder?.textContent?.trim() ?? "").toBe("");
+  });
+
+  it("uses collapsible component drill-down sections", () => {
     const componentRoot = document.createElement("div");
     componentRoot.setAttribute("data-terajs-component-scope", "Counter");
     componentRoot.setAttribute("data-terajs-component-instance", "1");
@@ -497,17 +763,44 @@ describe("devtools overlay public entry", () => {
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
     componentButton?.click();
 
-    const domTab = shadowRoot?.querySelector('[data-inspector-tab="dom"]') as HTMLButtonElement | null;
-    domTab?.click();
+    const overviewSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="overview"]') as HTMLButtonElement | null;
+    expect(overviewSectionToggle).toBeTruthy();
+    expect(overviewSectionToggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(overviewSectionToggle?.textContent).toContain("identity");
+    expect(overviewSectionToggle?.textContent).toContain("Counter");
 
-    const selectedDomTab = shadowRoot?.querySelector('[data-inspector-tab="dom"].is-selected') as HTMLButtonElement | null;
-    expect(selectedDomTab).toBeTruthy();
+    const domSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="dom"]') as HTMLButtonElement | null;
+    expect(domSectionToggle).toBeTruthy();
+    expect(domSectionToggle?.textContent).toContain("dom snapshot");
+    expect(domSectionToggle?.getAttribute("aria-expanded")).toBe("false");
 
-    const inspectorSurface = shadowRoot?.querySelector('.inspector-surface') as HTMLDivElement | null;
-    inspectorSurface?.click();
+    const reactiveSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="reactive"]') as HTMLButtonElement | null;
+    expect(reactiveSectionToggle).toBeNull();
 
-    const selectedDomTabAfterBodyClick = shadowRoot?.querySelector('[data-inspector-tab="dom"].is-selected') as HTMLButtonElement | null;
-    expect(selectedDomTabAfterBodyClick).toBeTruthy();
+    overviewSectionToggle?.click();
+    const expandedOverviewSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="overview"]') as HTMLButtonElement | null;
+    const overviewBody = expandedOverviewSectionToggle?.closest(".inspector-section")?.querySelector(".inspector-section-body");
+    expect(overviewBody?.textContent).toContain("scope");
+    expect(overviewBody?.textContent).toContain("Counter");
+    expect(overviewBody?.textContent).toContain("mounts");
+
+    const collapsedDomToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="dom"]') as HTMLButtonElement | null;
+    collapsedDomToggle?.click();
+    const expandedDomToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="dom"]') as HTMLButtonElement | null;
+    expect(expandedDomToggle?.getAttribute("aria-expanded")).toBe("true");
+
+    expandedDomToggle?.click();
+    const reCollapsedDomToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="dom"]') as HTMLButtonElement | null;
+    expect(reCollapsedDomToggle?.getAttribute("aria-expanded")).toBe("false");
+
+    const domBody = reCollapsedDomToggle?.closest(".inspector-section")?.querySelector(".inspector-section-body");
+    expect(domBody).toBeNull();
+
+    reCollapsedDomToggle?.click();
+    const reopenedDomToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="dom"]') as HTMLButtonElement | null;
+    const reopenedDomBody = reopenedDomToggle?.closest(".inspector-section")?.querySelector(".inspector-section-body");
+    expect(reopenedDomToggle?.getAttribute("aria-expanded")).toBe("true");
+    expect(reopenedDomBody).toBeTruthy();
   });
 
   it("enables inspect mode immediately when startOpen is true", () => {

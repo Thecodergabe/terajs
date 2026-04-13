@@ -171,6 +171,11 @@ export function scheduleEffect(effectFn: ReactiveEffect): void {
 
     Debug.emit("effect:schedule", { effect: effectFn });
 
+    if (effectFn.scheduler) {
+        effectFn.scheduler();
+        return;
+    }
+
     if (shouldBatch()) {
         queueEffect(effectFn);
     } else {

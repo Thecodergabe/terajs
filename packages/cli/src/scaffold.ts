@@ -85,7 +85,7 @@ export async function scaffoldProject(name: string, options: ScaffoldProjectOpti
   devtools: {
     enabled: true,
     startOpen: false,
-    position: "bottom-right",
+    position: "bottom-center",
     panelShortcut: "Ctrl+Shift+D",
     visibilityShortcut: "Ctrl+Shift+H"
   },${syncSection}

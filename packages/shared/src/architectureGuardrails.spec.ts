@@ -92,6 +92,18 @@ const approvedPackageRootCodeFiles = new Map<string, Set<string>>([
   ["vite-plug-in", new Set(["App.tera", "index.js", "index.ts"])]
 ]);
 
+const maxProductionSourceLines = 500;
+const legacyProductionSourceLineCaps = new Map<string, number>([
+  ["packages/devtools/src/app.ts", 525],
+  ["packages/devtools/src/overlay.ts", 2090],
+  ["packages/devtools/src/overlayStyles.ts", 1600],
+  ["packages/vite-plug-in/src/index.ts", 793],
+  ["packages/sfc/src/stripTypes.ts", 619],
+  ["packages/renderer-web/src/renderFromIR.ts", 530],
+  ["packages/renderer-ssr/src/renderToString.ts", 513],
+  ["packages/devtools/src/inspector/runtimeMonitor.ts", 540]
+]);
+
 describe("architecture guardrails", () => {
   it("prevents React or Vue imports in package source files", () => {
     const violations = collectFiles(path.join(packagesRoot), (filePath) => isSourceFile(filePath))
@@ -266,6 +278,29 @@ describe("architecture guardrails", () => {
     expect(isApprovedTrackedCodeSurface("packages/shared/debug-check.ts")).toBe(false);
     expect(isApprovedTrackedCodeSurface("packages/router/notes.tera")).toBe(false);
   });
+
+  it("enforces manageable production source file sizes", () => {
+    const violations: string[] = [];
+
+    for (const filePath of collectFiles(path.join(packagesRoot), (candidate) => isProductionSourceFile(candidate))) {
+      const relativePath = path.relative(workspaceRoot, filePath).replace(/\\/g, "/");
+      const lineCount = countNonEmptyLines(filePath);
+      const legacyCap = legacyProductionSourceLineCaps.get(relativePath);
+
+      if (legacyCap !== undefined) {
+        if (lineCount > legacyCap) {
+          violations.push(`${relativePath}: ${lineCount} non-empty lines exceeds legacy cap ${legacyCap}`);
+        }
+        continue;
+      }
+
+      if (lineCount > maxProductionSourceLines) {
+        violations.push(`${relativePath}: ${lineCount} non-empty lines exceeds ${maxProductionSourceLines} line readability cap`);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
 });
 
 function collectFiles(root: string, predicate: (filePath: string) => boolean): string[] {
@@ -358,6 +393,13 @@ function isApprovedTrackedCodeSurface(filePath: string): boolean {
 
 function read(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
+}
+
+function countNonEmptyLines(filePath: string): number {
+  return read(filePath)
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .length;
 }
 
 function extractBareImports(source: string): string[] {

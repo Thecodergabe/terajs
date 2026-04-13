@@ -10,7 +10,7 @@
  */
 
 import { effect } from "./effect.js";
-import { currentEffect, type ReactiveEffect } from "./deps.js";
+import { currentEffect, type ReactiveEffect, withDetachedCurrentEffect } from "./deps.js";
 import { scheduleEffect } from "./effect.js";
 
 import {
@@ -132,7 +132,11 @@ export function computed<T>(fn: () => T): Computed<T> {
   function get(): T {
     // 1. Lazy evaluation: only run the inner function if the cache is stale.
     if (dirty) {
-      runner();
+      if (currentEffect) {
+        withDetachedCurrentEffect(() => runner());
+      } else {
+        runner();
+      }
     }
 
     // 2. Dependency tracking: if this is called inside another effect,
