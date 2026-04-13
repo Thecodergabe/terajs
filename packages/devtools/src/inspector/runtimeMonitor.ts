@@ -437,16 +437,37 @@ function readRuntimeFunctionHint(value: unknown): string | undefined {
   const arrowPivot = raw.indexOf("=>");
   if (arrowPivot >= 0 && arrowPivot < raw.length - 2) {
     const expression = raw.slice(arrowPivot + 2).trim();
-    const normalized = expression.startsWith("{")
-      ? expression.slice(1).trim()
-      : expression;
+    if (expression.startsWith("{")) {
+      return undefined;
+    }
 
-    if (normalized.length > 0) {
+    const normalized = expression;
+
+    if (normalized.length > 0 && isRuntimeExpressionHint(normalized)) {
       return normalized.length > 64 ? `${normalized.slice(0, 64)}...` : normalized;
     }
   }
 
   return undefined;
+}
+
+function isRuntimeExpressionHint(value: string): boolean {
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return false;
+  }
+
+  if (/[;{}]/.test(normalized)) {
+    return false;
+  }
+
+  const lower = normalized.toLowerCase();
+  return !lower.startsWith("const ")
+    && !lower.startsWith("let ")
+    && !lower.startsWith("var ")
+    && !lower.startsWith("return ")
+    && !lower.includes("debug.emit(")
+    && !lower.includes("=>");
 }
 
 function normalizeRuntimeName(raw: string, fallback: string): string {

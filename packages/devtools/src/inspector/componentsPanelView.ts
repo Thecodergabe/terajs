@@ -15,6 +15,7 @@ export interface ComponentsPanelViewState {
   mountedComponents: Map<string, { key: string; scope: string; instance: number; aiPreview?: string; lastSeenAt: number }>;
   componentTreeInitialized: boolean;
   componentTreeVersion: number;
+  expandedComponentTreeVersion: number;
   expandedComponentNodeKeys: Set<string>;
   selectedComponentKey: string | null;
   selectedComponentActivityVersion: number;
@@ -28,6 +29,7 @@ export interface ComponentsPanelViewState {
 export interface ComponentsPanelView {
   componentsCount: number;
   visibleCount: number;
+  rootCount: number;
   selectedLabel: string;
   treeMarkup: string;
   inspectorMarkup: string;
@@ -46,6 +48,8 @@ interface CachedComponentsPanelViewState {
   selectedSearchQuery: string;
   selectedComponentTreeVersion: number;
   selected: MountedComponentEntry | null;
+  treeMarkupKey: string;
+  treeMarkup: string;
   drilldownKey: string | null;
   drilldownVersion: number;
   drilldown: ReturnType<typeof collectComponentDrilldown> | null;
@@ -79,6 +83,8 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
     cache.tree = buildComponentTree(cache.visibleComponents);
     cache.selectedComponentKey = null;
     cache.selected = null;
+    cache.treeMarkupKey = "";
+    cache.treeMarkup = "";
     cache.drilldownKey = null;
     cache.drilldown = null;
   }
@@ -119,15 +125,27 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
 
   const drilldown = resolveCachedDrilldown(state, cache, selected);
 
-  const treeMarkup = visibleComponents.length === 0
-    ? `<div class="empty-state">${components.length === 0 ? "No components mounted." : "No components match the current filter."}</div>`
-    : tree.roots.length === 0
-    ? `<div class="empty-state">No component hierarchy available.</div>`
-    : `
-      <ul class="component-tree-list">
-        ${renderComponentTree(tree.roots, selectedKey, state.expandedComponentNodeKeys)}
-      </ul>
-    `;
+  const treeMarkupKey = [
+    state.componentTreeVersion,
+    state.expandedComponentTreeVersion,
+    searchQuery,
+    selectedKey ?? ""
+  ].join("|");
+
+  if (cache.treeMarkupKey !== treeMarkupKey) {
+    cache.treeMarkupKey = treeMarkupKey;
+    cache.treeMarkup = visibleComponents.length === 0
+      ? `<div class="empty-state">${components.length === 0 ? "No components mounted." : "No components match the current filter."}</div>`
+      : tree.roots.length === 0
+      ? `<div class="empty-state">No component hierarchy available.</div>`
+      : `
+        <ul class="component-tree-list">
+          ${renderComponentTree(tree.roots, selectedKey, state.expandedComponentNodeKeys)}
+        </ul>
+      `;
+  }
+
+  const treeMarkup = cache.treeMarkup;
 
   const inspectorMarkup = !selected || !drilldown
     ? `<div class="empty-state">${visibleComponents.length === 0 ? "Adjust the component filter to continue." : "Select a component to inspect its state drill-down."}</div>`
@@ -136,6 +154,7 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
   return {
     componentsCount: components.length,
     visibleCount: visibleComponents.length,
+    rootCount: tree.roots.length,
     selectedLabel: selected ? `<${selected.scope}>` : "No component selected",
     treeMarkup,
     inspectorMarkup
@@ -161,6 +180,8 @@ function getCachedComponentsPanelViewState(state: object): CachedComponentsPanel
     selectedSearchQuery: "",
     selectedComponentTreeVersion: -1,
     selected: null,
+    treeMarkupKey: "",
+    treeMarkup: "",
     drilldownKey: null,
     drilldownVersion: -1,
     drilldown: null
@@ -242,7 +263,12 @@ function renderComponentTree(
             data-component-scope="${escapeHtml(node.component.scope)}"
             data-component-instance="${node.component.instance}"
           >
-            <span class="component-tree-label">${escapeHtml(node.component.scope)}</span>
+            <span class="component-tree-content">
+              <span class="component-tree-label-row">
+                <span class="component-tree-label">${escapeHtml(node.component.scope)}</span>
+              </span>
+              ${hasChildren ? `<span class="component-tree-meta">${node.children.length} child${node.children.length === 1 ? "" : "ren"}</span>` : ""}
+            </span>
           </button>
         </div>
         ${node.component.aiPreview ? `<div class="muted-text ai-hint component-ai-hint">AI: ${escapeHtml(node.component.aiPreview)}</div>` : ""}

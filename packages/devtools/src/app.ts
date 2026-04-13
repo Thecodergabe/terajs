@@ -44,6 +44,7 @@ import {
   collectComponentDrilldown,
   type MountedComponentEntry
 } from "./inspector/componentData.js";
+import { buildComponentsPanelView } from "./inspector/componentsPanelView.js";
 import {
   renderComponentDrilldownInspector as renderDrilldownInspector,
   type InspectorSectionKey,
@@ -160,6 +161,7 @@ interface DevtoolsState {
   expandedComponentNodeKeys: Set<string>;
   componentTreeInitialized: boolean;
   componentTreeVersion: number;
+  expandedComponentTreeVersion: number;
   expandedInspectorSections: Set<InspectorSectionKey>;
   expandedValuePaths: Set<string>;
   eventCount: number;
@@ -319,6 +321,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     expandedComponentNodeKeys: hydratedExpandedComponentNodeKeys,
     componentTreeInitialized: false,
     componentTreeVersion: 0,
+    expandedComponentTreeVersion: 0,
     expandedInspectorSections: new Set(DEFAULT_EXPANDED_INSPECTOR_SECTIONS),
     expandedValuePaths: new Set(),
     eventCount: hydratedEvents.length,
@@ -360,6 +363,24 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     return true;
   };
 
+  const eventAffectsComponentTree = (event: DevtoolsEvent) => {
+    const identity = readComponentIdentity(event);
+    if (!identity) {
+      return false;
+    }
+
+    if (
+      event.type === "component:mounted"
+      || event.type === "component:mount"
+      || event.type === "component:unmounted"
+      || event.type === "component:unmount"
+    ) {
+      return true;
+    }
+
+    return readUnknown(event.payload, "ai") !== undefined;
+  };
+
   const eventTouchesSelectedComponent = (event: DevtoolsEvent, selectedComponentKey: string | null) => {
     if (!selectedComponentKey) {
       return false;
@@ -379,7 +400,75 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     }
 
     const reactiveKey = readString(event.payload, "rid") ?? readString(event.payload, "key");
-    return typeof reactiveKey === "string" && reactiveKey.includes(selectedComponentKey);
+    if (typeof reactiveKey === "string" && reactiveKey.includes(selectedComponentKey)) {
+      return true;
+    }
+
+    return safeString(event.payload ?? {}).includes(selectedComponentKey);
+  };
+
+  const scheduleScrollRestore = (scrollSnapshot: ReturnType<typeof captureScrollPositions>) => {
+    restoreScrollPositions(scrollSnapshot);
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => {
+        restoreScrollPositions(scrollSnapshot);
+      });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          restoreScrollPositions(scrollSnapshot);
+        });
+      });
+    }
+  };
+
+  const patchComponentsTab = (options: { refreshTree: boolean; refreshInspector: boolean }) => {
+    const componentsScreen = root.querySelector<HTMLElement>(".components-screen");
+    if (!componentsScreen) {
+      render();
+      return;
+    }
+
+    const scrollSnapshot = captureScrollPositions();
+    const view = buildComponentsPanelView(state, renderComponentDrilldownInspector);
+    updateHeaderEventCount();
+
+    const treeSubtitle = root.querySelector<HTMLElement>(".components-screen-tree .panel-subtitle");
+    if (treeSubtitle) {
+      treeSubtitle.textContent = `Live instances: ${view.componentsCount} | Showing: ${view.visibleCount}`;
+    }
+
+    const treePills = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-pills");
+    if (treePills) {
+      treePills.innerHTML = `
+        <span class="components-screen-pill">top level ${view.rootCount}</span>
+        <span class="components-screen-pill">live ${view.componentsCount}</span>
+      `;
+    }
+
+    const inspectorSubtitle = root.querySelector<HTMLElement>(".components-screen-inspector .panel-subtitle");
+    if (inspectorSubtitle) {
+      inspectorSubtitle.textContent = view.selectedLabel;
+    }
+
+    if (options.refreshTree) {
+      const treeBody = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-body");
+      if (!treeBody) {
+        render();
+        return;
+      }
+      treeBody.innerHTML = view.treeMarkup;
+    }
+
+    if (options.refreshInspector) {
+      const inspectorBody = root.querySelector<HTMLElement>(".components-screen-inspector .components-screen-body");
+      if (!inspectorBody) {
+        render();
+        return;
+      }
+      inspectorBody.innerHTML = view.inspectorMarkup;
+    }
+
+    scheduleScrollRestore(scrollSnapshot);
   };
 
   const appendEvent = (rawEvent: unknown) => {
@@ -388,12 +477,13 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
 
     const hydratedEvent = hydrateEvent(event);
     const previousLikelyCause = state.aiLikelyCause;
-    const componentIdentity = readComponentIdentity(hydratedEvent);
+    const componentTreeAffected = eventAffectsComponentTree(hydratedEvent);
+    const selectedComponentAffected = eventTouchesSelectedComponent(hydratedEvent, state.selectedComponentKey);
 
     const previousSelection = state.selectedComponentKey;
     applyComponentLifecycle(state.mountedComponents, state.expandedComponentNodeKeys, hydratedEvent);
 
-    if (componentIdentity) {
+    if (componentTreeAffected) {
       state.componentTreeVersion += 1;
     }
 
@@ -415,6 +505,22 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     state.events = [...state.events.slice(-(MAX_DEVTOOLS_EVENTS - 1)), hydratedEvent];
     state.eventCount += 1;
     state.timelineCursor = state.events.length - 1;
+
+    if (state.activeTab === "Components") {
+      const refreshTree = componentTreeAffected;
+      const refreshInspector = refreshTree || selectedComponentAffected;
+
+      if (!refreshTree && !refreshInspector) {
+        updateHeaderEventCount();
+        return;
+      }
+
+      patchComponentsTab({
+        refreshTree,
+        refreshInspector
+      });
+      return;
+    }
 
     if (!shouldRenderAfterEvent(aiLikelyCauseChanged)) {
       updateHeaderEventCount();
@@ -567,17 +673,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       return;
     }
 
-    restoreScrollPositions(scrollSnapshot);
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(() => {
-        restoreScrollPositions(scrollSnapshot);
-      });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          restoreScrollPositions(scrollSnapshot);
-        });
-      });
-    }
+    scheduleScrollRestore(scrollSnapshot);
     notifyInspectMode(state.activeTab === "Components");
   }
 }

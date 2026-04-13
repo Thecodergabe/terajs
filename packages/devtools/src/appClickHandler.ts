@@ -46,6 +46,7 @@ interface ClickHandlerState {
   expandedComponentNodeKeys: Set<string>;
   componentTreeInitialized: boolean;
   componentTreeVersion: number;
+  expandedComponentTreeVersion: number;
   expandedInspectorSections: Set<InspectorSectionKey>;
   expandedValuePaths: Set<string>;
   eventCount: number;
@@ -137,6 +138,7 @@ export function createClickHandler({
         } else {
           state.expandedComponentNodeKeys.add(key);
         }
+        state.expandedComponentTreeVersion += 1;
         render();
       }
       return;
@@ -330,6 +332,7 @@ export function createClickHandler({
       state.expandedComponentNodeKeys.clear();
       state.componentTreeInitialized = false;
       state.componentTreeVersion += 1;
+      state.expandedComponentTreeVersion += 1;
       state.selectedComponentActivityVersion = 0;
       state.aiPrompt = null;
       state.aiLikelyCause = null;

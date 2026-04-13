@@ -483,6 +483,7 @@ describe("devtools overlay public entry", () => {
     expect(scriptText).toContain("computed");
     expect(scriptText).toContain("watch");
     expect(scriptText).toContain("effect");
+    expect(scriptText).not.toContain("const newValue = source()");
     expect(scriptText).not.toContain("effect#");
     expect(scriptText).toContain("history");
     expect(scriptText).toContain("false -> true");
@@ -736,8 +737,15 @@ describe("devtools overlay public entry", () => {
     const parentButton = shadowRoot?.querySelector('[data-component-key="Layout#1"]') as HTMLButtonElement | null;
     const childRow = shadowRoot?.querySelector('[data-component-key="DevtoolsEmbed#1"]')?.closest(".component-tree-row") as HTMLDivElement | null;
     const childPlaceholder = childRow?.querySelector(".component-tree-toggle.is-placeholder") as HTMLSpanElement | null;
+    const topLevelPill = Array.from(shadowRoot?.querySelectorAll(".components-screen-pill") ?? []).find((node) => {
+      return node.textContent?.includes("top level");
+    }) as HTMLSpanElement | undefined;
+    const childMeta = shadowRoot?.querySelector('[data-component-key="Layout#1"] .component-tree-meta') as HTMLSpanElement | null;
 
     expect(parentButton?.textContent).toContain("Layout");
+    expect(parentButton?.textContent).not.toContain("root");
+    expect(topLevelPill?.textContent).toContain("top level 1");
+    expect(childMeta?.textContent).toContain("1 child");
     expect(parentButton?.textContent).not.toContain("#1");
     expect(childRow?.querySelector(".component-tree-branch")?.classList.contains("is-terminal")).toBe(true);
     expect(childPlaceholder?.textContent?.trim() ?? "").toBe("");
@@ -858,6 +866,93 @@ describe("devtools overlay public entry", () => {
     expect(shadowRoot?.textContent).toContain("Counter");
     const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
     expect(componentButton).toBeTruthy();
+  });
+
+  it("updates the components header count without remounting tree rows for unrelated churn", () => {
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+
+    expect(componentButton).toBeTruthy();
+    expect(shadowRoot?.textContent).toContain("Events: 1");
+
+    Debug.emit("effect:run", { key: "global:effect" });
+
+    const stableComponentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    expect(shadowRoot?.textContent).toContain("Events: 2");
+    expect(stableComponentButton).toBe(componentButton);
+  });
+
+  it("updates the selected inspector after component runtime activity without remounting tree rows", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    const gate = ref(false, {
+      scope: "Counter",
+      instance: 1,
+      key: "gate"
+    });
+    const panel = ref("Router", {
+      scope: "Counter",
+      instance: 1,
+      key: "panel"
+    });
+    const mode = computed(() => gate.value ? `${panel.value}:live` : `${panel.value}:idle`);
+    const stopWatch = watch(() => gate.value, () => {
+      void mode.get();
+    });
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.click();
+
+    const scriptSectionToggle = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]') as HTMLButtonElement | null;
+    if (scriptSectionToggle?.getAttribute("aria-expanded") !== "true") {
+      scriptSectionToggle?.click();
+    }
+
+    const stableComponentButtonBeforeActivity = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+
+    const initialScriptText = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]')
+      ?.closest(".inspector-section")
+      ?.textContent ?? "";
+    expect(initialScriptText).not.toContain("false -> true");
+
+    void mode.get();
+    gate.value = true;
+    panel.value = "Logs";
+    void mode.get();
+
+    const stableComponentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    const updatedScriptText = shadowRoot?.querySelector('[data-action="toggle-inspector-section"][data-inspector-section="props"]')
+      ?.closest(".inspector-section")
+      ?.textContent ?? "";
+
+    expect(stableComponentButton).toBe(stableComponentButtonBeforeActivity);
+    expect(updatedScriptText).toContain("false -> true");
+
+    stopWatch();
   });
 
   it("clears selected highlight when leaving the components tab", () => {

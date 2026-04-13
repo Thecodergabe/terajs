@@ -83,6 +83,10 @@ function renderComponentsScreen<TState extends AppShellState>(
             <div>
               <div class="panel-title is-blue">Component Tree</div>
               <div class="panel-subtitle">Live instances: ${view.componentsCount} | Showing: ${view.visibleCount}</div>
+              <div class="components-screen-pills">
+                <span class="components-screen-pill">top level ${view.rootCount}</span>
+                <span class="components-screen-pill">live ${view.componentsCount}</span>
+              </div>
             </div>
             <input
               class="components-screen-search"
