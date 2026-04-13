@@ -14,8 +14,10 @@ import type { DevtoolsEventLike } from "./dataCollectors.js";
 export interface ComponentsPanelViewState {
   mountedComponents: Map<string, { key: string; scope: string; instance: number; aiPreview?: string; lastSeenAt: number }>;
   componentTreeInitialized: boolean;
+  componentTreeVersion: number;
   expandedComponentNodeKeys: Set<string>;
   selectedComponentKey: string | null;
+  selectedComponentActivityVersion: number;
   componentSearchQuery: string;
   componentInspectorQuery: string;
   expandedInspectorSections: Set<string>;
@@ -31,6 +33,26 @@ export interface ComponentsPanelView {
   inspectorMarkup: string;
 }
 
+interface CachedComponentsPanelViewState {
+  componentTreeVersion: number;
+  searchQuery: string;
+  components: MountedComponentEntry[];
+  visibleComponents: MountedComponentEntry[];
+  tree: {
+    roots: ComponentTreeNode[];
+    parentByKey: Map<string, string>;
+  };
+  selectedComponentKey: string | null;
+  selectedSearchQuery: string;
+  selectedComponentTreeVersion: number;
+  selected: MountedComponentEntry | null;
+  drilldownKey: string | null;
+  drilldownVersion: number;
+  drilldown: ReturnType<typeof collectComponentDrilldown> | null;
+}
+
+const componentsPanelViewCache = new WeakMap<object, CachedComponentsPanelViewState>();
+
 export function buildComponentsPanelView<TState extends ComponentsPanelViewState>(
   state: TState,
   renderComponentDrilldownInspector: (
@@ -39,17 +61,31 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
     drilldown: ReturnType<typeof collectComponentDrilldown>
   ) => string
 ): ComponentsPanelView {
-  const components = collectMountedComponents(state.mountedComponents);
+  const cache = getCachedComponentsPanelViewState(state);
   const searchQuery = state.componentSearchQuery.trim().toLowerCase();
-  const visibleComponents = searchQuery.length === 0
-    ? components
-    : components.filter((component) => {
-      return component.scope.toLowerCase().includes(searchQuery)
-        || component.key.toLowerCase().includes(searchQuery)
-        || String(component.instance).includes(searchQuery);
-    });
 
-  const tree = buildComponentTree(visibleComponents);
+  if (cache.componentTreeVersion !== state.componentTreeVersion || cache.searchQuery !== searchQuery) {
+    const components = collectMountedComponents(state.mountedComponents);
+    cache.componentTreeVersion = state.componentTreeVersion;
+    cache.searchQuery = searchQuery;
+    cache.components = components;
+    cache.visibleComponents = searchQuery.length === 0
+      ? components
+      : components.filter((component) => {
+        return component.scope.toLowerCase().includes(searchQuery)
+          || component.key.toLowerCase().includes(searchQuery)
+          || String(component.instance).includes(searchQuery);
+      });
+    cache.tree = buildComponentTree(cache.visibleComponents);
+    cache.selectedComponentKey = null;
+    cache.selected = null;
+    cache.drilldownKey = null;
+    cache.drilldown = null;
+  }
+
+  const components = cache.components;
+  const visibleComponents = cache.visibleComponents;
+  const tree = cache.tree;
 
   if (components.length === 0) {
     state.componentTreeInitialized = false;
@@ -63,14 +99,25 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
     state.componentTreeInitialized = true;
   }
 
-  const selected = resolveSelectedComponent(visibleComponents, state.selectedComponentKey);
+  if (
+    cache.selectedComponentKey !== state.selectedComponentKey
+    || cache.selectedSearchQuery !== searchQuery
+    || cache.selectedComponentTreeVersion !== state.componentTreeVersion
+  ) {
+    cache.selectedComponentKey = state.selectedComponentKey;
+    cache.selectedSearchQuery = searchQuery;
+    cache.selectedComponentTreeVersion = state.componentTreeVersion;
+    cache.selected = resolveSelectedComponent(visibleComponents, state.selectedComponentKey);
+    cache.drilldownKey = null;
+    cache.drilldown = null;
+  }
+
+  const selected = cache.selected;
   const selectedKey = selected?.key ?? null;
 
   expandSelectedTreePath(state.expandedComponentNodeKeys, selectedKey, tree.parentByKey);
 
-  const drilldown = selected
-    ? collectComponentDrilldown(state.events, selected.scope, selected.instance)
-    : null;
+  const drilldown = resolveCachedDrilldown(state, cache, selected);
 
   const treeMarkup = visibleComponents.length === 0
     ? `<div class="empty-state">${components.length === 0 ? "No components mounted." : "No components match the current filter."}</div>`
@@ -93,6 +140,59 @@ export function buildComponentsPanelView<TState extends ComponentsPanelViewState
     treeMarkup,
     inspectorMarkup
   };
+}
+
+function getCachedComponentsPanelViewState(state: object): CachedComponentsPanelViewState {
+  const existing = componentsPanelViewCache.get(state);
+  if (existing) {
+    return existing;
+  }
+
+  const created: CachedComponentsPanelViewState = {
+    componentTreeVersion: -1,
+    searchQuery: "",
+    components: [],
+    visibleComponents: [],
+    tree: {
+      roots: [],
+      parentByKey: new Map<string, string>()
+    },
+    selectedComponentKey: null,
+    selectedSearchQuery: "",
+    selectedComponentTreeVersion: -1,
+    selected: null,
+    drilldownKey: null,
+    drilldownVersion: -1,
+    drilldown: null
+  };
+
+  componentsPanelViewCache.set(state, created);
+  return created;
+}
+
+function resolveCachedDrilldown<TState extends ComponentsPanelViewState>(
+  state: TState,
+  cache: CachedComponentsPanelViewState,
+  selected: MountedComponentEntry | null
+): ReturnType<typeof collectComponentDrilldown> | null {
+  if (!selected) {
+    cache.drilldownKey = null;
+    cache.drilldown = null;
+    cache.drilldownVersion = -1;
+    return null;
+  }
+
+  if (state.selectedComponentKey === null) {
+    return collectComponentDrilldown(state.events, selected.scope, selected.instance);
+  }
+
+  if (cache.drilldownKey !== selected.key || cache.drilldownVersion !== state.selectedComponentActivityVersion) {
+    cache.drilldownKey = selected.key;
+    cache.drilldownVersion = state.selectedComponentActivityVersion;
+    cache.drilldown = collectComponentDrilldown(state.events, selected.scope, selected.instance);
+  }
+
+  return cache.drilldown;
 }
 
 function renderComponentTree(

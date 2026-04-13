@@ -159,11 +159,13 @@ interface DevtoolsState {
   mountedComponents: Map<string, { key: string; scope: string; instance: number; aiPreview?: string; lastSeenAt: number }>;
   expandedComponentNodeKeys: Set<string>;
   componentTreeInitialized: boolean;
+  componentTreeVersion: number;
   expandedInspectorSections: Set<InspectorSectionKey>;
   expandedValuePaths: Set<string>;
   eventCount: number;
   selectedMetaKey: string | null;
   selectedComponentKey: string | null;
+  selectedComponentActivityVersion: number;
   componentSearchQuery: string;
   componentInspectorQuery: string;
   logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
@@ -316,11 +318,13 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     mountedComponents: hydratedMountedComponents,
     expandedComponentNodeKeys: hydratedExpandedComponentNodeKeys,
     componentTreeInitialized: false,
+    componentTreeVersion: 0,
     expandedInspectorSections: new Set(DEFAULT_EXPANDED_INSPECTOR_SECTIONS),
     expandedValuePaths: new Set(),
     eventCount: hydratedEvents.length,
     selectedMetaKey: null,
     selectedComponentKey: null,
+    selectedComponentActivityVersion: 0,
     componentSearchQuery: "",
     componentInspectorQuery: "",
     logFilter: "all",
@@ -337,14 +341,65 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   };
   const aiRequestTokenRef = { current: 0 };
 
+  const updateHeaderEventCount = () => {
+    const subtitle = root.querySelector<HTMLElement>(".devtools-subtitle");
+    if (subtitle) {
+      subtitle.textContent = `Events: ${state.eventCount}`;
+    }
+  };
+
+  const shouldRenderAfterEvent = (aiLikelyCauseChanged: boolean) => {
+    if (state.activeTab === "Settings") {
+      return false;
+    }
+
+    if (state.activeTab === "AI Diagnostics" && !aiLikelyCauseChanged) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const eventTouchesSelectedComponent = (event: DevtoolsEvent, selectedComponentKey: string | null) => {
+    if (!selectedComponentKey) {
+      return false;
+    }
+
+    const identity = readComponentIdentity(event);
+    if (identity && buildComponentKey(identity.scope, identity.instance) === selectedComponentKey) {
+      return true;
+    }
+
+    if (event.type === "error:component") {
+      const scope = readString(event.payload, "scope") ?? readString(event.payload, "name");
+      const instance = readNumber(event.payload, "instance");
+      if (scope && instance !== undefined && buildComponentKey(scope, instance) === selectedComponentKey) {
+        return true;
+      }
+    }
+
+    const reactiveKey = readString(event.payload, "rid") ?? readString(event.payload, "key");
+    return typeof reactiveKey === "string" && reactiveKey.includes(selectedComponentKey);
+  };
+
   const appendEvent = (rawEvent: unknown) => {
     const event = normalizeEvent(rawEvent);
     if (!event) return;
 
     const hydratedEvent = hydrateEvent(event);
+    const previousLikelyCause = state.aiLikelyCause;
+    const componentIdentity = readComponentIdentity(hydratedEvent);
 
     const previousSelection = state.selectedComponentKey;
     applyComponentLifecycle(state.mountedComponents, state.expandedComponentNodeKeys, hydratedEvent);
+
+    if (componentIdentity) {
+      state.componentTreeVersion += 1;
+    }
+
+    if (eventTouchesSelectedComponent(hydratedEvent, previousSelection)) {
+      state.selectedComponentActivityVersion += 1;
+    }
 
     if (previousSelection && !state.mountedComponents.has(previousSelection)) {
       state.selectedComponentKey = null;
@@ -355,9 +410,17 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       state.aiLikelyCause = hydratedEvent.payload.likelyCause;
     }
 
+    const aiLikelyCauseChanged = previousLikelyCause !== state.aiLikelyCause;
+
     state.events = [...state.events.slice(-(MAX_DEVTOOLS_EVENTS - 1)), hydratedEvent];
     state.eventCount += 1;
     state.timelineCursor = state.events.length - 1;
+
+    if (!shouldRenderAfterEvent(aiLikelyCauseChanged)) {
+      updateHeaderEventCount();
+      return;
+    }
+
     render();
   };
 
@@ -372,7 +435,14 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     window.dispatchEvent(new CustomEvent(name, { detail }));
   };
 
+  let lastInspectModeState: boolean | null = null;
+
   const notifyInspectMode = (enabled: boolean) => {
+    if (lastInspectModeState === enabled) {
+      return;
+    }
+
+    lastInspectModeState = enabled;
     dispatchWindowEvent(DEVTOOLS_INSPECT_MODE_EVENT, {
       enabled
     });
@@ -485,9 +555,18 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   };
 
   function render() {
-    const scrollSnapshot = captureScrollPositions();
+    const scrollSnapshot = state.activeTab === "Components"
+      ? captureScrollPositions()
+      : null;
+
     root.dataset.theme = state.theme;
     root.innerHTML = renderAppShell(state, TABS, renderPanel, renderComponentDrilldownInspector);
+
+    if (!scrollSnapshot) {
+      notifyInspectMode(state.activeTab === "Components");
+      return;
+    }
+
     restoreScrollPositions(scrollSnapshot);
     if (typeof requestAnimationFrame === "function") {
       requestAnimationFrame(() => {

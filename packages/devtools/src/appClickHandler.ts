@@ -45,11 +45,13 @@ interface ClickHandlerState {
   mountedComponents: Map<string, { key: string; scope: string; instance: number; aiPreview?: string; lastSeenAt: number }>;
   expandedComponentNodeKeys: Set<string>;
   componentTreeInitialized: boolean;
+  componentTreeVersion: number;
   expandedInspectorSections: Set<InspectorSectionKey>;
   expandedValuePaths: Set<string>;
   eventCount: number;
   selectedMetaKey: string | null;
   selectedComponentKey: string | null;
+  selectedComponentActivityVersion: number;
   componentSearchQuery: string;
   componentInspectorQuery: string;
   logFilter: "all" | "component" | "signal" | "effect" | "error" | "hub" | "route";
@@ -327,6 +329,8 @@ export function createClickHandler({
       state.mountedComponents.clear();
       state.expandedComponentNodeKeys.clear();
       state.componentTreeInitialized = false;
+      state.componentTreeVersion += 1;
+      state.selectedComponentActivityVersion = 0;
       state.aiPrompt = null;
       state.aiLikelyCause = null;
       state.aiStatus = "idle";
