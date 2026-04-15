@@ -190,6 +190,7 @@ export const overlayStyles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 14px 16px;
     border-bottom: 1px solid var(--tera-border);
     background:
@@ -205,6 +206,66 @@ export const overlayStyles = `
       radial-gradient(circle at center, rgba(50, 215, 255, 0.08), transparent 46%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(235, 245, 255, 0.93));
     border-bottom-color: var(--tera-light-border);
+  }
+
+  .devtools-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .devtools-host-controls-panel {
+    display: grid;
+    gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--tera-border);
+    background: linear-gradient(180deg, rgba(8, 17, 34, 0.9), rgba(7, 14, 28, 0.94));
+  }
+
+  #terajs-devtools-root[data-theme="light"] .devtools-host-controls-panel {
+    border-bottom-color: var(--tera-light-border);
+    background: linear-gradient(180deg, rgba(247, 251, 255, 0.98), rgba(237, 245, 255, 0.96));
+  }
+
+  .devtools-host-controls-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .devtools-host-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .devtools-host-controls-section {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgba(50, 215, 255, 0.16);
+    border-radius: 12px;
+    background: rgba(10, 20, 38, 0.54);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .devtools-host-controls-section {
+    border-color: var(--tera-light-border);
+    background: rgba(255, 255, 255, 0.88);
+  }
+
+  .devtools-host-controls-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tera-cloud);
+  }
+
+  #terajs-devtools-root[data-theme="light"] .devtools-host-controls-title {
+    color: var(--tera-light-text-strong);
   }
 
   .devtools-title {

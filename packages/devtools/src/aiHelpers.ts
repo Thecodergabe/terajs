@@ -1,3 +1,4 @@
+
 import { shortJson } from "./inspector/shared.js";
 import type { SafeDocumentDiagnostic } from "./documentContext.js";
 import type { SafeDocumentContext } from "./documentContext.js";
@@ -26,7 +27,7 @@ export interface NormalizedAIAssistantOptions {
 }
 
 export type AIAssistantHook = (request: AIAssistantRequest) => Promise<unknown> | unknown;
-export type AIAssistantProviderKind = "global-hook" | "http-endpoint";
+export type AIAssistantProviderKind = "global-hook" | "http-endpoint" | "vscode-extension";
 export type AIAssistantFallbackPath = "none" | "global-hook-over-endpoint";
 
 export interface AIAssistantTelemetry {
@@ -39,8 +40,24 @@ export interface AIAssistantTelemetry {
   endpoint: string | null;
 }
 
+export interface AIAssistantCodeReference {
+  file: string;
+  line: number | null;
+  column: number | null;
+  reason: string;
+}
+
+export interface AIAssistantStructuredResponse {
+  summary: string;
+  likelyCauses: string[];
+  codeReferences: AIAssistantCodeReference[];
+  nextChecks: string[];
+  suggestedFixes: string[];
+}
+
 export interface AIAssistantResolvedResponse {
   text: string;
+  structured: AIAssistantStructuredResponse | null;
   telemetry: AIAssistantTelemetry;
 }
 
@@ -84,20 +101,7 @@ export async function resolveAIAssistantResponseDetailed(
 ): Promise<AIAssistantResolvedResponse> {
   const globalHook = getGlobalAIAssistantHook();
   if (globalHook) {
-    const startedAt = Date.now();
-    try {
-      const response = await globalHook(request);
-      return {
-        text: extractAIAssistantResponseText(response),
-        telemetry: createAIAssistantTelemetry(options, "global-hook", Date.now() - startedAt, null)
-      };
-    } catch (error) {
-      throw createAIAssistantRequestFailure(
-        error instanceof Error ? error.message : "AI request failed.",
-        createAIAssistantTelemetry(options, "global-hook", Date.now() - startedAt, null),
-        "request-failed"
-      );
-    }
+    return resolveAIAssistantResponseWithHandlerDetailed(request, options, "global-hook", globalHook);
   }
 
   if (!options.endpoint) {
@@ -145,19 +149,24 @@ export async function resolveAIAssistantResponseDetailed(
     if (!rawText.trim()) {
       return {
         text: "AI endpoint returned an empty response body.",
+        structured: null,
         telemetry
       };
     }
 
     try {
       const parsed = JSON.parse(rawText) as unknown;
+      const normalizedResponse = normalizeAIAssistantResponse(parsed);
       return {
-        text: extractAIAssistantResponseText(parsed),
+        text: normalizedResponse.text,
+        structured: normalizedResponse.structured,
         telemetry
       };
     } catch {
+      const normalizedResponse = normalizeAIAssistantResponse(rawText);
       return {
-        text: rawText,
+        text: normalizedResponse.text,
+        structured: normalizedResponse.structured,
         telemetry
       };
     }
@@ -237,11 +246,65 @@ export function getGlobalAIAssistantHook(): AIAssistantHook | null {
   return typeof maybeHook === "function" ? maybeHook as AIAssistantHook : null;
 }
 
+export async function resolveAIAssistantResponseWithHandlerDetailed(
+  request: AIAssistantRequest,
+  options: NormalizedAIAssistantOptions,
+  provider: AIAssistantProviderKind,
+  handler: AIAssistantHook
+): Promise<AIAssistantResolvedResponse> {
+  const startedAt = Date.now();
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    const response = await Promise.race([
+      Promise.resolve().then(() => handler(request)),
+      new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(createAIAssistantRequestFailure(
+            `AI request timed out after ${options.timeoutMs}ms.`,
+            createAIAssistantTelemetry(options, provider, Date.now() - startedAt, null),
+            "timeout"
+          ));
+        }, options.timeoutMs);
+      })
+    ]);
+
+    const envelope = extractAIAssistantResponseEnvelope(response);
+    const normalizedResponse = normalizeAIAssistantResponse(envelope.content);
+    return {
+      text: normalizedResponse.text,
+      structured: normalizedResponse.structured,
+      telemetry: createAIAssistantTelemetry(
+        options,
+        provider,
+        Date.now() - startedAt,
+        null,
+        envelope.telemetry
+      )
+    };
+  } catch (error) {
+    if (isAIAssistantRequestFailure(error)) {
+      throw error;
+    }
+
+    throw createAIAssistantRequestFailure(
+      error instanceof Error ? error.message : "AI request failed.",
+      createAIAssistantTelemetry(options, provider, Date.now() - startedAt, null),
+      "request-failed"
+    );
+  } finally {
+    if (timeoutHandle !== null) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
 function createAIAssistantTelemetry(
   options: NormalizedAIAssistantOptions,
   provider: AIAssistantProviderKind,
   durationMs: number,
-  httpStatus: number | null
+  httpStatus: number | null,
+  overrides?: Partial<Pick<AIAssistantTelemetry, "model" | "endpoint">>
 ): AIAssistantTelemetry {
   return {
     provider,
@@ -249,8 +312,8 @@ function createAIAssistantTelemetry(
     httpStatus,
     delivery: "one-shot",
     fallbackPath: provider === "global-hook" && options.endpoint ? "global-hook-over-endpoint" : "none",
-    model: options.model,
-    endpoint: options.endpoint
+    model: overrides?.model ?? options.model,
+    endpoint: overrides?.endpoint ?? options.endpoint
   };
 }
 
@@ -266,35 +329,269 @@ function createAIAssistantRequestFailure(
   return error;
 }
 
-function extractAIAssistantResponseText(value: unknown): string {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : "AI assistant returned an empty string.";
+export function formatAIAssistantCodeReferenceLocation(reference: AIAssistantCodeReference): string {
+  if (reference.line === null) {
+    return reference.file;
   }
 
+  if (reference.column === null) {
+    return `${reference.file}:${reference.line}`;
+  }
+
+  return `${reference.file}:${reference.line}:${reference.column}`;
+}
+
+function extractAIAssistantResponseEnvelope(value: unknown): {
+  content: unknown;
+  telemetry?: Partial<Pick<AIAssistantTelemetry, "model" | "endpoint">>;
+} {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { content: value };
+  }
+
+  const payload = value as Record<string, unknown>;
+  const telemetry = payload.telemetry;
+  if (!telemetry || typeof telemetry !== "object" || Array.isArray(telemetry)) {
+    return { content: value };
+  }
+
+  const telemetryRecord = telemetry as Record<string, unknown>;
+  return {
+    content: payload.response ?? payload.result ?? payload.content ?? value,
+    telemetry: {
+      model: readNonEmptyString(telemetryRecord.model) ?? undefined,
+      endpoint: typeof telemetryRecord.endpoint === "string"
+        ? telemetryRecord.endpoint
+        : telemetryRecord.endpoint === null
+        ? null
+        : undefined
+    }
+  };
+}
+
+function normalizeAIAssistantResponse(value: unknown): {
+  text: string;
+  structured: AIAssistantStructuredResponse | null;
+} {
+  const structured = extractAIAssistantStructuredResponse(value);
+
+  return {
+    text: extractAIAssistantResponseText(value, structured),
+    structured
+  };
+}
+
+function extractAIAssistantStructuredResponse(value: unknown): AIAssistantStructuredResponse | null {
   if (value && typeof value === "object") {
-    const payload = value as Record<string, unknown>;
+    const fromRecord = extractAIAssistantStructuredResponseFromRecord(value as Record<string, unknown>);
+    if (fromRecord) {
+      return fromRecord;
+    }
+  }
 
-    const direct = payload.response ?? payload.content ?? payload.answer ?? payload.output_text;
-    if (typeof direct === "string" && direct.trim().length > 0) {
-      return direct;
+  const directText = readAIAssistantDirectText(value);
+  return directText ? extractAIAssistantStructuredResponseFromText(directText) : null;
+}
+
+function extractAIAssistantStructuredResponseFromText(value: string): AIAssistantStructuredResponse | null {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{")) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return parsed && typeof parsed === "object"
+      ? extractAIAssistantStructuredResponseFromRecord(parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function extractAIAssistantStructuredResponseFromRecord(
+  value: Record<string, unknown>
+): AIAssistantStructuredResponse | null {
+  const candidates: Record<string, unknown>[] = [value];
+  for (const key of ["diagnostics", "analysis", "result", "assistant", "response", "output"]) {
+    const nested = value[key];
+    if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+      candidates.push(nested as Record<string, unknown>);
+    }
+  }
+
+  for (const candidate of candidates) {
+    const likelyCauses = readStructuredStringList(candidate.likelyCauses ?? candidate.causes);
+    const nextChecks = readStructuredStringList(candidate.nextChecks ?? candidate.checks);
+    const suggestedFixes = readStructuredStringList(candidate.suggestedFixes ?? candidate.fixes);
+    const codeReferences = readStructuredCodeReferences(candidate.codeReferences ?? candidate.references ?? candidate.files);
+    const summary = readNonEmptyString(candidate.summary) ?? readNonEmptyString(candidate.overview);
+
+    if (
+      !summary
+      && likelyCauses.length === 0
+      && nextChecks.length === 0
+      && suggestedFixes.length === 0
+      && codeReferences.length === 0
+    ) {
+      continue;
     }
 
-    const choices = payload.choices;
-    if (Array.isArray(choices) && choices.length > 0) {
-      const first = choices[0] as Record<string, unknown>;
-      const message = first?.message as Record<string, unknown> | undefined;
-      const content = message?.content;
-      if (typeof content === "string" && content.trim().length > 0) {
-        return content;
-      }
+    return {
+      summary: summary ?? buildStructuredSummary(likelyCauses, nextChecks, suggestedFixes, codeReferences),
+      likelyCauses,
+      codeReferences,
+      nextChecks,
+      suggestedFixes
+    };
+  }
 
-      const text = first?.text;
-      if (typeof text === "string" && text.trim().length > 0) {
-        return text;
-      }
-    }
+  return null;
+}
+
+function extractAIAssistantResponseText(
+  value: unknown,
+  structured: AIAssistantStructuredResponse | null = null
+): string {
+  const directText = readAIAssistantDirectText(value);
+  if (directText) {
+    const structuredFromText = extractAIAssistantStructuredResponseFromText(directText);
+    return structuredFromText?.summary ?? directText;
+  }
+
+  if (structured) {
+    return structured.summary;
+  }
+
+  if (typeof value === "string") {
+    return "AI assistant returned an empty string.";
   }
 
   return shortJson(value);
+}
+
+function readAIAssistantDirectText(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const direct = payload.response ?? payload.content ?? payload.answer ?? payload.output_text;
+  if (typeof direct === "string" && direct.trim().length > 0) {
+    return direct.trim();
+  }
+
+  const choices = payload.choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return null;
+  }
+
+  const first = choices[0] as Record<string, unknown>;
+  const message = first?.message as Record<string, unknown> | undefined;
+  const content = message?.content;
+  if (typeof content === "string" && content.trim().length > 0) {
+    return content.trim();
+  }
+
+  const text = first?.text;
+  return typeof text === "string" && text.trim().length > 0 ? text.trim() : null;
+}
+
+function readStructuredStringList(value: unknown): string[] {
+  if (typeof value === "string") {
+    return value
+      .split(/\r?\n/)
+      .map((entry) => stripBulletMarker(entry.trim()))
+      .filter((entry) => entry.length > 0);
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => stripBulletMarker(entry.trim()))
+    .filter((entry) => entry.length > 0);
+}
+
+function readStructuredCodeReferences(value: unknown): AIAssistantCodeReference[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return [];
+    }
+
+    const candidate = entry as Record<string, unknown>;
+    const file = readNonEmptyString(candidate.file)
+      ?? readNonEmptyString(candidate.path)
+      ?? readNonEmptyString(candidate.source);
+    if (!file) {
+      return [];
+    }
+
+    return [{
+      file,
+      line: readNullableNumber(candidate.line),
+      column: readNullableNumber(candidate.column),
+      reason: readNonEmptyString(candidate.reason)
+        ?? readNonEmptyString(candidate.summary)
+        ?? readNonEmptyString(candidate.message)
+        ?? "Likely implementation surface"
+    }];
+  });
+}
+
+function buildStructuredSummary(
+  likelyCauses: string[],
+  nextChecks: string[],
+  suggestedFixes: string[],
+  codeReferences: AIAssistantCodeReference[]
+): string {
+  if (likelyCauses.length > 0) {
+    return likelyCauses[0];
+  }
+
+  if (suggestedFixes.length > 0) {
+    return suggestedFixes[0];
+  }
+
+  if (nextChecks.length > 0) {
+    return nextChecks[0];
+  }
+
+  if (codeReferences.length > 0) {
+    return `Likely implementation surface: ${formatAIAssistantCodeReferenceLocation(codeReferences[0])}`;
+  }
+
+  return "Structured AI analysis ready.";
+}
+
+function stripBulletMarker(value: string): string {
+  return value.replace(/^(?:[-*•]|\d+[.)])\s+/, "").trim();
+}
+
+function readNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }

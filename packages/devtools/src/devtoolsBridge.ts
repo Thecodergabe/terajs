@@ -1,3 +1,4 @@
+import type { AICodeReference } from "./aiDebugContext.js";
 import type { SafeDocumentContext, SafeDocumentContextSummary, SafeDocumentDiagnostic } from "./documentContext.js";
 
 export const DEVTOOLS_BRIDGE_READY_EVENT = "terajs:devtools:bridge:ready";
@@ -46,6 +47,7 @@ export interface DevtoolsBridgeSnapshot {
     panelSize: string;
     persistPreferences: boolean;
   };
+  codeReferences: AICodeReference[];
   document: SafeDocumentContextSummary | null;
   documentDiagnostics: SafeDocumentDiagnostic[];
   recentEvents: Array<{
@@ -77,6 +79,7 @@ export interface DevtoolsBridgeEventRecord {
 
 export interface DevtoolsBridgeSessionExport {
   snapshot: DevtoolsBridgeSnapshot;
+  codeReferences: AICodeReference[];
   document: SafeDocumentContext | null;
   documentDiagnostics: SafeDocumentDiagnostic[];
   events: DevtoolsBridgeEventRecord[];
@@ -112,6 +115,7 @@ interface DevtoolsBridgeSnapshotInput {
   componentInspectorQuery: string;
   ai: DevtoolsBridgeSnapshot["ai"];
   layout: DevtoolsBridgeSnapshot["layout"];
+  codeReferences: DevtoolsBridgeSnapshot["codeReferences"];
   document: DevtoolsBridgeSnapshot["document"];
   documentDiagnostics: DevtoolsBridgeSnapshot["documentDiagnostics"];
   recentEvents: DevtoolsBridgeSnapshot["recentEvents"];

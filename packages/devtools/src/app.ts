@@ -1,6 +1,8 @@
 import { clearDebugHistory, Debug, readDebugHistory, subscribeDebug } from "@terajs/shared";
 import { captureStateSnapshot } from "@terajs/adapter-ai";
+import { collectRecentCodeReferences } from "./aiDebugContext.js";
 import { computeSanityMetrics } from "./sanity.js";
+import { LIVE_DEVTOOLS_TABS } from "./areas/registry.js";
 import {
   renderInspectorRuntimeMonitor as renderRuntimeMonitorPanel,
   type RuntimeMonitorRenderUtils
@@ -45,7 +47,6 @@ import {
   collectComponentDrilldown,
   type MountedComponentEntry
 } from "./inspector/componentData.js";
-import { buildComponentsPanelView } from "./inspector/componentsPanelView.js";
 import {
   renderComponentDrilldownInspector as renderDrilldownInspector,
   type InspectorSectionKey,
@@ -55,27 +56,18 @@ import {
   resolveLivePropsSnapshot,
 } from "./inspector/liveEditing.js";
 import {
-  renderIssuesPanel,
-  renderLogsPanel,
-  renderMetaPanel,
-  renderSignalsPanel,
-  renderTimelinePanel
-} from "./panels/primaryPanels.js";
-import {
   DEFAULT_AI_DIAGNOSTICS_SECTION,
-  renderAIDiagnosticsPanel,
-  renderPerformancePanel,
-  renderQueuePanel,
-  renderRouterPanel,
-  renderSanityPanel,
-  renderSettingsPanel,
   type AIDiagnosticsSectionKey
 } from "./panels/diagnosticsPanels.js";
+import { renderShadowAIArea } from "./areas/shadow/ai/render.js";
 import { normalizeEvent } from "./eventNormalization.js";
 import { appendPrioritizedDevtoolsEvent, retainPrioritizedDevtoolsEvents } from "./eventRetention.js";
 import {
   normalizeAIAssistantOptions,
+  type AIAssistantStructuredResponse,
 } from "./aiHelpers.js";
+import { EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT } from "./providers/extensionBridge.js";
+import { patchShadowComponentsArea, captureComponentsScrollPositions } from "./areas/shadow/components/render.js";
 import { createClickHandler } from "./appClickHandler.js";
 import { renderAppShell } from "./appShell.js";
 import {
@@ -199,31 +191,20 @@ interface DevtoolsState {
   aiLikelyCause: string | null;
   aiStatus: "idle" | "loading" | "ready" | "error";
   aiResponse: string | null;
+  aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
   activeAIDiagnosticsSection: AIDiagnosticsSectionKey;
   aiAssistantEnabled: boolean;
   aiAssistantEndpoint: string | null;
   aiAssistantModel: string;
   aiAssistantTimeoutMs: number;
+  hostControlsOpen: boolean;
   overlayPosition: DevtoolsOverlayPosition;
   overlayPanelSize: DevtoolsOverlaySize;
   persistOverlayPreferences: boolean;
 }
 
-const TABS: TabName[] = [
-  "Components",
-  "AI Diagnostics",
-  "Signals",
-  "Meta",
-  "Issues",
-  "Logs",
-  "Timeline",
-  "Router",
-  "Queue",
-  "Performance",
-  "Sanity Check",
-  "Settings"
-];
+const TABS: TabName[] = [...LIVE_DEVTOOLS_TABS];
 
 const DEFAULT_EXPANDED_INSPECTOR_SECTIONS: InspectorSectionKey[] = [];
 const MAX_DEVTOOLS_EVENTS = 4000;
@@ -371,12 +352,14 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     aiLikelyCause: hydratedLikelyCause,
     aiStatus: "idle",
     aiResponse: null,
+    aiStructuredResponse: null,
     aiError: null,
     activeAIDiagnosticsSection: DEFAULT_AI_DIAGNOSTICS_SECTION,
     aiAssistantEnabled: aiOptions.enabled,
     aiAssistantEndpoint: aiOptions.endpoint,
     aiAssistantModel: aiOptions.model,
     aiAssistantTimeoutMs: aiOptions.timeoutMs,
+    hostControlsOpen: false,
     overlayPosition: layoutOptions.position,
     overlayPanelSize: layoutOptions.panelSize,
     persistOverlayPreferences: layoutOptions.persistPreferences
@@ -392,10 +375,6 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   };
 
   const shouldRenderAfterEvent = (aiLikelyCauseChanged: boolean) => {
-    if (state.activeTab === "Settings") {
-      return false;
-    }
-
     if (state.activeTab === "AI Diagnostics" && !aiLikelyCauseChanged) {
       return false;
     }
@@ -447,63 +426,16 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     return safeString(event.payload ?? {}).includes(selectedComponentKey);
   };
 
-  const scheduleScrollRestore = (scrollSnapshot: ReturnType<typeof captureScrollPositions>) => {
-    restoreScrollPositions(scrollSnapshot);
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(() => {
-        restoreScrollPositions(scrollSnapshot);
-      });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          restoreScrollPositions(scrollSnapshot);
-        });
-      });
-    }
-  };
-
   const patchComponentsTab = (options: { refreshTree: boolean; refreshInspector: boolean }) => {
-    const componentsScreen = root.querySelector<HTMLElement>(".components-screen");
-    if (!componentsScreen) {
-      render();
-      return;
-    }
-
-    const scrollSnapshot = captureScrollPositions();
-    const view = buildComponentsPanelView(state, renderComponentDrilldownInspector);
-    updateHeaderEventCount();
-
-    const inspectorPanel = root.querySelector<HTMLElement>(".components-screen-inspector");
-    if (view.hasSelection !== Boolean(inspectorPanel)) {
-      render();
-      return;
-    }
-
-    componentsScreen.classList.toggle("is-inspector-hidden", !view.hasSelection);
-
-    const inspectorSubtitle = root.querySelector<HTMLElement>(".components-screen-inspector .panel-subtitle");
-    if (inspectorSubtitle) {
-      inspectorSubtitle.textContent = view.selectedLabel;
-    }
-
-    if (options.refreshTree) {
-      const treeBody = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-body");
-      if (!treeBody) {
-        render();
-        return;
-      }
-      treeBody.innerHTML = view.treeMarkup;
-    }
-
-    if (options.refreshInspector) {
-      const inspectorBody = root.querySelector<HTMLElement>(".components-screen-inspector .components-screen-body");
-      if (!inspectorBody) {
-        render();
-        return;
-      }
-      inspectorBody.innerHTML = view.inspectorMarkup;
-    }
-
-    scheduleScrollRestore(scrollSnapshot);
+    patchShadowComponentsArea({
+      root,
+      state,
+      renderComponentDrilldownInspector,
+      updateHeaderEventCount,
+      renderFallback: render,
+      refreshTree: options.refreshTree,
+      refreshInspector: options.refreshInspector
+    });
   };
 
   const appendEvent = (rawEvent: unknown) => {
@@ -616,6 +548,12 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   };
 
   const focusBridgeTab = (tab: DevtoolsBridgeTabName): boolean => {
+    if (tab === "Settings") {
+      state.hostControlsOpen = true;
+      render();
+      return true;
+    }
+
     if (!TABS.includes(tab)) {
       return false;
     }
@@ -685,7 +623,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
             likelyCause: state.aiLikelyCause,
             error: state.aiError,
             promptAvailable: state.aiPrompt !== null,
-            responseAvailable: state.aiResponse !== null,
+            responseAvailable: state.aiResponse !== null || state.aiStructuredResponse !== null,
             assistantEnabled: state.aiAssistantEnabled,
             assistantEndpoint: state.aiAssistantEndpoint,
             assistantModel: state.aiAssistantModel,
@@ -696,6 +634,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
             panelSize: state.overlayPanelSize,
             persistPreferences: state.persistOverlayPreferences,
           },
+          codeReferences: collectRecentCodeReferences(state.events, 8),
           document: summarizeSafeDocumentContext(documentContext),
           documentDiagnostics: analyzeSafeDocumentContext(documentContext),
           recentEvents: state.events.slice(-25).map((event) => ({
@@ -708,6 +647,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       getSessionExport: () => {
         const documentContext = readDocumentContext();
         return {
+          codeReferences: collectRecentCodeReferences(state.events, 16),
           document: documentContext,
           documentDiagnostics: analyzeSafeDocumentContext(documentContext),
           events: state.events.map((event) => ({
@@ -728,9 +668,13 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
   }
 
   const handleComponentPicked = createComponentPickedHandler(state, render);
+  const handleExtensionAIBridgeChange = () => {
+    render();
+  };
 
   if (typeof window !== "undefined") {
     window.addEventListener(DEVTOOLS_COMPONENT_PICKED_EVENT, handleComponentPicked as EventListener);
+    window.addEventListener(EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT, handleExtensionAIBridgeChange as EventListener);
   }
 
   const handleClick = createClickHandler({
@@ -800,6 +744,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     unsubEventBus();
     if (typeof window !== "undefined") {
       window.removeEventListener(DEVTOOLS_COMPONENT_PICKED_EVENT, handleComponentPicked as EventListener);
+      window.removeEventListener(EXTENSION_AI_ASSISTANT_BRIDGE_CHANGE_EVENT, handleExtensionAIBridgeChange as EventListener);
     }
     devtoolsBridge?.dispose();
     notifyInspectMode(false);
@@ -815,7 +760,7 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
 
   function render() {
     const scrollSnapshot = state.activeTab === "Components"
-      ? captureScrollPositions()
+      ? captureComponentsScrollPositions(root)
       : null;
 
     root.dataset.theme = state.theme;
@@ -833,7 +778,60 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       return;
     }
 
-    scheduleScrollRestore(scrollSnapshot);
+    patchShadowComponentsArea;
+    if (scrollSnapshot) {
+      const treeBody = root.querySelector<HTMLElement>(".components-screen-tree .components-screen-body");
+      const inspectorBody = root.querySelector<HTMLElement>(".components-screen-inspector .components-screen-body");
+      const inspectorSurface = root.querySelector<HTMLElement>(".components-screen-inspector .inspector-surface");
+
+      if (treeBody) {
+        treeBody.scrollTop = scrollSnapshot.treeTop;
+        treeBody.scrollLeft = scrollSnapshot.treeLeft;
+      }
+
+      if (inspectorBody) {
+        inspectorBody.scrollTop = scrollSnapshot.inspectorBodyTop;
+        inspectorBody.scrollLeft = scrollSnapshot.inspectorBodyLeft;
+      }
+
+      if (inspectorSurface) {
+        inspectorSurface.scrollTop = scrollSnapshot.inspectorSurfaceTop;
+        inspectorSurface.scrollLeft = scrollSnapshot.inspectorSurfaceLeft;
+      }
+
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => {
+          if (treeBody) {
+            treeBody.scrollTop = scrollSnapshot.treeTop;
+            treeBody.scrollLeft = scrollSnapshot.treeLeft;
+          }
+          if (inspectorBody) {
+            inspectorBody.scrollTop = scrollSnapshot.inspectorBodyTop;
+            inspectorBody.scrollLeft = scrollSnapshot.inspectorBodyLeft;
+          }
+          if (inspectorSurface) {
+            inspectorSurface.scrollTop = scrollSnapshot.inspectorSurfaceTop;
+            inspectorSurface.scrollLeft = scrollSnapshot.inspectorSurfaceLeft;
+          }
+        });
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (treeBody) {
+              treeBody.scrollTop = scrollSnapshot.treeTop;
+              treeBody.scrollLeft = scrollSnapshot.treeLeft;
+            }
+            if (inspectorBody) {
+              inspectorBody.scrollTop = scrollSnapshot.inspectorBodyTop;
+              inspectorBody.scrollLeft = scrollSnapshot.inspectorBodyLeft;
+            }
+            if (inspectorSurface) {
+              inspectorSurface.scrollTop = scrollSnapshot.inspectorSurfaceTop;
+              inspectorSurface.scrollLeft = scrollSnapshot.inspectorSurfaceLeft;
+            }
+          });
+        });
+      }
+    }
     notifyInspectMode(state.activeTab === "Components");
     devtoolsBridge?.sync();
   }
@@ -844,31 +842,9 @@ function renderPanel(state: DevtoolsState, documentContext = captureSafeDocument
     case "Components":
       return "";
     case "AI Diagnostics":
-      return renderAIDiagnosticsPanel({
-        ...state,
-        documentContext,
-        documentDiagnostics: analyzeSafeDocumentContext(documentContext)
-      });
-    case "Signals":
-      return renderSignalsPanel(state);
-    case "Meta":
-      return renderMetaPanel(state, documentContext);
-    case "Issues":
-      return renderIssuesPanel(state.events);
-    case "Logs":
-      return renderLogsPanel(state);
-    case "Timeline":
-      return renderTimelinePanel(state);
-    case "Router":
-      return renderRouterPanel(state.events);
-    case "Queue":
-      return renderQueuePanel(state.events);
-    case "Performance":
-      return renderPerformancePanel(state.events);
-    case "Sanity Check":
-      return renderSanityPanel(state.events);
-    case "Settings":
-      return renderSettingsPanel(state);
+      return renderShadowAIArea(state, documentContext);
+    default:
+      return "";
   }
 }
 

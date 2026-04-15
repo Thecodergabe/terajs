@@ -14,6 +14,9 @@ export interface DevtoolsEventLike {
   timestamp: number;
   payload?: Record<string, unknown>;
   level?: "info" | "warn" | "error";
+  file?: string;
+  line?: number;
+  column?: number;
 }
 
 export interface LiveReactiveEntry {

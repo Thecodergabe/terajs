@@ -1,5 +1,12 @@
 import { computePerformanceMetrics, computeRouterMetrics } from "../analytics.js";
-import { getGlobalAIAssistantHook } from "../aiHelpers.js";
+import { collectRecentCodeReferences, formatAICodeReferenceLocation } from "../aiDebugContext.js";
+import {
+  formatAIAssistantCodeReferenceLocation,
+  getGlobalAIAssistantHook,
+  type AIAssistantCodeReference,
+  type AIAssistantStructuredResponse
+} from "../aiHelpers.js";
+import { getExtensionAIAssistantBridge } from "../providers/extensionBridge.js";
 import { computeSanityMetrics, DEFAULT_SANITY_THRESHOLDS } from "../sanity.js";
 import { getDebugListenerCount } from "@terajs/shared";
 import { analyzeSafeDocumentContext, type SafeDocumentContext, type SafeDocumentDiagnostic } from "../documentContext.js";
@@ -22,6 +29,7 @@ export type AIDiagnosticsSectionKey =
   | "session-mode"
   | "analysis-output"
   | "prompt-inputs"
+  | "code-references"
   | "provider-telemetry"
   | "metadata-checks"
   | "document-context";
@@ -40,6 +48,7 @@ interface AIDiagnosticsStateLike {
   aiStatus: "idle" | "loading" | "ready" | "error";
   aiLikelyCause: string | null;
   aiResponse: string | null;
+  aiStructuredResponse: AIAssistantStructuredResponse | null;
   aiError: string | null;
   aiPrompt: string | null;
   aiAssistantEnabled: boolean;
@@ -336,6 +345,10 @@ function formatAIAssistantProvider(provider: string): string {
     return "HTTP endpoint";
   }
 
+  if (provider === "vscode-extension") {
+    return "VS Code AI bridge";
+  }
+
   return provider;
 }
 
@@ -371,19 +384,43 @@ function resolveAIProviderDetails(state: AIDiagnosticsStateLike): {
   label: string;
   hasGlobalHook: boolean;
   hasEndpoint: boolean;
+  hasExtensionBridge: boolean;
   activePath: string;
   detail: string;
+  builtInModel: string;
 } {
   const hasGlobalHook = getGlobalAIAssistantHook() !== null;
   const hasEndpoint = typeof state.aiAssistantEndpoint === "string" && state.aiAssistantEndpoint.length > 0;
+  const hasExtensionBridge = getExtensionAIAssistantBridge() !== null;
+  const builtInModel = hasExtensionBridge
+    ? "VS Code AI/Copilot via attached extension bridge."
+    : "None. Apps provide the assistant hook or endpoint.";
 
   if (!state.aiAssistantEnabled) {
     return {
       label: "Disabled",
       hasGlobalHook,
       hasEndpoint,
+      hasExtensionBridge,
       activePath: "Assistant calls disabled",
-      detail: "DevTools can still assemble prompts, but it will not send them until devtools.ai.enabled is turned back on."
+      detail: hasExtensionBridge
+        ? "DevTools can still assemble prompts, but it will not send them to the attached extension bridge or any app-configured provider until devtools.ai.enabled is turned back on."
+        : "DevTools can still assemble prompts, but it will not send them until devtools.ai.enabled is turned back on.",
+      builtInModel
+    };
+  }
+
+  if (hasGlobalHook && hasExtensionBridge) {
+    return {
+      label: "Global hook + VS Code bridge",
+      hasGlobalHook,
+      hasEndpoint,
+      hasExtensionBridge,
+      activePath: "window.__TERAJS_AI_ASSISTANT__",
+      detail: hasEndpoint
+        ? "A global hook is active and still takes precedence for Ask Terajs AI, while the attached extension also exposes Ask VS Code AI through the local live bridge."
+        : "The app-provided global hook powers Ask Terajs AI, and the attached extension also exposes Ask VS Code AI through the local live bridge.",
+      builtInModel
     };
   }
 
@@ -392,8 +429,10 @@ function resolveAIProviderDetails(state: AIDiagnosticsStateLike): {
       label: "Global hook",
       hasGlobalHook,
       hasEndpoint,
+      hasExtensionBridge,
       activePath: "window.__TERAJS_AI_ASSISTANT__",
-      detail: "A global hook is active and takes precedence over the configured endpoint while it is present."
+      detail: "A global hook is active and takes precedence over the configured endpoint while it is present.",
+      builtInModel
     };
   }
 
@@ -402,8 +441,22 @@ function resolveAIProviderDetails(state: AIDiagnosticsStateLike): {
       label: "Global hook",
       hasGlobalHook,
       hasEndpoint,
+      hasExtensionBridge,
       activePath: "window.__TERAJS_AI_ASSISTANT__",
-      detail: "The app is providing its own assistant bridge through a global hook."
+      detail: "The app is providing its own assistant bridge through a global hook.",
+      builtInModel
+    };
+  }
+
+  if (hasEndpoint && hasExtensionBridge) {
+    return {
+      label: "HTTP endpoint + VS Code bridge",
+      hasGlobalHook,
+      hasEndpoint,
+      hasExtensionBridge,
+      activePath: state.aiAssistantEndpoint as string,
+      detail: "Ask Terajs AI will POST the assembled diagnostics bundle to the configured endpoint, while Ask VS Code AI sends the same sanitized payload through the attached local extension bridge.",
+      builtInModel
     };
   }
 
@@ -412,8 +465,22 @@ function resolveAIProviderDetails(state: AIDiagnosticsStateLike): {
       label: "HTTP endpoint",
       hasGlobalHook,
       hasEndpoint,
+      hasExtensionBridge,
       activePath: state.aiAssistantEndpoint as string,
-      detail: "DevTools will POST the assembled prompt, snapshot, sanity metrics, and recent events to the configured endpoint."
+      detail: "DevTools will POST the assembled prompt, snapshot, sanity metrics, and recent events to the configured endpoint.",
+      builtInModel
+    };
+  }
+
+  if (hasExtensionBridge) {
+    return {
+      label: "VS Code AI bridge",
+      hasGlobalHook,
+      hasEndpoint,
+      hasExtensionBridge,
+      activePath: "window.__TERAJS_VSCODE_AI_ASSISTANT__",
+      detail: "The attached live extension can run the same sanitized diagnostics bundle through VS Code AI/Copilot, even when the page itself does not expose a hook or endpoint.",
+      builtInModel
     };
   }
 
@@ -421,8 +488,10 @@ function resolveAIProviderDetails(state: AIDiagnosticsStateLike): {
     label: "Prompt-only",
     hasGlobalHook,
     hasEndpoint,
+    hasExtensionBridge,
     activePath: "Copyable prompt only",
-    detail: "No assistant provider is configured yet, so this panel can build and copy a rich prompt but cannot query a model on its own."
+    detail: "No assistant provider is configured yet, so this panel can build and copy a rich prompt but cannot query a model on its own.",
+    builtInModel
   };
 }
 
@@ -447,6 +516,77 @@ function renderAIKeyValueList(rows: Array<{ key: string; value: string }>): stri
         </div>
       `).join("")}
     </div>
+  `;
+}
+
+function renderStructuredAIAssistantList(
+  title: string,
+  items: string[],
+  label: string,
+  tone: "issue-error" | "issue-warn" | ""
+): string {
+  if (items.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="ai-diagnostics-section-block">
+      <div class="panel-title is-blue">${escapeHtml(title)}</div>
+      <ul class="stack-list compact-list">
+        ${items.map((item) => `
+          <li class="stack-item ${tone}">
+            <span class="item-label">[${escapeHtml(label)}]</span>
+            <span>${escapeHtml(item)}</span>
+          </li>
+        `).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function renderStructuredAIAssistantCodeReferences(references: AIAssistantCodeReference[]): string {
+  if (references.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="ai-diagnostics-section-block">
+      <div class="panel-title is-purple">AI code references</div>
+      <ul class="stack-list compact-list">
+        ${references.map((reference) => `
+          <li class="stack-item issue-warn">
+            <span class="item-label">[FILE]</span>
+            <span class="accent-text is-cyan">${escapeHtml(formatAIAssistantCodeReferenceLocation(reference))}</span>
+            <span>${escapeHtml(reference.reason)}</span>
+          </li>
+        `).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function renderStructuredAIAssistantResponse(
+  response: AIAssistantStructuredResponse,
+  fallbackText: string | null
+): string {
+  const normalizedFallbackText = typeof fallbackText === "string" ? fallbackText.trim() : "";
+  const showFallbackText = normalizedFallbackText.length > 0 && normalizedFallbackText !== response.summary;
+
+  return `
+    <div class="ai-diagnostics-section-block">
+      <div class="panel-title is-cyan">AI summary</div>
+      <div>${escapeHtml(response.summary)}</div>
+    </div>
+    ${renderStructuredAIAssistantList("Likely causes", response.likelyCauses, "CAUSE", "issue-warn")}
+    ${renderStructuredAIAssistantCodeReferences(response.codeReferences)}
+    ${renderStructuredAIAssistantList("Next checks", response.nextChecks, "CHECK", "")}
+    ${renderStructuredAIAssistantList("Suggested fixes", response.suggestedFixes, "FIX", "")}
+    ${showFallbackText ? `
+      <div class="ai-diagnostics-section-block">
+        <div class="panel-title is-cyan">Raw assistant text</div>
+        <pre class="ai-response">${escapeHtml(normalizedFallbackText)}</pre>
+      </div>
+    ` : ""}
   `;
 }
 
@@ -730,20 +870,27 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
   const promptInputs = collectAIPromptInputs(state);
   const promptInputErrorCount = promptInputs.filter((input) => input.severity === "error").length;
   const promptInputWarnCount = promptInputs.filter((input) => input.severity === "warn").length;
+  const codeReferences = collectRecentCodeReferences(state.events, 10);
   const documentContext = state.documentContext ?? null;
   const documentDiagnostics = state.documentDiagnostics ?? analyzeSafeDocumentContext(documentContext);
   const documentWarnCount = documentDiagnostics.filter((entry) => entry.severity === "warn").length;
   const documentInfoCount = documentDiagnostics.filter((entry) => entry.severity === "info").length;
   const integrationWarnings: string[] = [];
   const hasConfiguredProvider = providerDetails.hasGlobalHook || providerDetails.hasEndpoint;
-  const canQueryAssistant = state.aiAssistantEnabled && hasConfiguredProvider;
-  const primaryActionLabel = canQueryAssistant ? "Ask Terajs AI" : "Build Triage Prompt";
-  const primaryActionHint = canQueryAssistant
+  const canQueryConfiguredAssistant = state.aiAssistantEnabled && hasConfiguredProvider;
+  const canQueryExtensionAssistant = state.aiAssistantEnabled && providerDetails.hasExtensionBridge;
+  const canQueryAssistant = canQueryConfiguredAssistant || canQueryExtensionAssistant;
+  const primaryActionLabel = canQueryConfiguredAssistant ? "Ask Terajs AI" : "Build Triage Prompt";
+  const primaryActionHint = canQueryConfiguredAssistant
     ? "Runs the configured assistant with the current sanitized diagnostics bundle."
     : !state.aiAssistantEnabled
     ? "Assistant execution is disabled, so this action only prepares a sanitized prompt you can move into your own tooling."
+    : canQueryExtensionAssistant
+    ? "No in-page provider is configured, but the attached extension can still run the same sanitized bundle through Ask VS Code AI."
     : "No provider is configured, so this action prepares a sanitized prompt you can paste into your own assistant, ticket, or endpoint harness.";
-  const analysisSummary = state.aiResponse
+  const analysisSummary = state.aiStructuredResponse
+    ? "Structured response ready"
+    : state.aiResponse
     ? "Response ready"
     : state.aiStatus === "loading"
     ? "Running"
@@ -755,7 +902,7 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
 
   let assistantOutputMarkup = "";
   if (state.aiStatus === "loading") {
-    assistantOutputMarkup = `<div class="empty-state">Consulting the configured assistant provider...</div>`;
+    assistantOutputMarkup = `<div class="empty-state">Running the selected assistant with the current sanitized diagnostics bundle...</div>`;
   } else if (state.aiError) {
     assistantOutputMarkup = `
       <div class="ai-diagnostics-section-block">
@@ -766,6 +913,8 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
         </div>
       </div>
     `;
+  } else if (state.aiStructuredResponse) {
+    assistantOutputMarkup = renderStructuredAIAssistantResponse(state.aiStructuredResponse, state.aiResponse);
   } else if (state.aiResponse) {
     assistantOutputMarkup = `
       <div class="ai-diagnostics-section-block">
@@ -777,7 +926,7 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
     assistantOutputMarkup = `
       <div class="ai-diagnostics-section-block">
         <div class="panel-title is-cyan">Prompt prepared</div>
-        <div class="muted-text">${escapeHtml(canQueryAssistant ? "The current session bundle is ready for a provider-backed run." : "Prompt-only mode is active, so the payload is ready to copy into your own assistant." )}</div>
+        <div class="muted-text">${escapeHtml(canQueryAssistant ? "The current session bundle is ready for an assistant-backed run." : "Prompt-only mode is active, so the payload is ready to copy into your own assistant." )}</div>
       </div>
     `;
   } else {
@@ -788,7 +937,7 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
 
   if (!state.aiAssistantEnabled) {
     integrationWarnings.push("Assistant execution is disabled in the DevTools overlay options.");
-  } else if (!providerDetails.hasGlobalHook && !providerDetails.hasEndpoint) {
+  } else if (!providerDetails.hasGlobalHook && !providerDetails.hasEndpoint && !providerDetails.hasExtensionBridge) {
     integrationWarnings.push("No assistant provider is configured. Build Triage Prompt packages a sanitized prompt you can copy into your own chatbot or backend tool.");
   }
 
@@ -823,6 +972,12 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
       title: "Prompt Inputs",
       summary: `${promptInputs.length} items`,
       description: "The runtime warnings, likely causes, and document diagnostics included in the next analysis run."
+    },
+    {
+      key: "code-references",
+      title: "Code References",
+      summary: `${codeReferences.length} refs`,
+      description: "Recent issue-linked source locations that AI and IDE tools can use to jump straight to likely implementation files."
     },
     {
       key: "provider-telemetry",
@@ -861,7 +1016,8 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
             { key: "Snapshot signals:", value: String(snapshotSignals.length) },
             { key: "AI metadata:", value: String(componentAIMetadataCount + routeAIMetadataCount) },
             { key: "Prompt inputs:", value: String(promptInputs.length) },
-            { key: "Built-in model:", value: "None. Apps provide the assistant hook or endpoint." },
+            { key: "VS Code bridge:", value: providerDetails.hasExtensionBridge ? "Attached" : "Not attached" },
+            { key: "Built-in model:", value: providerDetails.builtInModel },
             { key: "Current insight:", value: state.aiLikelyCause ?? "No reactive error detected yet." },
             { key: "Active path:", value: providerDetails.activePath },
             { key: "Model:", value: state.aiAssistantModel },
@@ -909,6 +1065,31 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
                 <li class="stack-item ${input.severity === "error" ? "issue-error" : input.severity === "warn" ? "issue-warn" : ""}">
                   <span class="item-label">[${escapeHtml(input.label)}]</span>
                   <span>${escapeHtml(input.summary)}</span>
+                </li>
+              `).join("")}
+            </ul>
+          `}
+        </div>
+      `;
+      break;
+    }
+
+    case "code-references": {
+      detailMarkup = `
+        <div class="ai-diagnostics-section-block">
+          <div class="panel-title is-blue">Source locations exported to AI and IDE tools</div>
+          ${renderAIKeyValueList([
+            { key: "Code references:", value: String(codeReferences.length) },
+            { key: "How to use:", value: "Use these files and lines to jump directly into likely failure points from VS Code or the AI assistant." }
+          ])}
+          ${codeReferences.length === 0 ? `<div class="empty-state">No recent issue events are carrying source locations yet.</div>` : `
+            <ul class="stack-list compact-list">
+              ${codeReferences.map((reference) => `
+                <li class="stack-item ${reference.level === "error" ? "issue-error" : "issue-warn"}">
+                  <span class="item-label">[${escapeHtml(reference.level.toUpperCase())}]</span>
+                  <span class="accent-text is-cyan">${escapeHtml(formatAICodeReferenceLocation(reference))}</span>
+                  <span>${escapeHtml(reference.summary)}</span>
+                  <span class="muted-text">${escapeHtml(reference.eventType)}</span>
                 </li>
               `).join("")}
             </ul>
@@ -1040,9 +1221,11 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
           <div class="panel-title is-cyan">Run analysis</div>
           <div class="button-row">
             <button class="toolbar-button ask-ai-button" data-action="ask-ai">${escapeHtml(primaryActionLabel)}</button>
+            ${canQueryExtensionAssistant ? `<button class="toolbar-button" data-action="ask-vscode-ai">Ask VS Code AI</button>` : ""}
             <button class="toolbar-button" data-action="copy-ai-prompt">Copy Prompt</button>
           </div>
           <div class="muted-text ai-hint">${escapeHtml(primaryActionHint)}</div>
+          ${canQueryExtensionAssistant ? `<div class="muted-text ai-hint">Ask VS Code AI sends the same sanitized diagnostics bundle through the attached extension bridge.</div>` : ""}
           <div class="muted-text ai-hint">${escapeHtml(providerDetails.detail)}</div>
         </div>
         ${assistantOutputMarkup}

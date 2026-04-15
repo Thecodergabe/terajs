@@ -1,33 +1,25 @@
-import {
-  collectComponentDrilldown,
-  type MountedComponentEntry
-} from "./inspector/componentData.js";
-import {
-  buildComponentsPanelView,
-  type ComponentsPanelViewState
-} from "./inspector/componentsPanelView.js";
 import { escapeHtml } from "./inspector/shared.js";
+import { renderHostControlsChrome, type HostControlsState } from "./areas/host/controls.js";
+import {
+  renderShadowComponentsArea,
+  type ShadowComponentsAreaState,
+  type ShadowComponentsDrilldownRenderer
+} from "./areas/shadow/components/render.js";
 
-type AppShellState = ComponentsPanelViewState & {
+type AppShellState = ShadowComponentsAreaState & HostControlsState & {
   activeTab: string;
   eventCount: number;
   theme: "dark" | "light";
 };
 
-type DrilldownRenderer<TState extends AppShellState> = (
-  state: TState,
-  selected: MountedComponentEntry,
-  drilldown: ReturnType<typeof collectComponentDrilldown>
-) => string;
-
 export function renderAppShell<TState extends AppShellState>(
   state: TState,
   tabs: readonly string[],
   renderPanel: (state: TState) => string,
-  renderComponentDrilldownInspector: DrilldownRenderer<TState>
+  renderComponentDrilldownInspector: ShadowComponentsDrilldownRenderer<TState>
 ): string {
   const bodyMarkup = state.activeTab === "Components"
-    ? renderComponentsScreen(state, tabs, renderComponentDrilldownInspector)
+    ? renderShadowComponentsArea(state, tabs, renderTabRail, renderComponentDrilldownInspector)
     : renderStandardBody(state, tabs, renderPanel);
 
   return `
@@ -37,8 +29,17 @@ export function renderAppShell<TState extends AppShellState>(
           <div class="devtools-title">Terajs DevTools</div>
           <div class="devtools-subtitle">Events: ${state.eventCount}</div>
         </div>
-        <button class="toolbar-button" data-theme-toggle="true">${state.theme === "dark" ? "Light Theme" : "Dark Theme"}</button>
+        <div class="devtools-header-actions">
+          <button
+            class="toolbar-button ${state.hostControlsOpen ? "is-active" : ""}"
+            data-host-controls-toggle="true"
+            aria-expanded="${state.hostControlsOpen ? "true" : "false"}"
+            type="button"
+          >Overlay</button>
+          <button class="toolbar-button" data-theme-toggle="true" type="button">${state.theme === "dark" ? "Light Theme" : "Dark Theme"}</button>
+        </div>
       </div>
+      ${renderHostControlsChrome(state)}
       ${bodyMarkup}
     </div>
   `;
@@ -61,60 +62,6 @@ function renderStandardBody<TState extends AppShellState>(state: TState, tabs: r
       <div class="devtools-panel">
         ${renderPanel(state)}
       </div>
-    </div>
-  `;
-}
-
-function renderComponentsScreen<TState extends AppShellState>(
-  state: TState,
-  tabs: readonly string[],
-  renderComponentDrilldownInspector: DrilldownRenderer<TState>
-): string {
-  const view = buildComponentsPanelView(state, renderComponentDrilldownInspector);
-
-  return `
-    <div class="components-screen${view.hasSelection ? "" : " is-inspector-hidden"}">
-      <aside class="components-screen-sidebar">
-        ${renderTabRail(state, tabs)}
-      </aside>
-      <section class="components-screen-tree" aria-label="Components navigator">
-        <div class="components-screen-header">
-          <div class="components-screen-header-row">
-            <input
-              class="components-screen-search"
-              data-component-search-query="true"
-              type="search"
-              placeholder="Find components..."
-              value="${escapeHtml(state.componentSearchQuery)}"
-            />
-          </div>
-        </div>
-        <div class="components-screen-body">
-          ${view.treeMarkup}
-        </div>
-      </section>
-      ${view.hasSelection ? `
-        <section class="components-screen-inspector" aria-label="Component inspector">
-          <div class="components-screen-header">
-            <div class="components-screen-header-row">
-              <div>
-                <div class="panel-title is-cyan">State Inspector</div>
-                <div class="panel-subtitle">${escapeHtml(view.selectedLabel)}</div>
-              </div>
-              <input
-                class="components-screen-filter"
-                data-component-inspector-query="true"
-                type="search"
-                placeholder="Filter state..."
-                value="${escapeHtml(state.componentInspectorQuery)}"
-              />
-            </div>
-          </div>
-          <div class="components-screen-body">
-            ${view.inspectorMarkup}
-          </div>
-        </section>
-      ` : ""}
     </div>
   `;
 }

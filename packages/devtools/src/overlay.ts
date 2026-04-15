@@ -23,6 +23,8 @@ import {
 } from "./overlayOptions.js";
 
 export type { DevtoolsOverlayOptions } from "./overlayOptions.js";
+export { mountDevtoolsApp };
+export type { DevtoolsAppOptions } from "./app.js";
 export {
   DEVTOOLS_BRIDGE_DISPOSE_EVENT,
   DEVTOOLS_BRIDGE_READY_EVENT,

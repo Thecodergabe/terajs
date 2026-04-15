@@ -64,12 +64,19 @@ function ensureTestStorage(): Storage {
   return fallback;
 }
 
+async function flushMicrotasks(count = 8): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    await Promise.resolve();
+  }
+}
+
 describe("devtools overlay public entry", () => {
   afterEach(() => {
     unmountDevtoolsOverlay();
     resetDebugListeners();
     setCurrentContext(null);
     delete (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__;
+    delete (window as typeof window & { __TERAJS_VSCODE_AI_ASSISTANT__?: unknown }).__TERAJS_VSCODE_AI_ASSISTANT__;
     delete (window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__;
     ensureTestStorage().removeItem(OVERLAY_PREFERENCES_STORAGE_KEY);
     document.head.querySelectorAll('[data-devtools-doc-test="true"]').forEach((node) => node.remove());
@@ -167,7 +174,18 @@ describe("devtools overlay public entry", () => {
 
     const shadowRoot = host?.shadowRoot;
     expect(shadowRoot?.textContent).toContain("AI Diagnostics");
-    expect(shadowRoot?.textContent).toContain("Provider wiring");
+    expect(shadowRoot?.textContent).toContain("Analysis Output");
+  });
+
+  it("opens host controls when the bridge focuses settings", () => {
+    mountDevtoolsOverlay();
+
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+    expect(bridge?.focusTab("Settings")).toBe(true);
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    expect(shadowRoot?.querySelector('[data-host-controls-toggle="true"]')?.getAttribute("aria-expanded")).toBe("true");
+    expect(shadowRoot?.textContent).toContain("Overlay Controls");
   });
 
   it("provides bridge helpers for readiness, subscriptions, and session export", async () => {
@@ -193,13 +211,40 @@ describe("devtools overlay public entry", () => {
     });
 
     Debug.emit("effect:run", { key: "bridge-helper-check" });
+    emitDebug({
+      type: "error:component",
+      timestamp: Date.now(),
+      level: "error",
+      file: "src/components/Counter.tera",
+      line: 27,
+      column: 9,
+      scope: "Counter",
+      instance: 1,
+      message: "Counter render failed"
+    } as any);
     expect(bridge.focusTab("AI Diagnostics")).toBe(true);
 
     const session = readDevtoolsBridgeSession();
     expect(session?.snapshot.activeTab).toBe("AI Diagnostics");
+    expect(session?.snapshot.codeReferences).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        file: "src/components/Counter.tera",
+        line: 27,
+        column: 9,
+        summary: "Counter render failed"
+      })
+    ]));
     expect(session?.document?.title).toBe("Terajs Docs");
     expect(session?.document?.metaTags).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "description", value: "Terajs docs home" })
+    ]));
+    expect(session?.codeReferences).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        file: "src/components/Counter.tera",
+        line: 27,
+        column: 9,
+        summary: "Counter render failed"
+      })
     ]));
     expect(session?.documentDiagnostics.some((entry) => entry.id === "missing-canonical")).toBe(true);
     expect(session?.events.some((event) => event.payload?.key === "bridge-helper-check")).toBe(true);
@@ -292,8 +337,10 @@ describe("devtools overlay public entry", () => {
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     const shadowRoot = host?.shadowRoot;
 
-    const settingsTab = shadowRoot?.querySelector('[data-tab="Settings"]') as HTMLButtonElement | null;
-    settingsTab?.click();
+    expect(shadowRoot?.querySelector('[data-tab="Settings"]')).toBeNull();
+
+    const hostControlsToggle = shadowRoot?.querySelector('[data-host-controls-toggle="true"]') as HTMLButtonElement | null;
+    hostControlsToggle?.click();
 
     const centerButton = shadowRoot?.querySelector('[data-layout-position="center"]') as HTMLButtonElement | null;
     centerButton?.click();
@@ -917,8 +964,8 @@ describe("devtools overlay public entry", () => {
     themeButton?.click();
     expect(mountRoot?.dataset.theme).toBe("light");
 
-    const settingsTab = shadowRoot?.querySelector('[data-tab="Settings"]') as HTMLButtonElement | null;
-    settingsTab?.click();
+    const hostControlsToggle = shadowRoot?.querySelector('[data-host-controls-toggle="true"]') as HTMLButtonElement | null;
+    hostControlsToggle?.click();
 
     const clearButton = shadowRoot?.querySelector('[data-clear-events="true"]') as HTMLButtonElement | null;
     clearButton?.click();
@@ -963,8 +1010,7 @@ describe("devtools overlay public entry", () => {
     const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
     askButton?.click();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushMicrotasks();
 
     expect(hook).toHaveBeenCalledTimes(1);
     const recordedCalls = hook.mock.calls as unknown as Array<[{ document?: { metaTags: Array<{ key: string }> } }]>
@@ -1006,6 +1052,61 @@ describe("devtools overlay public entry", () => {
     expect(documentPane?.textContent).toContain("Docs home page");
   });
 
+  it("renders structured AI analysis when the assistant returns diagnostics JSON", async () => {
+    const hook = vi.fn(async () => ({
+      summary: "Counter updates are re-entering the same effect.",
+      likelyCauses: [
+        "An effect mutates the same signal it reads during render.",
+        "The recovery path retriggers the same watcher without a guard."
+      ],
+      codeReferences: [
+        {
+          file: "src/components/Counter.tera",
+          line: 27,
+          column: 9,
+          reason: "This render path is the most likely write-back site."
+        }
+      ],
+      nextChecks: [
+        "Inspect the effect body that mutates count while reading count."
+      ],
+      suggestedFixes: [
+        "Move the write into an event handler or gate the effect on stale input."
+      ]
+    }));
+    (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__ = hook;
+
+    mountDevtoolsOverlay();
+
+    emitDebug({
+      type: "error:component",
+      level: "error",
+      timestamp: Date.now(),
+      file: "src/components/Counter.tera",
+      line: 27,
+      column: 9,
+      payload: { message: "Counter render failed" }
+    } as any);
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
+
+    const askButton = shadowRoot?.querySelector('[data-action="ask-ai"]') as HTMLButtonElement | null;
+    askButton?.click();
+
+    await flushMicrotasks();
+
+    const analysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
+    expect(shadowRoot?.textContent).toContain("Structured response ready");
+    expect(analysisPane?.textContent).toContain("AI summary");
+    expect(analysisPane?.textContent).toContain("Counter updates are re-entering the same effect.");
+    expect(analysisPane?.textContent).toContain("Likely causes");
+    expect(analysisPane?.textContent).toContain("This render path is the most likely write-back site.");
+    expect(analysisPane?.textContent).toContain("Suggested fixes");
+    expect(analysisPane?.textContent).toContain("src/components/Counter.tera:27:9");
+  });
+
   it("surfaces prompt-only AI mode when no provider is configured", () => {
     mountDevtoolsOverlay();
 
@@ -1033,7 +1134,94 @@ describe("devtools overlay public entry", () => {
     expect(telemetryPane?.textContent).toContain("Skipped (no provider configured)");
   });
 
+  it("shows and runs the explicit VS Code AI bridge action when the extension attaches", async () => {
+    mountDevtoolsOverlay();
+
+    emitDebug({
+      type: "error:component",
+      timestamp: Date.now(),
+      level: "error",
+      file: "src/components/Counter.tera",
+      line: 24,
+      column: 3,
+      payload: { message: "Counter update loop" }
+    } as any);
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
+
+    expect(shadowRoot?.querySelector('[data-action="ask-vscode-ai"]')).toBeNull();
+
+    const extensionHook = vi.fn(async () => ({
+      response: {
+        summary: "The attached VS Code bridge reproduced the current runtime issue from the sanitized payload.",
+        likelyCauses: [
+          "A reactive effect is mutating the same source it reads during the failing render path."
+        ],
+        nextChecks: [
+          "Inspect the effect that writes to the counter during route updates."
+        ],
+        suggestedFixes: [
+          "Move the write behind a user action or guard the effect against stale input."
+        ]
+      },
+      telemetry: {
+        model: "copilot/gpt-4.1",
+        endpoint: null
+      }
+    }));
+
+    (window as typeof window & {
+      __TERAJS_VSCODE_AI_ASSISTANT__?: { label: string; request: (payload: unknown) => Promise<unknown> };
+    }).__TERAJS_VSCODE_AI_ASSISTANT__ = {
+      label: "VS Code AI/Copilot",
+      request: extensionHook
+    };
+    window.dispatchEvent(new CustomEvent("terajs:devtools:extension-ai-bridge:change"));
+
+    await flushMicrotasks();
+
+    const analysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
+    const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
+    expect(extensionButton?.textContent).toContain("Ask VS Code AI");
+    expect(analysisPane?.textContent).toContain("Ask VS Code AI sends the same sanitized diagnostics bundle through the attached extension bridge.");
+
+    extensionButton?.click();
+
+    await flushMicrotasks();
+
+    expect(extensionHook).toHaveBeenCalledTimes(1);
+    expect(shadowRoot?.textContent).toContain("Structured response ready");
+    const refreshedAnalysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
+    expect(refreshedAnalysisPane?.textContent).toContain("The attached VS Code bridge reproduced the current runtime issue from the sanitized payload.");
+
+    const sessionModeButton = shadowRoot?.querySelector('[data-ai-section="session-mode"]') as HTMLButtonElement | null;
+    sessionModeButton?.click();
+    const sessionModePane = shadowRoot?.querySelector('[data-ai-active-section="session-mode"]') as HTMLElement | null;
+    expect(sessionModePane?.textContent).toContain("VS Code bridge:");
+    expect(sessionModePane?.textContent).toContain("Attached");
+    expect(sessionModePane?.textContent).toContain("VS Code AI/Copilot via attached extension bridge.");
+
+    const telemetryButton = shadowRoot?.querySelector('[data-ai-section="provider-telemetry"]') as HTMLButtonElement | null;
+    telemetryButton?.click();
+    const telemetryPane = shadowRoot?.querySelector('[data-ai-active-section="provider-telemetry"]') as HTMLElement | null;
+    expect(telemetryPane?.textContent).toContain("VS Code AI bridge");
+  });
+
   it("switches AI diagnostics detail from the left rail", () => {
+    emitDebug({
+      type: "error:component",
+      timestamp: Date.now(),
+      level: "error",
+      file: "src/components/Counter.tera",
+      line: 24,
+      column: 3,
+      scope: "Counter",
+      instance: 1,
+      message: "Counter update loop"
+    } as any);
+
     mountDevtoolsOverlay();
 
     const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
@@ -1047,87 +1235,10 @@ describe("devtools overlay public entry", () => {
     const metadataButton = shadowRoot?.querySelector('[data-ai-section="metadata-checks"]') as HTMLButtonElement | null;
     metadataButton?.click();
     expect(shadowRoot?.querySelector('[data-ai-active-section="metadata-checks"]')?.textContent).toContain("Metadata checks");
-  });
 
-  it("shows router issues in the issues panel", () => {
-    mountDevtoolsOverlay();
-
-    Debug.emit("error:router", {
-      message: "No route matched /missing",
-      to: "/missing"
-    });
-
-    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    const issuesTab = shadowRoot?.querySelector('[data-tab="Issues"]') as HTMLButtonElement | null;
-    issuesTab?.click();
-
-    expect(shadowRoot?.textContent).toContain("No route matched /missing");
-  });
-
-  it("shows queue events in the queue monitor tab", () => {
-    mountDevtoolsOverlay();
-
-    Debug.emit("queue:enqueue", {
-      id: "q1",
-      type: "form:save",
-      pending: 1
-    });
-    Debug.emit("queue:conflict", {
-      id: "q1",
-      type: "form:save",
-      conflictKey: "profile:1",
-      decision: "replace"
-    });
-
-    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    const queueTab = shadowRoot?.querySelector('[data-tab="Queue"]') as HTMLButtonElement | null;
-    queueTab?.click();
-
-    expect(shadowRoot?.textContent).toContain("Queue Monitor");
-    expect(shadowRoot?.textContent).toContain("form:save");
-  });
-
-  it("shows active refs in signals tab without requiring recent updates", () => {
-    const activeRef = ref("ready", {
-      scope: "OverlaySpec",
-      instance: 1,
-      key: "overlay.test.ref"
-    });
-
-    mountDevtoolsOverlay();
-
-    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    const signalsTab = shadowRoot?.querySelector('[data-tab="Signals"]') as HTMLButtonElement | null;
-    signalsTab?.click();
-
-    expect(activeRef.value).toBe("ready");
-    expect(shadowRoot?.textContent).toContain("Active reactive registry");
-    expect(shadowRoot?.textContent).toContain("overlay.test.ref");
-  });
-
-  it("does not emit lifecycle cleanup warnings when opening the signals tab", () => {
-    const warnings: string[] = [];
-    const stopWarnings = Debug.on((event) => {
-      if (
-        event.type === "lifecycle:warn"
-        && event.payload
-        && typeof event.payload.message === "string"
-      ) {
-        warnings.push(event.payload.message);
-      }
-    });
-
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
-
-    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
-    const signalsTab = shadowRoot?.querySelector('[data-tab="Signals"]') as HTMLButtonElement | null;
-    signalsTab?.click();
-
-    unmountDevtoolsOverlay();
-    stopWarnings();
-
-    expect(warnings).not.toContain("onCleanup called without context");
+    const codeReferencesButton = shadowRoot?.querySelector('[data-ai-section="code-references"]') as HTMLButtonElement | null;
+    codeReferencesButton?.click();
+    expect(shadowRoot?.querySelector('[data-ai-active-section="code-references"]')?.textContent).toContain("src/components/Counter.tera:24:3");
   });
 
   it("highlights component roots when selected from the components list", () => {
@@ -1579,8 +1690,8 @@ describe("devtools overlay public entry", () => {
 
     expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(true);
 
-    const logsTab = shadowRoot?.querySelector('[data-tab="Logs"]') as HTMLButtonElement | null;
-    logsTab?.click();
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
 
     expect(componentRoot.classList.contains("terajs-devtools-selected-component")).toBe(false);
   });
