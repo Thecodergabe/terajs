@@ -1,6 +1,6 @@
 {
   "name": "@terajs/router",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,7 +12,7 @@
     }
   },
   "dependencies": {
-    "@terajs/shared": "^0.0.1"
+    "@terajs/shared": "^1.0.0"
   },
   "license": "MIT",
   "repository": "https://github.com/Thecodergabe/terajs",
