@@ -2,6 +2,7 @@
   "name": "terajs",
   "version": "1.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "build": "npm run clean && tsc -b",
     "clean": "tsc -b --clean",

@@ -18,7 +18,7 @@
     "@terajs/compiler": "^1.0.0",
     "@terajs/router": "^1.0.0"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": "https://github.com/Thecodergabe/terajs",
   "publishConfig": {
     "access": "public"
