@@ -36,6 +36,15 @@ That command generates the route-first starter surface around:
 - `src/pages` route scaffolding
 - `src/components` auto-import scaffolding
 
+### Recommended VS Code tooling
+
+If you use VS Code, install the official Terajs extension for `.tera` language support and the DevTools bridge workflow:
+
+- Marketplace: [Terajs - Tera Language Tools](https://marketplace.visualstudio.com/items?itemName=Terajs.terajs-tera-language-tools)
+- Extensions search: search for `Terajs official`
+
+The extension provides `.tera` syntax support, metadata diagnostics, hover and completion support, and the companion inspection surface for the DevTools bridge described later in this README.
+
 ### Manual setup in an existing Vite app
 
 If you are integrating Terajs into an existing Vite app instead of generating a starter, use the app-facing facade package directly.
@@ -290,6 +299,8 @@ module.exports = {
 ### 7. DevTools and the VS Code bridge
 
 Terajs DevTools is part of the shipped app surface.
+
+For the VS Code side of that workflow, install the official companion extension: [Terajs - Tera Language Tools](https://marketplace.visualstudio.com/items?itemName=Terajs.terajs-tera-language-tools). In the Extensions view, you can also find it by searching for `Terajs official`.
 
 The overlay can inspect:
 
