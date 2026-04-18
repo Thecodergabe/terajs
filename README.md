@@ -28,13 +28,7 @@ npm install
 npm run dev
 ```
 
-If you want the CLI directly instead of npm's `create` alias:
-
-```bash
-npx @terajs/cli init my-app
-```
-
-Those commands generate the route-first starter surface around:
+That command generates the route-first starter surface around:
 
 - `@terajs/app`
 - `@terajs/app/vite`
@@ -276,7 +270,7 @@ The current first-party realtime adapters are:
 - `@terajs/hub-socketio`
 - `@terajs/hub-websockets`
 
-All three plug into the same runtime `ServerFunctionTransport` contract. The public scaffolders can preconfigure hub-ready apps with `npm create terajs@latest my-app -- --hub <signalr|socket.io|websockets> [--hub-url <url>]` or `npx @terajs/cli init my-app --hub <signalr|socket.io|websockets> [--hub-url <url>]`.
+All three plug into the same runtime `ServerFunctionTransport` contract. The public scaffold command can preconfigure hub-ready apps with `npm create terajs@latest my-app -- --hub <signalr|socket.io|websockets> [--hub-url <url>]`.
 
 Example realtime config:
 
@@ -393,7 +387,7 @@ The current repo is easiest to understand in four groups.
 ### Scaffold and CLI tools
 
 - `create-terajs`: the npm `create` wrapper for one-command project scaffolding
-- `@terajs/cli`: the direct CLI entry for `init`, `doctor`, `dev`, and `build`
+- `@terajs/cli`: the tooling package behind scaffold generation and project maintenance commands
 
 ### Directional repo work
 

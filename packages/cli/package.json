@@ -1,6 +1,6 @@
 {
   "name": "@terajs/cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Official Terajs scaffold and project CLI.",
   "author": "Terajs Labs",
   "license": "Apache-2.0",
@@ -20,7 +20,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "tera": "./dist/bin.js"
+    "tera": "dist/bin.js"
   },
   "exports": {
     ".": {
@@ -40,5 +40,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "repository": "https://github.com/Thecodergabe/terajs"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thecodergabe/terajs.git"
+  }
 }

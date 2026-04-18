@@ -48,6 +48,7 @@ const allowedPackageExternalDependencies = new Map<string, Set<string>>([
   ["adapter-vue", new Set<string>()],
   ["adapter-ai", new Set<string>()],
   ["cli", new Set(["commander", "vite"])],
+  ["create-terajs", new Set(["@terajs/cli"])],
   ["vite-plug-in", new Set<string>()],
   ["renderer-web", new Set<string>()],
   ["renderer-ssr", new Set<string>()],
@@ -253,6 +254,10 @@ describe("architecture guardrails", () => {
         }
 
         if (packageName === "cli" && importPath === "commander") {
+          continue;
+        }
+
+        if (packageName === "create-terajs" && importPath === "@terajs/cli") {
           continue;
         }
 

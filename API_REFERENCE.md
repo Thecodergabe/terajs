@@ -32,9 +32,9 @@ This file is intentionally launch-scoped. Directional renderer work, Kit-level i
 
 ## Project Creation
 
-- `npm create terajs@latest <name>` runs the published `create-terajs` scaffold wrapper.
-- `npx @terajs/cli init <name>` invokes the same scaffold directly through the public CLI.
-- Both commands generate the same starter surface around `@terajs/app`, `@terajs/app/vite`, `terajs.config.cjs`, and the default `src/pages` route tree.
+- `npm create terajs@latest <name>` is the public scaffold command.
+- That command runs the published `create-terajs` generator package.
+- The generated starter centers on `@terajs/app`, `@terajs/app/vite`, `terajs.config.cjs`, and the default `src/pages` route tree.
 
 ## 0. App Entry Surface (`@terajs/app`)
 

@@ -13,12 +13,6 @@ npm install
 npm run dev
 ```
 
-If you want the direct CLI path instead of npm's create alias:
-
-```bash
-npx @terajs/cli init my-app
-```
-
 ## Install into an existing Vite app
 
 ```bash

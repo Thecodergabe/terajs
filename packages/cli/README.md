@@ -2,18 +2,15 @@
 
 Command-line tooling for scaffolding and running Terajs projects.
 
-This is the direct public CLI entry for Terajs scaffolding and project maintenance.
+This package backs the official Terajs scaffold flow and exposes project maintenance commands.
 
 ## Quickstart
 
 ```bash
-npx @terajs/cli init my-app
-```
-
-If you prefer npm's create flow, the same scaffold is also available through:
-
-```bash
 npm create terajs@latest my-app
+cd my-app
+npm install
+npm run dev
 ```
 
 ## Commands
@@ -23,15 +20,6 @@ npm create terajs@latest my-app
 - `tera doctor`: inspect a Terajs project and report missing or broken setup
 - `tera dev --port <number>`: start Vite dev server with Terajs plugin
 - `tera build`: build production output with Terajs plugin
-
-## Typical Flow
-
-```bash
-npx @terajs/cli init my-app
-cd my-app
-npm install
-npm run dev
-```
 
 Scaffolded projects target the app-facing launch surface:
 
@@ -44,4 +32,4 @@ Scaffolded projects target the app-facing launch surface:
 
 - Generated projects include `.tera` file association defaults for VS Code.
 - Realtime scaffolds can preconfigure `sync.hub` for SignalR, Socket.IO, or raw WebSockets.
-- `create-terajs` is a thin wrapper around this CLI for npm's `create` flow.
+- `create-terajs` is the public one-command entrypoint for app creation.

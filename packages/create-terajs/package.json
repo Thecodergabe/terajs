@@ -1,6 +1,6 @@
 {
   "name": "create-terajs",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "npm create wrapper for scaffolding Terajs projects.",
   "author": "Terajs Labs",
   "license": "Apache-2.0",
@@ -19,7 +19,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "create-terajs": "./dist/bin.js"
+    "create-terajs": "dist/bin.js"
   },
   "exports": {
     ".": {
@@ -29,10 +29,13 @@
     }
   },
   "dependencies": {
-    "@terajs/cli": "^1.0.1"
+    "@terajs/cli": "^1.0.3"
   },
   "publishConfig": {
     "access": "public"
   },
-  "repository": "https://github.com/Thecodergabe/terajs"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thecodergabe/terajs.git"
+  }
 }

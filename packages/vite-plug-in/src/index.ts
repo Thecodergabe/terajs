@@ -13,6 +13,12 @@ import {
   resolveAppFacadeSpecifier
 } from "./appFacade.js";
 import {
+  APP_BOOTSTRAP_VIRTUAL_ID,
+  BUILD_BOOTSTRAP_FILE,
+  generateAppBootstrapModule,
+  RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID
+} from "./bootstrapEntry.js";
+import {
   getConfiguredRoutes,
   getDevtoolsConfig,
   getRouteDirs,
@@ -20,6 +26,7 @@ import {
   getSyncHubConfig
 } from "./config.js";
 import { compileSfcToComponent } from "./compileSfcToComponent.js";
+import { injectAppBootstrapScript } from "./htmlBootstrap.js";
 import type { Plugin } from "vite";
 import { parseSFC } from "@terajs/sfc";
 import { Debug } from "@terajs/shared";
@@ -34,11 +41,7 @@ const ROUTES_VIRTUAL_ID = "virtual:terajs-routes";
 const RESOLVED_ROUTES_VIRTUAL_ID = `\0${ROUTES_VIRTUAL_ID}`;
 const APP_VIRTUAL_ID = "virtual:terajs-app";
 const RESOLVED_APP_VIRTUAL_ID = `\0${APP_VIRTUAL_ID}`;
-const APP_BOOTSTRAP_VIRTUAL_ID = "virtual:terajs-bootstrap";
-const RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID = `\0${APP_BOOTSTRAP_VIRTUAL_ID}`;
 const DEV_APP_MODULE_PATH = `/@id/__x00__${APP_VIRTUAL_ID}`;
-const DEV_APP_BOOTSTRAP_MODULE_PATH = `/@id/__x00__${APP_BOOTSTRAP_VIRTUAL_ID}`;
-const BUILD_BOOTSTRAP_FILE = "assets/terajs-bootstrap.js";
 const DEFAULT_SERVER_FUNCTION_ENDPOINT = "/_terajs/server";
 const DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT = "/_terajs/devtools/bridge";
 const DEVTOOLS_IDE_BRIDGE_MANIFEST_RELATIVE_PATH = path.join("node_modules", ".cache", "terajs", "devtools-bridge.json");
@@ -774,28 +777,6 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     }
   }
 
-  function generateAppBootstrapModule(): string {
-    return [
-      `import { bootstrapTerajsApp } from "${APP_VIRTUAL_ID}";`,
-      "bootstrapTerajsApp();"
-    ].join("\n");
-  }
-
-  function ensureTrailingSlash(value: string): string {
-    return value.endsWith("/") ? value : `${value}/`;
-  }
-
-  function toPublicAssetPath(fileName: string): string {
-    const normalizedFileName = normalizePath(fileName);
-    const base = ensureTrailingSlash(config?.base ?? "/");
-
-    if (base === "./") {
-      return `./${normalizedFileName}`;
-    }
-
-    return `${base}${normalizedFileName}`;
-  }
-
   return {
     name: "terajs",
     enforce: "pre",
@@ -843,51 +824,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         return html;
       }
 
-      const moduleScriptPattern = /<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
-      let hasAppEntry = false;
-      let match: RegExpExecArray | null = null;
-
-      while ((match = moduleScriptPattern.exec(html)) !== null) {
-        const tag = match[0] ?? "";
-        const body = (match[1] ?? "").trim();
-        const srcMatch = tag.match(/\bsrc=["']([^"']+)["']/i);
-        const ignoreBootstrap = /\bdata-terajs-ignore-bootstrap(?:=["']?(?:true|1|yes)?["']?)?/i.test(tag);
-
-        if (ignoreBootstrap) {
-          continue;
-        }
-
-        if (srcMatch) {
-          const src = srcMatch[1].trim();
-          if (src === "/@vite/client" || src === "@vite/client") {
-            continue;
-          }
-
-          hasAppEntry = true;
-          break;
-        }
-
-        if (body.length > 0) {
-          hasAppEntry = true;
-          break;
-        }
-      }
-
-      if (hasAppEntry) {
-        return html;
-      }
-
-      const appEntrySpecifier = config?.command === "build"
-        ? toPublicAssetPath(BUILD_BOOTSTRAP_FILE)
-        : DEV_APP_BOOTSTRAP_MODULE_PATH;
-
-      const bootstrapTag = `    <script type="module" src="${appEntrySpecifier}"></script>`;
-
-      if (html.includes("</body>")) {
-        return html.replace("</body>", `${bootstrapTag}\n  </body>`);
-      }
-
-      return `${html}\n${bootstrapTag}`;
+      return injectAppBootstrapScript(html, {
+        command: config?.command,
+        base: config?.base
+      });
     },
 
     resolveId(id) {
@@ -923,7 +863,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       }
       if (normalizedId === RESOLVED_APP_BOOTSTRAP_VIRTUAL_ID) {
         try {
-          return generateAppBootstrapModule();
+          return generateAppBootstrapModule(APP_VIRTUAL_ID);
         } catch (error) {
           return createVirtualErrorModule(normalizedId, error);
         }

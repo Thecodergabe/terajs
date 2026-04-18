@@ -99,7 +99,7 @@ async function collectTerajsPackages() {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     if (
       typeof manifest.name === "string"
-      && (manifest.name === appFacadePackage || manifest.name === createPackage || manifest.name.startsWith("@terajs/"))
+      && (manifest.name === appFacadePackage || manifest.name === cliPackage || manifest.name === createPackage || manifest.name.startsWith("@terajs/"))
     ) {
       packages.push({
         name: manifest.name,
