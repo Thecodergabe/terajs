@@ -3,9 +3,9 @@
 This reference describes the **current public surface** used by web-first Terajs apps.
 
 Release scope reflected here:
-- `terajs`
-- `terajs/vite`
-- `terajs/devtools`
+- `@terajs/app`
+- `@terajs/app/vite`
+- `@terajs/app/devtools`
 - `@terajs/reactivity`
 - `@terajs/runtime`
 - `@terajs/renderer-web`
@@ -14,11 +14,11 @@ Release scope reflected here:
 
 ---
 
-# 0. App Entry Package (`terajs`)
+# 0. App Entry Package (`@terajs/app`)
 
 ## 0.1 Main facade
 
-The `terajs` package is the default app-facing entrypoint.
+The `@terajs/app` package is the default app-facing entrypoint.
 
 It re-exports the main web-first surface from:
 - `@terajs/reactivity`
@@ -34,19 +34,19 @@ It also exposes route-manifest helpers:
 
 ## 0.2 Build integration
 
-- `terajs/vite` re-exports the default Terajs Vite plugin.
-- `TerajsVitePluginOptions` is available from `terajs/vite`.
+- `@terajs/app/vite` re-exports the default Terajs Vite plugin.
+- `TerajsVitePluginOptions` is available from `@terajs/app/vite`.
 
 ## 0.3 Devtools overlay
 
-- `terajs/devtools` re-exports the devtools overlay controls:
+- `@terajs/app/devtools` re-exports the devtools overlay controls:
   - `mountDevtoolsApp(...)`
   - `mountDevtoolsOverlay(...)`
   - `toggleDevtoolsOverlay()`
   - `toggleDevtoolsVisibility()`
   - `unmountDevtoolsOverlay()`
 
-- `terajs/devtools` also re-exports bridge/session helpers for browser tooling and IDE integrations:
+- `@terajs/app/devtools` also re-exports bridge/session helpers for browser tooling and IDE integrations:
   - `getDevtoolsBridge()`
   - `readDevtoolsBridgeSession(instanceId?)`
   - `waitForDevtoolsBridge(options?)`
@@ -91,7 +91,7 @@ It also exposes route-manifest helpers:
   - `Sanity Check`
   - `Settings`
 
-- Development-only VS Code bridge helpers are also public from `terajs/devtools`:
+- Development-only VS Code bridge helpers are also public from `@terajs/app/devtools`:
   - `autoAttachVsCodeDevtoolsBridge(options?)`
   - `stopAutoAttachVsCodeDevtoolsBridge()`
   - `DevtoolsIdeAutoAttachOptions`
@@ -239,7 +239,7 @@ Use these for app-owned server boundaries, not as a replacement for your externa
 - `createAction(...).runQueued(queueOptions, ...args)`
 - `createResource(...).mutate(value, { queue, serverCall, ... })`
 
-These APIs provide queue contracts, retry hooks, and persistence-friendly mutation flows. Advanced conflict resolution remains a planned extension.
+These APIs provide queue contracts, retry hooks, persistence-friendly mutation flows, and shipped conflict-resolution seams. Apps can layer their own multi-device merge policy through `MutationConflictResolver` without pushing environment-specific conflict ownership into the core runtime.
 
 ## 2.8 Resource invalidation
 

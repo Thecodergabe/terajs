@@ -16,7 +16,7 @@ npm install @terajs/router
 - `createMemoryHistory(initialPath)`
 - `createMemoryHistory(initialPath)`
 
-Browser history integration lives in `@terajs/renderer-web` and the top-level `terajs` package.
+Browser history integration lives in `@terajs/renderer-web` and the top-level `@terajs/app` package.
 - `matchRoute(routes, target)`
 - `loadRouteMatch(match, options)`
 - `prefetchRoute(router, target)`

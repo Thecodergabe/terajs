@@ -40,7 +40,7 @@ describe("cli scaffoldProject", () => {
 
     expect(packageJson.scripts.dev).toBe("vite");
     expect(packageJson.scripts.build).toBe("vite build");
-    expect(packageJson.dependencies["terajs"]).toBe("^1.0.0");
+    expect(packageJson.dependencies["@terajs/app"]).toBe("^1.0.0");
     expect(packageJson.devDependencies["vite"]).toBe("^8.0.0");
 
     const config = await readText(join(appRoot, "terajs.config.cjs"));
@@ -52,7 +52,7 @@ describe("cli scaffoldProject", () => {
 
     const viteConfig = await readText(join(appRoot, "vite.config.ts"));
     expect(viteConfig).toContain("terajsPlugin()");
-    expect(viteConfig).toContain("from \"terajs/vite\"");
+    expect(viteConfig).toContain("from \"@terajs/app/vite\"");
 
     const html = await readText(join(appRoot, "index.html"));
     expect(html).toContain("id=\"app\"");
@@ -125,7 +125,7 @@ describe("cli scaffoldProject", () => {
       dependencies: Record<string, string>;
     };
 
-    expect(packageJson.dependencies["terajs"]).toBe("^1.0.0");
+    expect(packageJson.dependencies["@terajs/app"]).toBe("^1.0.0");
     expect(packageJson.dependencies["@terajs/hub-socketio"]).toBe("^1.0.0");
     expect(packageJson.dependencies["socket.io-client"]).toBe("^4.8.1");
 

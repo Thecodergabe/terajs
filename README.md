@@ -63,7 +63,7 @@ Everything a component needs lives in one place.
 
 Terajs supports two complementary usage modes:
 
-- **Default app path:** install `terajs` and use `terajs/vite` in your Vite config.
+- **Default app path:** install `@terajs/app` and use `@terajs/app/vite` in your Vite config.
 - **Advanced path:** import leaf packages directly under `@terajs/*` when you need tighter control.
 
 This keeps first-time setup simple while preserving modular architecture boundaries.
@@ -110,7 +110,7 @@ Terajs DevTools exposes a development-only VS Code pairing path built around str
 import {
   autoAttachVsCodeDevtoolsBridge,
   mountDevtoolsOverlay
-} from "terajs/devtools";
+} from "@terajs/app/devtools";
 
 mountDevtoolsOverlay();
 autoAttachVsCodeDevtoolsBridge();
@@ -410,7 +410,7 @@ Debugging is a first-class feature.
 
 ```
 packages/
-  terajs/          -> single app-facing entry package
+  terajs/          -> single app-facing facade package (@terajs/app)
   compiler/        -> template compiler (AST -> IR -> codegen)
   reactivity/      -> fine-grained reactive system
   renderer/        -> platform-agnostic renderer core
@@ -424,7 +424,7 @@ packages/
 ```
 
 Terajs Core stays minimal.
-The `terajs` package provides convention-first defaults while leaf packages stay available for advanced use.
+The `@terajs/app` package provides convention-first defaults while leaf packages stay available for advanced use.
 
 ---
 

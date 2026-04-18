@@ -23,6 +23,9 @@ interface PackageManifest {
   scripts?: Record<string, string>;
 }
 
+const APP_FACADE_PACKAGE = "@terajs/app";
+const LEGACY_APP_FACADE_PACKAGE = "terajs";
+
 /**
  * Inspects a project folder and reports common Terajs setup issues.
  */
@@ -43,25 +46,27 @@ export async function inspectTerajsProject(root: string): Promise<DoctorReport> 
   if (packageExists) {
     manifest = await readPackageManifest(packagePath);
 
-    const hasFacade = dependencyValue(manifest, "terajs") !== undefined;
+    const facadeVersion = dependencyValue(manifest, APP_FACADE_PACKAGE)
+      ?? dependencyValue(manifest, LEGACY_APP_FACADE_PACKAGE);
+    const hasFacade = facadeVersion !== undefined;
     if (hasFacade) {
       checks.push({
-        id: "dep:terajs",
-        label: "terajs dependency declared",
+        id: "dep:app-facade",
+        label: "default app package declared",
         ok: true,
         level: "error",
-        details: `terajs@${dependencyValue(manifest, "terajs")}`
+        details: `${dependencyValue(manifest, APP_FACADE_PACKAGE) !== undefined ? APP_FACADE_PACKAGE : LEGACY_APP_FACADE_PACKAGE}@${facadeVersion}`
       });
     } else {
       checks.push(checkDependency(manifest, "@terajs/runtime", "error"));
       checks.push(checkDependency(manifest, "@terajs/renderer-web", "error"));
       checks.push(checkDependency(manifest, "@terajs/vite-plugin", "error"));
       checks.push({
-        id: "dep:terajs",
-        label: "terajs dependency declared",
+        id: "dep:app-facade",
+        label: "default app package declared",
         ok: false,
         level: "warn",
-        details: "Recommended: add terajs as the default app package for simplified setup."
+        details: `Recommended: add ${APP_FACADE_PACKAGE} as the default app package for simplified setup.`
       });
     }
 

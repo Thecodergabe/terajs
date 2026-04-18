@@ -21,7 +21,7 @@ const strictNeutralPackages = [
 const guardedPackages = [...strictNeutralPackages];
 
 const adapterImports = [
-  "terajs",
+  "@terajs/app",
   "@terajs/renderer-web",
   "@terajs/renderer-ssr",
   "@terajs/vite-plugin",
@@ -244,11 +244,11 @@ describe("architecture guardrails", () => {
           continue;
         }
 
-        if (packageName === "vite-plug-in" && (importPath === "terajs" || importPath === "terajs/vite" || importPath === "terajs/devtools")) {
+        if (packageName === "vite-plug-in" && (importPath === "@terajs/app" || importPath === "@terajs/app/vite" || importPath === "@terajs/app/devtools")) {
           continue;
         }
 
-        if (packageName === "cli" && importPath === "terajs/vite") {
+        if (packageName === "cli" && importPath === "@terajs/app/vite") {
           continue;
         }
 

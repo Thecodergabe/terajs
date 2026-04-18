@@ -40,22 +40,23 @@ This checklist tracks web-first RC readiness for the current release cycle.
 - [x] Queue-aware action execution shipped (`runQueued`)
 - [x] Queue-aware form path shipped for enhanced submissions
 - [x] Devtools performance telemetry includes queue metrics
-- [ ] Conflict-resolution strategies and multi-device merge policy (planned)
+- [x] Conflict-resolution strategies and app-owned multi-device merge policy seam shipped (`MutationConflictResolver` + `queue:conflict` telemetry)
 
 ## 6. Release Packaging
 
 - [x] Automated package exports audit passes (`npm run audit:exports`)
 - [x] Publish metadata guard passes (`npm run guard:publish-metadata`)
-- [ ] Finalize version bump strategy and changelog entries
-- [ ] Confirm package exports and public API freeze for RC
-- [ ] Tag RC branch and publish dry-run
+- [x] Finalize version bump strategy and changelog entries (`1.0.0` aligned across public packages; `CHANGELOG.md` added)
+- [x] Confirm package exports and public API freeze for RC (`npm run audit:exports:strict`; package manifests + `API_REFERENCE.md` aligned)
+- [x] Tag RC branch (`v1.0.0`)
+- [x] Public package publish dry-run (`npm pack --dry-run` across publishable packages)
 
 ## 7. DevTools Release Surface
 
-- [ ] Fresh consumer-app smoke verifies the dev-only `/_terajs/devtools/bridge` manifest and auto-attach lifecycle on a new window
-- [ ] Companion VS Code tooling smoke verifies `Ask VS Code AI`, `Copy Debugging Prompt`, and live session reveal against the current bridge manifest
-- [ ] Structured session export reviewed for sanitized document context, code references, and bounded event payloads
-- [ ] Production build verification confirms the VS Code bridge bootstrap and manifest route are absent outside development mode
+- [x] Fresh consumer-app smoke verifies the dev-only `/_terajs/devtools/bridge` manifest and auto-attach lifecycle on a new window
+- [x] Companion VS Code tooling smoke verifies `Ask VS Code AI`, `Copy Debugging Prompt`, and live session reveal against the current bridge manifest
+- [x] Structured session export reviewed for sanitized document context, code references, and bounded event payloads
+- [x] Production build verification confirms the VS Code bridge bootstrap and manifest route are absent outside development mode
 
 ## 8. Maintainability Holdouts (500+ lines)
 

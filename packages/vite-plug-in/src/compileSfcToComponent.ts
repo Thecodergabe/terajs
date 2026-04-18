@@ -23,7 +23,7 @@ ${script.importedBindings.map((binding) => `  ${JSON.stringify(binding)}: typeof
   const exposedBindings = JSON.stringify(script.exposed);
 
   return `
-import { component, applyHMRUpdate, renderIRModuleToFragment } from "terajs";
+import { component, applyHMRUpdate, renderIRModuleToFragment } from "@terajs/app";
 
 ${script.setupCode}
 

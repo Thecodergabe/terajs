@@ -22,6 +22,7 @@ const CLI_ROOT = join(dirname(MODULE_PATH), "..");
 const CLI_ASSETS_DIR = join(CLI_ROOT, "assets");
 
 const TERAJS_VERSION = "^1.0.0";
+const APP_FACADE_PACKAGE = "@terajs/app";
 
 const HUB_DEFAULT_URLS: Record<ScaffoldHubType, string> = {
   signalr: "https://api.example.com/terajs/hub",
@@ -66,7 +67,7 @@ function createPackageJson(name: string, hubType?: ScaffoldHubType): string {
       preview: "vite preview"
     },
     dependencies: {
-      "terajs": TERAJS_VERSION,
+      [APP_FACADE_PACKAGE]: TERAJS_VERSION,
       ...(hubType ? HUB_DEPENDENCIES[hubType] : {})
     },
     devDependencies: {
@@ -190,7 +191,7 @@ export async function scaffoldProject(name: string, options: ScaffoldProjectOpti
   await writeFile(
     join(root, "vite.config.ts"),
     `import { defineConfig } from "vite";
-import terajsPlugin from "terajs/vite";
+  import terajsPlugin from "@terajs/app/vite";
 
 export default defineConfig({
   plugins: [terajsPlugin()],

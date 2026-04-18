@@ -530,7 +530,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("export function bootstrapTerajsApp()");
   });
 
-  it("resolves terajs runtime imports to /@fs specifiers in dev mode", () => {
+  it("resolves app facade runtime imports to /@fs specifiers in dev mode", () => {
     const plugin = terajsPlugin();
     const load = requireHook<[string], unknown>(plugin.load);
 
@@ -543,7 +543,7 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("/_terajs/devtools/bridge");
   });
 
-  it("keeps bare terajs imports in build mode virtual modules", () => {
+  it("keeps bare app facade imports in build mode virtual modules", () => {
     const plugin = terajsPlugin();
     const configResolved = plugin.configResolved as ((config: any) => void);
     const load = requireHook<[string], unknown>(plugin.load);
@@ -552,8 +552,8 @@ describe("Terajs Vite Plugin (integration)", () => {
     const code = load("\0virtual:terajs-app");
 
     expect(typeof code).toBe("string");
-    expect(code).toContain("from 'terajs';");
-    expect(code).toContain("import('terajs/devtools')");
+    expect(code).toContain("from '@terajs/app';");
+    expect(code).toContain("import('@terajs/app/devtools')");
     expect(code).not.toContain("autoAttachVsCodeDevtoolsBridge");
   });
 

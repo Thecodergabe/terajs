@@ -6,8 +6,12 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
 import { getAutoImportDirs } from "./autoImportDirs.js";
+import {
+  APP_DEVTOOLS_SUBPATH,
+  APP_FACADE_PACKAGE,
+  resolveAppFacadeSpecifier
+} from "./appFacade.js";
 import {
   getConfiguredRoutes,
   getDevtoolsConfig,
@@ -388,21 +392,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   let manifest: Record<string, any> | undefined;
 
   function resolveRuntimeSpecifier(specifier: string): string {
-    if (config?.command === "build") {
-      return specifier;
-    }
-
-    if (specifier !== "terajs" && specifier !== "terajs/devtools") {
-      return specifier;
-    }
-
-    try {
-      const requireFromCwd = createRequire(path.join(process.cwd(), "package.json"));
-      const resolvedPath = requireFromCwd.resolve(specifier);
-      return toViteFsSpecifier(resolvedPath);
-    } catch {
-      return specifier;
-    }
+    return resolveAppFacadeSpecifier(specifier, config?.command);
   }
 
   function pascalCase(str: string) {
@@ -459,7 +449,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     ${typeof routeConfig.edge === "boolean" ? `edge: ${JSON.stringify(routeConfig.edge)},` : ""}
   }`);
 
-    const runtimeSpecifier = resolveRuntimeSpecifier("terajs");
+    const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
 
     return [
       `import { buildRouteManifest } from '${runtimeSpecifier}';`,
@@ -594,7 +584,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `    return;`,
       `  }`,
       `  try {`,
-      `    const { mountDevtoolsOverlay${shouldAutoAttachVsCodeBridge ? ", autoAttachVsCodeDevtoolsBridge" : ""} } = await import('${resolveRuntimeSpecifier("terajs/devtools")}');`,
+      `    const { mountDevtoolsOverlay${shouldAutoAttachVsCodeBridge ? ", autoAttachVsCodeDevtoolsBridge" : ""} } = await import('${resolveRuntimeSpecifier(APP_DEVTOOLS_SUBPATH)}');`,
       ...(shouldAutoAttachVsCodeBridge ? [
       `    if (typeof autoAttachVsCodeDevtoolsBridge === 'function') {`,
       `      autoAttachVsCodeDevtoolsBridge({ endpoint: ${JSON.stringify(DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT)} });`,
@@ -624,7 +614,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `}`
     ];
 
-    const runtimeSpecifier = resolveRuntimeSpecifier("terajs");
+    const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
 
     return [
       `import { createBrowserHistory, createRouter } from '${runtimeSpecifier}';`,

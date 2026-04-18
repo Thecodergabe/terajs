@@ -14,7 +14,7 @@ This plugin enables Terajs SFC compilation, HMR, and auto-imports for your proje
 
 ```js
 // vite.config.js or vite.config.ts
-import terajsPlugin from 'terajs/vite';
+import terajsPlugin from '@terajs/app/vite';
 
 export default {
   plugins: [terajsPlugin()]

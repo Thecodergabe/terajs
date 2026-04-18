@@ -4,6 +4,6 @@
 export { default } from "@terajs/vite-plugin";
 
 /**
- * Options supported by the app-facing `terajs/vite` entrypoint.
+ * Options supported by the app-facing `@terajs/app/vite` entrypoint.
  */
 export type { TerajsVitePluginOptions } from "@terajs/vite-plugin";
