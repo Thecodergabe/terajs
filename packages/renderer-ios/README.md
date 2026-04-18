@@ -1,18 +1,22 @@
-# Terajs iOS Renderer (Experimental)
+# @terajs/renderer-ios
 
-This package is a proof-of-concept for rendering Terajs components to native iOS (SwiftUI) views.
+Status note (April 2026): experimental stub package. iOS renderer work is directional and not part of the shipped web-first launch surface.
 
-## Goals
-- Map Terajs’s runtime/component tree to SwiftUI primitives
-- Reuse Terajs’s reactivity and SFC pipeline
-- Enable cross-platform UI from a single codebase
+This package represents the iOS-side exploration for rendering Terajs components into SwiftUI-backed native views.
 
-## Usage
-- WIP: See `src/index.ts` for the renderer entry point.
+## Current state
 
----
+- proof-of-concept / planning stage
+- not production-ready
+- intended to stay aligned with the neutral runtime and renderer contracts rather than introducing a separate framework model
 
-## Next Steps
-- Define a minimal platform adapter interface
-- Implement mapping for basic elements (Text, Button, VStack, etc.)
-- Add a bridge for communication between JS and Swift (e.g., via React Native, Capacitor, or custom bridge)
+## Direction
+
+- map Terajs renderer operations to SwiftUI-friendly native primitives
+- reuse Terajs reactivity, runtime, and SFC-authored component model where appropriate
+- host the JavaScript runtime through a native bridge layer rather than through a React/Vue compatibility stack
+
+## Related docs
+
+- `STUBS_AND_PLAN.md`
+- `../../ROADMAP_NATIVE_RENDERERS.md`

@@ -4,11 +4,17 @@ import { Debug, type ComponentBoundaryError } from "@terajs/shared";
 import { mount, unmount } from "./mount.js";
 import type { FrameworkComponent } from "./render.js";
 
+/**
+ * Context passed to an error-boundary fallback renderer.
+ */
 export interface ErrorBoundaryFallbackContext {
   error: unknown;
   retry: () => void;
 }
 
+/**
+ * Configuration for `withErrorBoundary`.
+ */
 export interface ErrorBoundaryOptions {
   fallback: (context: ErrorBoundaryFallbackContext) => Node;
   onError?: (captured: ComponentBoundaryError) => void;
@@ -37,6 +43,16 @@ function safeRenderFallback(
   }
 }
 
+/**
+ * Wraps a component in a local error boundary.
+ *
+ * Rendering failures are redirected to the provided fallback renderer, which
+ * receives both the captured error and a retry callback.
+ *
+ * @param component - The component to protect with an error boundary.
+ * @param options - Fallback rendering and optional error reporting hooks.
+ * @returns A framework component that renders through the configured boundary.
+ */
 export function withErrorBoundary(
   component: FrameworkComponent,
   options: ErrorBoundaryOptions

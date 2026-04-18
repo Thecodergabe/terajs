@@ -62,11 +62,14 @@ export function unregisterComponentInstance(scope: string, instance: number): vo
 export function registerReactiveInstance(meta: ReactiveMetadata, owner?: {
   scope: string;
   instance: number;
+}, controls?: {
+  setValue?: (value: unknown) => void;
 }): ReactiveInstanceInfo {
   const info: ReactiveInstanceInfo = {
     meta,
     currentValue: undefined,
-    owner
+    owner,
+    setValue: controls?.setValue
   };
 
   reactives.set(meta.rid, info);
@@ -120,6 +123,21 @@ export function getAllReactives(): ReactiveInstanceInfo[] {
  */
 export function getReactiveByRid(rid: string): ReactiveInstanceInfo | undefined {
   return reactives.get(rid);
+}
+
+/**
+ * Applies a live mutation to a registered reactive when the runtime exposes one.
+ *
+ * Returns false when the reactive is unknown or read-only.
+ */
+export function setReactiveValue(rid: string, value: unknown): boolean {
+  const reactive = reactives.get(rid);
+  if (!reactive?.setValue) {
+    return false;
+  }
+
+  reactive.setValue(value);
+  return true;
 }
 
 /**

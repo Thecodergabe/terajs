@@ -8,6 +8,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { getAutoImportDirs } from "./autoImportDirs.js";
 import {
+  APP_DEVTOOLS_SUBPATH,
+  APP_FACADE_PACKAGE,
+  resolveAppFacadeSpecifier
+} from "./appFacade.js";
+import {
   getConfiguredRoutes,
   getDevtoolsConfig,
   getRouteDirs,
@@ -31,6 +36,8 @@ const APP_VIRTUAL_ID = "virtual:terajs-app";
 const RESOLVED_APP_VIRTUAL_ID = `\0${APP_VIRTUAL_ID}`;
 const DEV_APP_MODULE_PATH = `/@id/__x00__${APP_VIRTUAL_ID}`;
 const DEFAULT_SERVER_FUNCTION_ENDPOINT = "/_terajs/server";
+const DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT = "/_terajs/devtools/bridge";
+const DEVTOOLS_IDE_BRIDGE_MANIFEST_RELATIVE_PATH = path.join("node_modules", ".cache", "terajs", "devtools-bridge.json");
 
 export interface TerajsVitePluginOptions {
   serverFunctions?: false | {
@@ -40,7 +47,7 @@ export interface TerajsVitePluginOptions {
   devtools?: false | {
     enabled?: boolean;
     startOpen?: boolean;
-    position?: "bottom-left" | "bottom-right" | "bottom-center";
+    position?: "bottom-left" | "bottom-right" | "bottom-center" | "top-left" | "top-right" | "top-center";
     panelShortcut?: string;
     visibilityShortcut?: string;
     ai?: {
@@ -56,9 +63,63 @@ function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/");
 }
 
+function stripQueryAndHash(id: string): string {
+  const queryIndex = id.indexOf("?");
+  const hashIndex = id.indexOf("#");
+  const cutIndex = queryIndex === -1
+    ? hashIndex
+    : hashIndex === -1
+      ? queryIndex
+      : Math.min(queryIndex, hashIndex);
+
+  if (cutIndex === -1) {
+    return id;
+  }
+
+  return id.slice(0, cutIndex);
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function createVirtualErrorModule(moduleId: string, error: unknown): string {
+  const message = describeError(error);
+
+  return [
+    `const __terajsVirtualModuleId = ${JSON.stringify(moduleId)};`,
+    `const __terajsVirtualModuleMessage = ${JSON.stringify(message)};`,
+    `export const __TERAJS_VIRTUAL_MODULE_ERROR__ = {`,
+    `  id: __terajsVirtualModuleId,`,
+    `  message: __terajsVirtualModuleMessage`,
+    `};`,
+    `console.error('[terajs/vite] Failed to load module', __TERAJS_VIRTUAL_MODULE_ERROR__);`,
+    `throw new Error('[terajs/vite] Failed to load ' + __terajsVirtualModuleId + ': ' + __terajsVirtualModuleMessage);`
+  ].join("\n");
+}
+
 function toProjectImportPath(filePath: string): string {
   const relativePath = normalizePath(path.relative(process.cwd(), filePath));
   return relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
+}
+
+function toViteFsSpecifier(filePath: string): string {
+  const normalized = normalizePath(filePath);
+  return normalized.startsWith("/")
+    ? `/@fs${normalized}`
+    : `/@fs/${normalized}`;
 }
 
 function readTeraFilesRecursively(dir: string): string[] {
@@ -163,6 +224,65 @@ function readBuildManifest(root: string, outDir: string): Record<string, any> | 
   } catch {
     return undefined;
   }
+}
+
+function resolveDevtoolsIdeBridgeManifestPath(rootDir: string): string {
+  return path.resolve(rootDir, DEVTOOLS_IDE_BRIDGE_MANIFEST_RELATIVE_PATH);
+}
+
+function readDevtoolsIdeBridgeManifest(rootDir: string): string | null {
+  const manifestPath = resolveDevtoolsIdeBridgeManifestPath(rootDir);
+  if (!fs.existsSync(manifestPath)) {
+    return null;
+  }
+
+  try {
+    const rawText = fs.readFileSync(manifestPath, "utf8");
+    const parsed = JSON.parse(rawText) as Record<string, unknown>;
+    if (parsed.version !== 1 || typeof parsed.session !== "string" || typeof parsed.ai !== "string") {
+      return null;
+    }
+
+    const reveal = typeof parsed.reveal === "string" ? parsed.reveal : null;
+
+    return JSON.stringify({
+      version: 1,
+      session: parsed.session,
+      ai: parsed.ai,
+      ...(reveal ? { reveal } : {}),
+      updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now()
+    });
+  } catch {
+    return null;
+  }
+}
+
+function createDevtoolsIdeBridgeMiddleware(rootDir: string) {
+  return (req: any, res: any, next: () => void) => {
+    const requestUrl = typeof req.url === "string" ? req.url.split("?")[0] : "";
+    if (requestUrl !== DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT || (req.method !== "GET" && req.method !== "HEAD")) {
+      next();
+      return;
+    }
+
+    const manifestJson = readDevtoolsIdeBridgeManifest(rootDir);
+    res.setHeader("Cache-Control", "no-store");
+
+    if (!manifestJson) {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json;charset=UTF-8");
+    if (req.method === "HEAD") {
+      res.end();
+      return;
+    }
+
+    res.end(manifestJson);
+  };
 }
 
 async function readRequestBody(stream: NodeJS.ReadableStream): Promise<string | undefined> {
@@ -271,6 +391,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
   let config: any;
   let manifest: Record<string, any> | undefined;
 
+  function resolveRuntimeSpecifier(specifier: string): string {
+    return resolveAppFacadeSpecifier(specifier, config?.command);
+  }
+
   function pascalCase(str: string) {
     return str
       .replace(/[-_](.)/g, (_, c) => c.toUpperCase())
@@ -293,7 +417,13 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
 
   function generateRoutesModule() {
     const routeFiles = Array.from(new Set([
-      ...routeDirs.flatMap((dir) => readTeraFilesRecursively(dir)),
+      ...routeDirs.flatMap((dir) => {
+        if (!fs.existsSync(dir)) {
+          return [];
+        }
+
+        return readTeraFilesRecursively(dir);
+      }),
       ...configuredRoutes.map((route) => route.filePath)
     ])).sort();
 
@@ -319,8 +449,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     ${typeof routeConfig.edge === "boolean" ? `edge: ${JSON.stringify(routeConfig.edge)},` : ""}
   }`);
 
+    const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
+
     return [
-      `import { buildRouteManifest } from 'terajs';`,
+      `import { buildRouteManifest } from '${runtimeSpecifier}';`,
       `const routeSources = [`,
       routeSources.join(",\n"),
       `];`,
@@ -431,6 +563,7 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
         `}`
       ];
 
+    const shouldAutoAttachVsCodeBridge = (config?.command ?? "serve") !== "build";
     const resolvedDevtoolsConfig = {
       enabled: (config?.command ?? "serve") !== "build" && devtoolsConfig.enabled,
       startOpen: devtoolsConfig.startOpen,
@@ -450,11 +583,16 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `  if (!DEVTOOLS_CONFIG.enabled || typeof document === 'undefined') {`,
       `    return;`,
       `  }`,
-      `  if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__) {`,
-      `    return;`,
-      `  }`,
       `  try {`,
-      `    const { mountDevtoolsOverlay } = await import('terajs/devtools');`,
+      `    const { mountDevtoolsOverlay${shouldAutoAttachVsCodeBridge ? ", autoAttachVsCodeDevtoolsBridge" : ""} } = await import('${resolveRuntimeSpecifier(APP_DEVTOOLS_SUBPATH)}');`,
+      ...(shouldAutoAttachVsCodeBridge ? [
+      `    if (typeof autoAttachVsCodeDevtoolsBridge === 'function') {`,
+      `      autoAttachVsCodeDevtoolsBridge({ endpoint: ${JSON.stringify(DEFAULT_DEVTOOLS_IDE_BRIDGE_ENDPOINT)} });`,
+      `    }`,
+      ] : []),
+      `    if (globalThis.__TERAJS_DEVTOOLS_MOUNTED__) {`,
+      `      return;`,
+      `    }`,
       `    if (typeof mountDevtoolsOverlay === 'function') {`,
       `      mountDevtoolsOverlay({`,
       `        startOpen: DEVTOOLS_CONFIG.startOpen,`,
@@ -476,10 +614,12 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
       `}`
     ];
 
+    const runtimeSpecifier = resolveRuntimeSpecifier(APP_FACADE_PACKAGE);
+
     return [
-      `import { createBrowserHistory, createRouter } from 'terajs';`,
-      `import { createRouteView, mount } from 'terajs';`,
-      `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from 'terajs';`,
+      `import { createBrowserHistory, createRouter } from '${runtimeSpecifier}';`,
+      `import { createRouteView, mount } from '${runtimeSpecifier}';`,
+      `import { component, invalidateResources, onCleanup, onMounted, setServerFunctionTransport } from '${runtimeSpecifier}';`,
       `import { routes } from '${ROUTES_VIRTUAL_ID}';`,
       ...middlewareImports,
       ...hubImports,
@@ -649,6 +789,9 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     },
 
     configureServer(server) {
+      const rootDir = config?.root ?? process.cwd();
+      server.middlewares.use(createDevtoolsIdeBridgeMiddleware(rootDir));
+
       if (serverFunctionOptions === false) {
         return;
       }
@@ -657,6 +800,10 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     },
 
     transformIndexHtml(html) {
+      if (typeof html !== "string") {
+        return html;
+      }
+
       const moduleScriptPattern = /<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
       let hasAppEntry = false;
       let match: RegExpExecArray | null = null;
@@ -717,33 +864,51 @@ function terajsPlugin(options: TerajsVitePluginOptions = {}): Plugin {
     },
 
     load(id) {
-      if (id === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
-        return generateAutoImports();
-      }
-      if (id === RESOLVED_ROUTES_VIRTUAL_ID) {
-        if (config?.command === "build" && !manifest) {
-          const rootDir = config?.root ?? process.cwd();
-          const outDir = config?.build?.outDir ?? "dist";
-          manifest = readBuildManifest(rootDir, outDir);
+      const normalizedId = stripQueryAndHash(id);
+
+      if (normalizedId === RESOLVED_AUTO_IMPORT_VIRTUAL_ID) {
+        try {
+          return generateAutoImports();
+        } catch (error) {
+          return createVirtualErrorModule(normalizedId, error);
         }
-
-        return generateRoutesModule();
       }
-      if (id === RESOLVED_APP_VIRTUAL_ID) {
-        return generateAppModule();
+      if (normalizedId === RESOLVED_ROUTES_VIRTUAL_ID) {
+        try {
+          if (config?.command === "build" && !manifest) {
+            const rootDir = config?.root ?? process.cwd();
+            const outDir = config?.build?.outDir ?? "dist";
+            manifest = readBuildManifest(rootDir, outDir);
+          }
+
+          return generateRoutesModule();
+        } catch (error) {
+          return createVirtualErrorModule(normalizedId, error);
+        }
       }
-      if (!id.endsWith(".tera")) return null;
+      if (normalizedId === RESOLVED_APP_VIRTUAL_ID) {
+        try {
+          return generateAppModule();
+        } catch (error) {
+          return createVirtualErrorModule(normalizedId, error);
+        }
+      }
+      if (!normalizedId.endsWith(".tera")) return null;
 
-      const code = fs.readFileSync(id, "utf8");
-      const sfc = parseSFC(code, id);
+      try {
+        const code = fs.readFileSync(normalizedId, "utf8");
+        const sfc = parseSFC(code, normalizedId);
 
-      Debug.emit("sfc:load", { scope: id });
+        Debug.emit("sfc:load", { scope: normalizedId });
 
-      // Inject auto-imports at the top of every SFC
-      const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
-      let compiled = compileSfcToComponent(sfc);
-      compiled = autoImport + compiled;
-      return compiled;
+        // Inject auto-imports at the top of every SFC
+        const autoImport = `import * as TerajsAutoImports from '${AUTO_IMPORT_VIRTUAL_ID}';\n`;
+        let compiled = compileSfcToComponent(sfc);
+        compiled = autoImport + compiled;
+        return compiled;
+      } catch (error) {
+        return createVirtualErrorModule(normalizedId, error);
+      }
     },
 
     handleHotUpdate(ctx) {

@@ -270,8 +270,9 @@ if (!isServer()) {
 Use:
 
 - `signal()` for local state  
-- `createStore()` for global state  
-- `createContext()` for dependency injection  
+- `state()` when explicit getter/setter state is clearer
+- `provide()` / `inject()` for dependency injection
+- `createResource()` and `createAction()` for async state flows
 
 Avoid:
 

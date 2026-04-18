@@ -1,94 +1,57 @@
-# Terajs DevTools
+# @terajs/devtools
 
-Terajs DevTools provides a live overlay for inspecting your app's component tree, signals, effects, and runtime events. Built with Terajs SFCs and styled with Tailwind.
+Leaf-package entrypoint for the Terajs DevTools overlay, structured bridge session APIs, and VS Code live-attach helpers.
 
----
+Most applications can import the same surface through `@terajs/app/devtools`. Use `@terajs/devtools` directly when you are composing tooling or working at the leaf-package level.
 
-## Features
-- Live component tree and signal/effect inspection
-- Issues and logs panel (live error/warning surfacing)
-- Meta/AI/route data viewer
-- Theme preview and color abstraction
-- **Auto-imports**: All SFCs in `src/components` are globally available
+## What it provides
 
----
+- overlay mounting for in-browser diagnostics
+- component inspection and drill-down
+- router, queue, issues, logs, performance, and AI diagnostics panels
+- structured bridge session APIs for custom tooling
+- development-only VS Code auto-attach helpers
 
-## Usage
+## Mount the overlay
 
-### 1. Mount the overlay
+```ts
+import {
+  autoAttachVsCodeDevtoolsBridge,
+  mountDevtoolsOverlay
+} from "@terajs/devtools";
 
-In your app entry point:
-
-```js
-import { mountDevtoolsOverlay } from '@terajs/devtools';
-mountDevtoolsOverlay();
+mountDevtoolsOverlay({ startOpen: false });
+autoAttachVsCodeDevtoolsBridge();
 ```
 
-### 2. Use auto-imported components
+`mountDevtoolsOverlay(...)` is a development-only no-op in production builds.
 
-Any `.tera` file in `src/components` (or configured dirs) is globally available in your SFCs:
+## Common overlay behavior
 
-```
-<template>
-	<FancyButton />
-</template>
-```
+The overlay supports layout and shell options such as:
 
-No import needed!
+- `startOpen`
+- `position`
+- `panelSize`
+- `persistPreferences`
 
----
+Repeated calls reuse the existing overlay instead of creating duplicates.
 
-## Theming
-Edit `tailwind.config.js` and `src/index.css` to customize colors and theme tokens.
+## VS Code live bridge
 
-The current Terajs palette is stored in `tailwind.config.js` under `theme.extend.colors.tera` with font stacks in `theme.extend.fontFamily`.
+The bridge flow is structured and same-origin. It does not depend on scraping arbitrary DOM.
 
----
+- `autoAttachVsCodeDevtoolsBridge(...)` polls the development manifest route and connects when the companion VS Code tooling is available.
+- `stopAutoAttachVsCodeDevtoolsBridge()` stops that polling behavior.
+- bridge session helpers such as `readDevtoolsBridgeSession(...)`, `subscribeToDevtoolsBridge(...)`, and `waitForDevtoolsBridge(...)` are exported for custom integrations.
 
-## Advanced: Customizing auto-imports
+## Advanced usage
 
-Add a `terajs.config.js` to your project root:
+If you want to embed the DevTools UI in a custom shell instead of the floating overlay, this package also exports `mountDevtoolsApp` and the bridge session types/events used by the overlay.
 
-```js
-module.exports = {
-	autoImportDirs: [
-		'packages/devtools/src/components',
-		'src/components',
-	]
-};
-```
+## Notes
 
----
-
-## Development
-- Tailwind config: `tailwind.config.js`
-- Main stylesheet: `src/index.css`
-- Overlay UI: `src/app.ts`, `src/overlay.ts`
-
----
-
-## Example: Adding a new panel
-
-1. Create `src/components/MyPanel.tera`:
-	 ```
-	 <template>
-		 <div>My Custom Panel</div>
-	 </template>
-	 <script>
-	 // Panel logic here
-	 </script>
-	 ```
-2. Add to the `tabs` array in `DevtoolsApp.tera`:
-	 ```js
-	 export let tabs = [..., 'MyPanel']
-	 ```
-3. Use `<MyPanel v-if="activeTab === 'MyPanel'" />` in the template.
-
----
-
-## Testing
-Run tests with:
-```
-npx vitest run
-```
+- App-facing docs should generally reference `@terajs/app/devtools`.
+- The overlay is part of the shipped Terajs experience, not a separate styling demo.
+- Production builds do not expose the development bridge manifest route.
 

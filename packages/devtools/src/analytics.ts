@@ -146,6 +146,7 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
   const latestTimestamp = events[events.length - 1].timestamp;
   const windowStart = latestTimestamp - windowMs;
   const windowed = events.filter((e) => e.timestamp >= windowStart);
+  const hasQueueFlushEvents = windowed.some((event) => event.type === "queue:flush");
 
   const map = new Map<string, { count: number; last: number | null; deltaTotal: number; deltaMax: number }>();
   let effectRuns = 0;
@@ -161,6 +162,10 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
   let queueFlushed = 0;
 
   for (const event of windowed) {
+    const payload = event.payload && typeof event.payload === "object"
+      ? event.payload as Record<string, unknown>
+      : null;
+
     if (event.type === "effect:run") effectRuns++;
     if (event.type.startsWith("component:render:")) renderEvents++;
     if (event.type === "hub:connect") hubConnections++;
@@ -171,7 +176,18 @@ export function computePerformanceMetrics(events: DevtoolsEventLike[], windowMs 
     if (event.type === "queue:conflict") queueConflicts++;
     if (event.type === "queue:retry") queueRetried++;
     if (event.type === "queue:fail") queueFailed++;
-    if (event.type === "queue:drained") queueFlushed++;
+    if (event.type === "queue:flush") {
+      const flushed = payload && typeof payload.flushed === "number" && Number.isFinite(payload.flushed)
+        ? Math.max(0, payload.flushed)
+        : 0;
+      queueFlushed += flushed;
+    }
+    if (!hasQueueFlushEvents && event.type === "queue:drained") {
+      const flushed = payload && typeof payload.flushed === "number" && Number.isFinite(payload.flushed)
+        ? Math.max(0, payload.flushed)
+        : 1;
+      queueFlushed += flushed;
+    }
 
     const found = map.get(event.type) ?? { count: 0, last: null, deltaTotal: 0, deltaMax: 0 };
     if (found.last !== null) {

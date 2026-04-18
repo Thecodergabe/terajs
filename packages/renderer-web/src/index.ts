@@ -34,6 +34,10 @@ export * from "./portal.js";
 // Router-aware link primitive
 export * from "./link.js";
 
+// Browser router integration
+export * from "./browserHistory.js";
+export * from "./clientMeta.js";
+
 // Enhanced form primitive
 export * from "./form.js";
 
@@ -79,6 +83,16 @@ function createPropsFromAttributes(el: HTMLElement): Record<string, Signal<unkno
   return props;
 }
 
+/**
+ * Registers a Terajs component as a custom element.
+ *
+ * Attribute values are normalized into reactive signals so the mounted
+ * component can respond to host attribute updates through the same prop
+ * contract used by the web renderer.
+ *
+ * @param name - The custom element tag name to register.
+ * @param component - The Terajs component mounted inside the element shadow root.
+ */
 export function defineCustomElement(name: string, component: FrameworkComponent): void {
   class TerajsCustomElement extends HTMLElement {
     private root!: HTMLElement;

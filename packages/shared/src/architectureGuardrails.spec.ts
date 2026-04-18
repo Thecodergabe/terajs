@@ -1,5 +1,6 @@
 /// <reference types="node" />
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -13,16 +14,14 @@ const strictNeutralPackages = [
   "reactivity",
   "renderer",
   "compiler",
-  "sfc"
-];
-
-const guardedPackages = [
-  ...strictNeutralPackages,
+  "sfc",
   "router"
 ];
 
+const guardedPackages = [...strictNeutralPackages];
+
 const adapterImports = [
-  "terajs",
+  "@terajs/app",
   "@terajs/renderer-web",
   "@terajs/renderer-ssr",
   "@terajs/vite-plugin",
@@ -81,6 +80,36 @@ const allowedPackageExternalPeerDependencies = new Map<string, Set<string>>([
 
 const frameworkImportPattern = /from\s+["'](?:react|react\/[^"']*|vue|vue\/[^"']*)["']/i;
 const vitestImportPattern = /from\s+["']vitest["']/i;
+const testSupportSourcePattern = /(?:Suite|SpecShared)\.tsx?$/;
+const approvedRootCodeFiles = new Set([
+  "terajs.config.js",
+  "vite.config.js",
+  "vite.config.ts",
+  "vitest.config.ts",
+  "vitest.setup.ts"
+]);
+const approvedPackageRootCodeFiles = new Map<string, Set<string>>([
+  ["devtools", new Set(["postcss.config.js", "tailwind.config.js"])],
+  ["vite-plug-in", new Set(["App.tera", "index.js", "index.ts"])]
+]);
+
+const maxProductionSourceLines = 500;
+const legacyProductionSourceLineCaps = new Map<string, number>([
+  ["packages/devtools/src/aiHelpers.ts", 512],
+  ["packages/devtools/src/app.ts", 846],
+  ["packages/devtools/src/overlayInspectorAndRuntimeStyles.ts", 517],
+  ["packages/devtools/src/overlayInspectorSuite.ts", 537],
+  ["packages/devtools/src/overlayPanelAndContentStyles.ts", 533],
+  ["packages/devtools/src/overlayValueAndInteractiveStyles.ts", 511],
+  ["packages/devtools/src/overlay.ts", 2090],
+  ["packages/devtools/src/overlayStyles.ts", 1600],
+  ["packages/devtools/src/panels/aiDiagnosticsPanel.ts", 528],
+  ["packages/vite-plug-in/src/index.ts", 852],
+  ["packages/sfc/src/stripTypes.ts", 619],
+  ["packages/renderer-web/src/renderFromIR.ts", 530],
+  ["packages/renderer-ssr/src/renderToString.ts", 513],
+  ["packages/devtools/src/inspector/runtimeMonitor.ts", 540]
+]);
 
 describe("architecture guardrails", () => {
   it("prevents React or Vue imports in package source files", () => {
@@ -114,7 +143,7 @@ describe("architecture guardrails", () => {
   });
 
   it("prevents browser globals in strict neutral packages", () => {
-    const browserPattern = /\bwindow\b|\bdocument\b|\bIntersectionObserver\b|\brequestIdleCallback\b/;
+    const browserPattern = /\bwindow\b|\bdocument\b|\bnavigator\b|\blocalStorage\b|\bsessionStorage\b|\bCustomEvent\b|\bMutationObserver\b|\bcustomElements\b|\bWindow\b|\bDocument\b|\bHTMLElement\b|\bIntersectionObserver\b|\brequestIdleCallback\b/;
     const violations: string[] = [];
 
     for (const packageName of strictNeutralPackages) {
@@ -125,6 +154,14 @@ describe("architecture guardrails", () => {
         }
       }
     }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("prevents tracked code artifacts outside approved repo surfaces", () => {
+    const violations = getTrackedWorkspaceFiles()
+      .filter((filePath) => isCodeBearingFile(filePath))
+      .filter((filePath) => !isApprovedTrackedCodeSurface(filePath));
 
     expect(violations).toEqual([]);
   });
@@ -207,11 +244,11 @@ describe("architecture guardrails", () => {
           continue;
         }
 
-        if (packageName === "vite-plug-in" && (importPath === "terajs" || importPath === "terajs/vite" || importPath === "terajs/devtools")) {
+        if (packageName === "vite-plug-in" && (importPath === "@terajs/app" || importPath === "@terajs/app/vite" || importPath === "@terajs/app/devtools")) {
           continue;
         }
 
-        if (packageName === "cli" && importPath === "terajs/vite") {
+        if (packageName === "cli" && importPath === "@terajs/app/vite") {
           continue;
         }
 
@@ -232,6 +269,40 @@ describe("architecture guardrails", () => {
         }
 
         violations.push(formatViolation(filePath, `imports unexpected external module ${importPath}`));
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("classifies approved code surfaces structurally instead of by temp-file names", () => {
+    expect(isApprovedTrackedCodeSurface("packages/shared/src/index.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("packages/cli/test/doctor.spec.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("packages/vite-plug-in/index.ts")).toBe(true);
+    expect(isApprovedTrackedCodeSurface("scripts/audit-exports.mjs")).toBe(true);
+
+    expect(isApprovedTrackedCodeSurface("debug-check.ts")).toBe(false);
+    expect(isApprovedTrackedCodeSurface("packages/shared/debug-check.ts")).toBe(false);
+    expect(isApprovedTrackedCodeSurface("packages/router/notes.tera")).toBe(false);
+  });
+
+  it("enforces manageable production source file sizes", () => {
+    const violations: string[] = [];
+
+    for (const filePath of collectFiles(path.join(packagesRoot), (candidate) => isProductionSourceFile(candidate))) {
+      const relativePath = path.relative(workspaceRoot, filePath).replace(/\\/g, "/");
+      const lineCount = countNonEmptyLines(filePath);
+      const legacyCap = legacyProductionSourceLineCaps.get(relativePath);
+
+      if (legacyCap !== undefined) {
+        if (lineCount > legacyCap) {
+          violations.push(`${relativePath}: ${lineCount} non-empty lines exceeds legacy cap ${legacyCap}`);
+        }
+        continue;
+      }
+
+      if (lineCount > maxProductionSourceLines) {
+        violations.push(`${relativePath}: ${lineCount} non-empty lines exceeds ${maxProductionSourceLines} line readability cap`);
       }
     }
 
@@ -271,11 +342,74 @@ function isSourceFile(filePath: string): boolean {
 }
 
 function isProductionSourceFile(filePath: string): boolean {
-  return isSourceFile(filePath) && !/\.spec\.tsx?$/.test(filePath) && !/\.test\.tsx?$/.test(filePath);
+  return isSourceFile(filePath)
+    && !/\.spec\.tsx?$/.test(filePath)
+    && !/\.test\.tsx?$/.test(filePath)
+    && !testSupportSourcePattern.test(filePath);
+}
+
+function getTrackedWorkspaceFiles(): string[] {
+  const output = execFileSync("git", ["ls-files", "-z"], {
+    cwd: workspaceRoot,
+    encoding: "utf8"
+  });
+
+  return output
+    .split("\0")
+    .map((filePath) => filePath.trim())
+    .filter(Boolean)
+    .map((filePath) => filePath.replace(/\\/g, "/"));
+}
+
+function isCodeBearingFile(filePath: string): boolean {
+  return /\.(?:[cm]?[jt]sx?|tera)$/.test(filePath);
+}
+
+function isApprovedTrackedCodeSurface(filePath: string): boolean {
+  if (!filePath || filePath.startsWith(".git/") || filePath.startsWith("node_modules/") || filePath.includes("/node_modules/") || filePath.includes("/dist/")) {
+    return false;
+  }
+
+  if (approvedRootCodeFiles.has(filePath)) {
+    return true;
+  }
+
+  if (filePath.startsWith("scripts/")) {
+    return true;
+  }
+
+  const packageMatch = /^packages\/([^/]+)\/(.+)$/.exec(filePath);
+  if (!packageMatch) {
+    return false;
+  }
+
+  const [, packageName, packageRelativePath] = packageMatch;
+
+  if (packageRelativePath.startsWith("src/") || packageRelativePath.startsWith("test/")) {
+    return true;
+  }
+
+  if (/^[^/]+\.config\.[cm]?[jt]s$/.test(packageRelativePath)) {
+    return true;
+  }
+
+  const approvedPackageFiles = approvedPackageRootCodeFiles.get(packageName);
+  if (approvedPackageFiles?.has(packageRelativePath)) {
+    return true;
+  }
+
+  return false;
 }
 
 function read(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
+}
+
+function countNonEmptyLines(filePath: string): number {
+  return read(filePath)
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .length;
 }
 
 function extractBareImports(source: string): string[] {

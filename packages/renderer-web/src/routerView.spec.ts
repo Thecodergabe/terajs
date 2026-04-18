@@ -6,7 +6,7 @@ import {
   getRouteDataResourceKey,
   type RouteDefinition
 } from "@terajs/router";
-import { invalidateResources } from "@terajs/runtime";
+import { component, invalidateResources } from "@terajs/runtime";
 import { Debug } from "@terajs/shared";
 import { Link } from "./link";
 import { mount, unmount } from "./mount";
@@ -138,6 +138,31 @@ describe("createRouteView", () => {
     unmount(root);
   });
 
+  it("ignores invalid route metadata placeholders during navigation", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    document.title = "Terajs baseline";
+    const router = createRouter(
+      [
+        route({
+          path: "/docs",
+          meta: { title: "undefined", description: "  ", keywords: ["", "undefined", "terajs"] },
+          component: async () => ({ default: () => document.createTextNode("docs") })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(document.title).toBe("Terajs baseline");
+    expect(document.head.querySelector('meta[name="description"]')).toBeNull();
+    expect(document.head.querySelector('meta[name="keywords"]')?.getAttribute("content")).toBe("terajs");
+
+    unmount(root);
+  });
+
   it("uses a hydration snapshot for the initial route render", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
@@ -243,6 +268,64 @@ describe("createRouteView", () => {
     unmount(root);
   });
 
+  it("preserves page component metadata through route layout composition", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    const Page = component({
+      name: "DocsPage",
+      meta: { title: "Docs route" },
+      ai: { summary: "Docs summary", tags: ["docs", "guide"] }
+    }, () => {
+      return () => {
+        const main = document.createElement("main");
+        main.id = "docs-page-root";
+        main.textContent = "page";
+        return main;
+      };
+    });
+
+    const Layout = component({ name: "DocsLayout" }, ({ children }: { children: Node }) => {
+      return () => {
+        const section = document.createElement("section");
+        section.setAttribute("data-layout", "docs");
+        section.appendChild(children);
+        return section;
+      };
+    });
+
+    const router = createRouter(
+      [
+        route({
+          path: "/docs",
+          component: async () => ({ default: Page }),
+          layouts: [
+            {
+              id: "docs",
+              filePath: "/pages/layout.tera",
+              component: async () => ({ default: Layout })
+            }
+          ]
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    const pageRoot = root.querySelector("#docs-page-root") as (Element & {
+      __terajsComponentContext?: { name?: string; meta?: unknown; ai?: unknown };
+    }) | null;
+
+    expect(pageRoot?.getAttribute("data-terajs-component-scope")).toBe("DocsPage");
+    expect(pageRoot?.__terajsComponentContext?.name).toBe("DocsPage");
+    expect(pageRoot?.__terajsComponentContext?.meta).toEqual({ title: "Docs route" });
+    expect(pageRoot?.__terajsComponentContext?.ai).toEqual({ summary: "Docs summary", tags: ["docs", "guide"] });
+
+    unmount(root);
+  });
+
   it("revalidates the current route when its data key is invalidated", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
@@ -322,6 +405,40 @@ describe("createRouteView", () => {
 
     expect(root.textContent).toContain("docs:1");
 
+    unmount(root);
+  });
+
+  it("logs route errors and renders detailed default fallback text", async () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const router = createRouter(
+      [
+        route({
+          id: "docs",
+          path: "/docs",
+          component: async () => ({
+            default: () => document.createTextNode("docs"),
+            load: () => {
+              throw new Error("loader failed hard");
+            }
+          })
+        })
+      ],
+      { history: createMemoryHistory("/docs") }
+    );
+
+    mount(createRouteView(router), root);
+    await flush();
+
+    expect(root.textContent).toContain("Route render failed: /docs");
+    expect(root.textContent).toContain("loader failed hard");
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[terajs/router] Route render failed for /docs",
+      expect.any(Error)
+    );
+
+    consoleSpy.mockRestore();
     unmount(root);
   });
 

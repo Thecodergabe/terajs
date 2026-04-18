@@ -49,13 +49,34 @@ const effectStack: ReactiveEffect[] = [];
 export let currentEffect: ReactiveEffect | null = null;
 
 /**
+ * Runs work without attaching nested effects to the currently active parent.
+ *
+ * This is used by computed getters so their internal runner is not treated as a
+ * disposable child of whichever effect or watcher first reads the computed.
+ */
+export function withDetachedCurrentEffect<T>(fn: () => T): T {
+    const previous = currentEffect;
+    currentEffect = null;
+
+    try {
+        return fn();
+    } finally {
+        currentEffect = previous;
+    }
+}
+
+/**
  * Places an effect onto the tracking stack and sets it as the active context.
  * Also wires parent/child relationships for nested effects.
  *
  * @param effect - The ReactiveEffect to begin tracking.
  */
 export function pushEffect(effect: ReactiveEffect): void {
-    Debug.emit("effect:create", { effect });
+    Debug.emit("effect:create", {
+        effect,
+        owner: (effect as any)._owner,
+        context: (effect as any)._context
+    });
     
     if (currentEffect) {
         effect.parent = currentEffect;
@@ -83,6 +104,10 @@ export function popEffect(): void {
  * @returns The currently active ReactiveEffect, or null if no effect is active.
  */
 export function getCurrentEffect(): ReactiveEffect | null {
-    Debug.emit("effect:getCurrent", { effect: currentEffect });
+    Debug.emit("effect:getCurrent", {
+        effect: currentEffect,
+        owner: (currentEffect as any)?._owner,
+        context: (currentEffect as any)?._context
+    });
     return currentEffect;
 }

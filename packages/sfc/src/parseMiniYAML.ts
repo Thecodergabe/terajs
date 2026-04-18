@@ -9,12 +9,13 @@ import { Debug } from "@terajs/shared";
 
 /**
  * A tiny YAML-like parser for Terajs SFC blocks.
- * * Supports:
+ * Supports:
  * - `key: value` pairs
  * - Nested objects via indentation
  * - Lists using `- item`
  * - Automatic type inference (numbers, booleans, strings)
- * * @param raw - The raw YAML-like string extracted from an SFC block.
+ *
+ * @param raw - The raw YAML-like string extracted from an SFC block.
  * @returns A parsed JavaScript object, or null if the block is empty or invalid.
  */
 export function parseMiniYAML(raw: string | null): any {

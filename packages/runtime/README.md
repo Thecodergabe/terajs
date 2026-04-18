@@ -1,19 +1,8 @@
-# Terajs Runtime
+# @terajs/runtime
 
-The Terajs runtime coordinates component lifecycle, context, async data primitives,
-local-first queue contracts, and server-function boundaries.
+Runtime contracts for Terajs components, lifecycle, context, async data, validation, server functions, and local-first queues.
 
----
-
-## Features
-- Platform-agnostic: works in browser, SSR, and custom renderers
-- Context system for dependency injection
-- Lifecycle hooks for mount/update/unmount orchestration
-- Action/resource primitives with queue-aware execution paths
-- Validation and invalidation helpers for route and form workflows
-- Server function execution and transport adapters
-
----
+Most application code reaches these APIs through `@terajs/app`, but this package is the right direct dependency for adapters, renderers, libraries, and lower-level framework work.
 
 ## Install
 
@@ -21,12 +10,21 @@ local-first queue contracts, and server-function boundaries.
 npm install @terajs/runtime
 ```
 
----
+## Core areas
 
-## Usage Example
+- component helpers: `component`, `onCleanup`
+- lifecycle hooks: `onMounted`, `onUpdated`, `onUnmounted`
+- context and dependency injection: `createComponentContext`, `provide`, `inject`
+- async data: `createAction`, `createResource`
+- local-first queues: `createMutationQueue`, `createMutationQueueStorage`, `defaultMutationRetryPolicy`
+- invalidation and validation: `invalidateResources`, `registerResourceInvalidation`, `createSchemaValidator`
+- server-function transport: `server`, `executeServerFunction`, `setServerFunctionTransport`, `createFetchServerFunctionTransport`
+- primitives: `Portal`, `Suspense`
+
+## Queue-aware action example
 
 ```ts
-import { createAction, createMutationQueue } from '@terajs/runtime';
+import { createAction, createMutationQueue } from "@terajs/runtime";
 
 const queue = await createMutationQueue();
 
@@ -34,57 +32,41 @@ const saveProfile = createAction(async (payload: { name: string }) => {
 	return payload.name;
 });
 
-await saveProfile.runQueued({ queue, type: 'profile:save' }, { name: 'Ada' });
+await saveProfile.runQueued(
+	{
+		queue,
+		type: "profile:save",
+		conflictKey: "current-user"
+	},
+	{ name: "Ada" }
+);
 ```
 
----
-
-## Context API
+## Server-function transport example
 
 ```ts
-import { createComponentContext, getCurrentContext, setCurrentContext } from '@terajs/runtime';
-
-const ctx = createComponentContext();
-setCurrentContext(ctx);
-```
-
----
-
-## DevTools Integration
-- All runtime events are streamed to the devtools overlay for live inspection.
-
----
-
-## Realtime Transport Adapters
-
-`@terajs/runtime` exposes a transport contract so apps can integrate any realtime stack (SignalR, Socket.IO, raw WebSockets, custom RPC).
-
-```ts
-import { setServerFunctionTransport, type ServerFunctionCall, type ServerFunctionTransport } from "@terajs/runtime";
-import { Debug } from "@terajs/shared";
+import {
+	setServerFunctionTransport,
+	type ServerFunctionCall,
+	type ServerFunctionTransport
+} from "@terajs/runtime";
 
 const transport: ServerFunctionTransport = {
 	async invoke(call: ServerFunctionCall) {
-		Debug.emit("hub:sync:start", {
-			transport: "socket.io",
-			call: call.id
-		});
-
-		const result = await invokeOverSocket(call);
-
-		Debug.emit("hub:sync:complete", {
-			transport: "socket.io",
-			call: call.id
-		});
-
-		return result;
+		return invokeOverSocket(call);
 	}
 };
 
 setServerFunctionTransport(transport);
 ```
 
-Recommended debug events for first-class DevTools visibility:
+If you want first-party adapters instead of a custom transport, use `@terajs/hub-signalr`, `@terajs/hub-socketio`, or `@terajs/hub-websockets`.
+
+## DevTools integration
+
+The runtime is designed to be inspectable. Queue state, route invalidation, server transport activity, and related debug events can feed the DevTools overlay without application-specific glue.
+
+For best realtime diagnostics, adapters should emit structured `hub:*` debug events through the app's debug/event pipeline, such as:
 
 - `hub:connect`
 - `hub:disconnect`
@@ -93,17 +75,9 @@ Recommended debug events for first-class DevTools visibility:
 - `hub:sync:start`
 - `hub:sync:complete`
 
----
+## Notes
 
-## API Reference
-- Components: `component`, `onCleanup`, lifecycle hooks
-- Context: `provide`, `inject`, `createComponentContext`
-- Async data: `createAction`, `createResource`
-- Local-first queue: `createMutationQueue`, `createMutationQueueStorage`
-- Validation: `createSchemaValidator`
-- Server functions: `server`, `executeServerFunction`, transport helpers
-
----
-
-See API_REFERENCE.md at repository root for the canonical shipped surface.
+- Browser-specific behavior belongs in renderer packages, not here.
+- App-facing docs should generally point new users at `@terajs/app`.
+- `API_REFERENCE.md` at the repository root remains the canonical source for the shipped runtime surface.
 

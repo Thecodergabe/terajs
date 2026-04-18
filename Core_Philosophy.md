@@ -1,151 +1,110 @@
 # Terajs Core Philosophy
 
-Terajs is built on a few non‑negotiable principles that guide every API, every feature, and every design decision.
+Terajs is guided by a few hard architectural commitments. These are the rules that shape the framework even when convenience would pull in a different direction.
 
----
+## 1. Compiler-native, not runtime-heavy
 
-## **1. TypeScript‑first, but never TypeScript‑required**
+Terajs is built around a compiler pipeline, IR generation, and fine-grained bindings rather than a VDOM rerender loop.
 
-Terajs is designed so that:
+That matters because it keeps the mental model aligned with the runtime model:
 
-- TypeScript users get **full inference**, **strict types**, and **zero‑config ergonomics**  
-- JavaScript users get **the exact same APIs**, with no warnings or penalties  
-- Every feature works in both TS and JS  
-- No decorators, no magical syntax, no TS‑only features  
+- reactive reads stay explicit
+- updates stay local to the nodes that consumed them
+- renderer work follows compiler output instead of component tree diffing
 
-Terajs’s stance:
+## 2. Framework-agnostic core, adapter-specific edges
 
-> **TypeScript should enhance your experience, not gatekeep it.**
+The core of Terajs must stay neutral.
 
----
+Packages such as `shared`, `reactivity`, `runtime`, `compiler`, `router`, and `sfc` should not grow browser glue, Vite glue, or host-framework glue just because it is convenient for a feature in the short term.
 
-## **2. Zero opinions on styling**
+Environment-specific behavior belongs in:
 
-Terajs does not enforce or prefer any styling approach.
+- renderers like `renderer-web` and `renderer-ssr`
+- toolchain adapters like the Vite plugin
+- interoperability wrappers like `@terajs/adapter-react` and `@terajs/adapter-vue`
 
-You can use:
+This is what allows Terajs to be framework-agnostic without pretending existing ecosystems do not exist.
 
-- Tailwind  
-- UnoCSS  
-- CSS Modules  
-- SCSS  
-- Styled Components  
-- Vanilla CSS  
-- Inline styles  
-- Design systems  
-- No styles at all  
+## 3. Interop without compatibility theater
 
-Terajs’s renderer doesn’t care — it just updates the DOM.
+React and Vue wrappers are valuable, but Terajs should not distort its core model to mimic them internally.
 
----
+The rule is simple:
 
-## **3. Zero opinions on platform**
+- integrate with host frameworks at the seam
+- keep application logic and neutral contracts Terajs-native
+- avoid importing React/Vue lifecycle assumptions into the core
 
-Terajs is renderer‑agnostic by design.
+That is how Terajs can be practical in mixed stacks without becoming a clone of another framework.
 
-Supported and planned targets include:
+## 4. Route-first application structure
 
-- Web (DOM)  
-- Native (iOS/Android)  
-- Canvas/WebGL  
-- Terminal  
-- Server‑only  
-- Embedded devices  
-- Custom renderers  
+Routing is part of the application model, not a bolt-on package.
 
-The component model stays the same everywhere.
+Terajs favors a route-first structure where pages, layouts, metadata, middleware, and load behavior all compose through the same pipeline. The route tree should tell the truth about the app.
 
-Terajs’s stance:
+## 5. Local-first behavior belongs in the runtime
 
-> **Your code shouldn’t care where it runs.**
+Terajs treats local-first concerns as framework-level runtime behavior, not purely app-specific infrastructure.
 
----
+That means the runtime should continue to own:
 
-## **4. Developer Experience above everything**
+- action and resource state
+- invalidation flows
+- queued mutation delivery
+- retry policy
+- conflict handling seams
+- structured queue telemetry for diagnostics
 
-Terajs is built for humans:
+The goal is not to force one sync architecture on every app. The goal is to make durable, inspectable local-first behavior a first-class option.
 
-- predictable reactivity  
-- simple mental model  
-- no hidden magic  
-- no footguns  
-- fast feedback loops  
-- readable stack traces  
-- clear error messages  
-- tooling that feels invisible  
+## 6. Diagnostics are part of the product
 
-DX isn’t an afterthought — it’s the product.
+Terajs should be unusually legible when something goes wrong.
 
----
+That means investing in:
 
-## **5. Debugging is a first‑class feature**
+- traceable reactive updates
+- route timing and guard visibility
+- queue lifecycle visibility
+- structured runtime events
+- component drill-down
+- tooling that uses structured state instead of scraping arbitrary DOM
 
-Terajs is designed to be easy to debug:
+If the framework is hard to inspect, the architecture is not finished.
 
-- clear reactive graph  
-- traceable signal updates  
-- component boundaries visible  
-- hydration logs  
-- SSR logs  
-- template → IR → DOM mapping  
-- devtools hooks  
-- no opaque runtime behavior  
+## 7. TypeScript-first, never TypeScript-required
 
-If something breaks, you should know **exactly why**.
+TypeScript should improve the developer experience without gatekeeping the framework.
 
----
+- TypeScript users should get strong inference and good surface area
+- JavaScript users should still use the same runtime contracts
+- public APIs should avoid TS-only tricks that create a two-tier experience
 
-## **6. Flexibility over dogma**
+## 8. Flexibility with boundaries
 
-Terajs avoids:
+Terajs should stay flexible, but flexibility is not the same thing as architectural blur.
 
-- rigid file structures  
-- mandatory patterns  
-- enforced conventions  
-- opinionated architecture  
-- “the one true way” thinking  
+Developers should be able to:
 
-Developers can:
+- author in `.tera` SFCs or TSX/JSX
+- use the facade package or leaf packages
+- style however they want
+- integrate with existing React or Vue applications
+- build custom renderers or adapters
 
-- structure components however they want  
-- mix JSX and templates  
-- use or ignore scoped styles  
-- use or ignore routing/meta  
-- build custom renderers  
-- drop down to low‑level APIs  
+But the framework should still preserve the distinction between neutral contracts and adapters, between launch docs and roadmap docs, and between shipped behavior and direction.
 
-Terajs’s stance:
+## 9. Performance should not require a harder mental model
 
-> **Give developers power, not rules.**
+Performance wins only matter if the programming model stays readable.
 
----
+Terajs should keep chasing:
 
-## **7. Performance without complexity**
+- direct updates
+- predictable reactive ownership
+- small responsibilities
+- compiler help where it reduces runtime cost
 
-Terajs delivers high performance through:
-
-- fine‑grained reactivity  
-- direct DOM updates  
-- compiler‑generated IR  
-- zero VDOM  
-- zero diffing  
-- zero component re‑renders  
-
-But the mental model stays simple.
-
----
-
-## **8. AI‑ready and meta‑aware**
-
-Terajs treats metadata as a first‑class concern:
-
-- SEO metadata  
-- AI hints  
-- semantic tags  
-- component‑level meta  
-- template‑level overrides  
-- route‑level aggregation  
-
-This enables AI‑aware tooling and consistent SEO.
-
----
+without turning ordinary application code into an expert-only system.

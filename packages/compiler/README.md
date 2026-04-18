@@ -1,33 +1,32 @@
-# Terajs Compiler
+# @terajs/compiler
 
-The Terajs compiler transforms SFC templates into efficient, platform-agnostic render functions.
+Leaf-package compiler utilities for Terajs templates and scoped style rewriting.
 
----
+Most apps consume this functionality through `@terajs/app/vite` or `@terajs/vite-plugin`. Use `@terajs/compiler` directly when building tooling around template parsing, IR generation, or CSS rewriting.
 
-## Features
-- Tokenizes, parses, and compiles SFC templates
-- Generates optimized code for signals, effects, and DOM updates
-- Supports custom directives and advanced template syntax
+## What this package exports
 
----
+- template tokenizer helpers
+- `parseTemplateToAst(...)`
+- IR generator and IR types
+- `rewriteScopedCss(...)`
+- `compileStyle(...)`
+- compiler-side SFC types
 
-## Usage Example
+## Minimal example
 
 ```ts
-import { parseTemplateToAst, compileStyle } from '@terajs/compiler';
+import { compileStyle, parseTemplateToAst } from "@terajs/compiler";
 
-const ast = parseTemplateToAst('<div>{{ count }}</div>');
-const code = compileStyle('.foo { color: red; }');
+const ast = parseTemplateToAst("<div>{{ count }}</div>");
+const css = compileStyle(".card { color: red; }");
 ```
 
----
+## Package boundaries
 
-## API Reference
-- `parseTemplateToAst(template: string): AstNode[]`
-- `compileStyle(css: string): string`
-- `sfcToComponent(sfc: SFCDescriptor): string`
+- `.tera` file parsing lives in `@terajs/sfc`
+- route-aware module generation lives in `@terajs/vite-plugin`
+- runtime rendering lives in `@terajs/renderer-web` and `@terajs/renderer-ssr`
 
----
-
-See the SFC and devtools docs for more on templates and live inspection.
+That split is intentional: the compiler stays focused on template and style transformation rather than on app bootstrapping.
 

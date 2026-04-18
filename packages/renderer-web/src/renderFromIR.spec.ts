@@ -21,6 +21,8 @@ import type {
 } from "@terajs/compiler";
 
 import { signal } from "@terajs/reactivity";
+import { component, onMounted, onUnmounted } from "@terajs/runtime";
+import { clear } from "./dom";
 
 /** Ensures reactive effects flush before assertions */
 const tick = () => Promise.resolve();
@@ -64,6 +66,21 @@ describe("IR -> DOM Renderer", () => {
     count.set(2);
     await tick();
     expect(dom.textContent).toBe("2");
+  });
+
+  it("renders call-expression interpolation", () => {
+    const node: IRInterpolationNode = {
+      type: "interp",
+      expression: "label()",
+      loc: undefined,
+      flags: { dynamic: true }
+    };
+
+    const dom = renderIRNode(node, {
+      label: () => "Computed label"
+    })!;
+
+    expect(dom.textContent).toBe("Computed label");
   });
 
   /* ---------------------------------------------------------------------- */
@@ -141,6 +158,32 @@ describe("IR -> DOM Renderer", () => {
 
     el.click();
     expect(clicked).toBe(true);
+  });
+
+  it("binds event call expressions with $event", () => {
+    let value = "";
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "input",
+      props: [
+        { kind: "event", name: "input", value: "updateValue($event)" }
+      ],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const el = renderIRNode(node, {
+      updateValue: (event: Event) => {
+        value = (event.target as HTMLInputElement | null)?.value ?? "";
+      }
+    }) as HTMLInputElement;
+
+    el.value = "offline flight";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(value).toBe("offline flight");
   });
 
   /* ---------------------------------------------------------------------- */
@@ -396,6 +439,98 @@ describe("IR -> DOM Renderer", () => {
     const el = renderIRNode(node, {}) as Element;
     expect(el.namespaceURI).toBe("http://www.w3.org/2000/svg");
     expect((el.firstChild as Element | null)?.namespaceURI).toBe("http://www.w3.org/2000/svg");
+  });
+
+  it("renders nested component tags from the component registry", () => {
+    const Card = () => {
+      const el = document.createElement("article");
+      el.textContent = "Nested card";
+      return el;
+    };
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "Card",
+      props: [],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const dom = renderIRNode(node, {
+      __components: { Card }
+    }) as HTMLElement;
+
+    expect(dom.tagName.toLowerCase()).toBe("article");
+    expect(dom.textContent).toBe("Nested card");
+  });
+
+  it("keeps lowercase native tags as elements even when helpers share the same name", () => {
+    const node: IRElementNode = {
+      type: "element",
+      tag: "code",
+      props: [],
+      children: [
+        {
+          type: "interp",
+          expression: "label()",
+          loc: undefined,
+          flags: { dynamic: true }
+        } as IRInterpolationNode
+      ],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const dom = renderIRNode(node, {
+      code: () => "helper should not replace <code>",
+      label: () => "native code tag"
+    }) as HTMLElement;
+
+    expect(dom.tagName.toLowerCase()).toBe("code");
+    expect(dom.textContent).toBe("native code tag");
+  });
+
+  it("runs nested component lifecycle hooks when the rendered node is attached and removed", async () => {
+    let mounted = 0;
+    let unmounted = 0;
+
+    const Child = component({ name: "Child" }, () => {
+      onMounted(() => {
+        mounted += 1;
+      });
+
+      onUnmounted(() => {
+        unmounted += 1;
+      });
+
+      const el = document.createElement("section");
+      el.textContent = "Lifecycle child";
+      return el;
+    });
+
+    const node: IRElementNode = {
+      type: "element",
+      tag: "Child",
+      props: [],
+      children: [],
+      loc: undefined,
+      flags: { hasDirectives: false }
+    };
+
+    const host = document.createElement("div");
+    const dom = renderIRNode(node, {
+      __components: { Child }
+    })!;
+
+    host.appendChild(dom);
+    await tick();
+
+    expect(mounted).toBe(1);
+
+    clear(host);
+
+    expect(unmounted).toBe(1);
   });
 });
 

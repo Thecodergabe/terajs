@@ -18,6 +18,7 @@ export { addDependency, removeDependencyNode } from "./debug/dependencyGraph.js"
 export { Debug, resetDebugHandlers } from "./debug/events.js"; 
 export { emitDebug, getDebugListenerCount, subscribeDebug } from "./debug/eventBus.js"; 
 export { resetDebugListeners } from "./debug/eventBus.js";
+export { clearDebugHistory, readDebugHistory } from "./debug/history.js";
 
 // Context and shared types
 export * from "./debug/context.js";

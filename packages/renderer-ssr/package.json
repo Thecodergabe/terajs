@@ -1,6 +1,6 @@
 {
   "name": "@terajs/renderer-ssr",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,10 +15,10 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@terajs/compiler": "^0.0.1",
-    "@terajs/router": "^0.0.1"
+    "@terajs/compiler": "^1.0.0",
+    "@terajs/router": "^1.0.0"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": "https://github.com/Thecodergabe/terajs",
   "publishConfig": {
     "access": "public"

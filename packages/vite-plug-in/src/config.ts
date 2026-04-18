@@ -178,7 +178,14 @@ export interface TerajsRouterConfig {
   applyMeta: boolean;
 }
 
-export type TerajsDevtoolsPosition = "bottom-left" | "bottom-right" | "bottom-center";
+/** Supported dock positions for the Terajs DevTools overlay. */
+export type TerajsDevtoolsPosition =
+  | "bottom-left"
+  | "bottom-right"
+  | "bottom-center"
+  | "top-left"
+  | "top-right"
+  | "top-center";
 
 export interface TerajsDevtoolsConfig {
   enabled: boolean;
@@ -217,7 +224,12 @@ function isHubRetryPolicy(value: string): value is TerajsHubRetryPolicy {
 }
 
 function isDevtoolsPosition(value: string): value is TerajsDevtoolsPosition {
-  return value === "bottom-left" || value === "bottom-right" || value === "bottom-center";
+  return value === "bottom-left"
+    || value === "bottom-right"
+    || value === "bottom-center"
+    || value === "top-left"
+    || value === "top-right"
+    || value === "top-center";
 }
 
 function normalizeShortcut(value: unknown, fallback: string): string {
@@ -249,7 +261,7 @@ export function getDevtoolsConfig(): TerajsDevtoolsConfig {
   return {
     enabled: typeof devtools?.enabled === "boolean" ? devtools.enabled : true,
     startOpen: typeof devtools?.startOpen === "boolean" ? devtools.startOpen : false,
-    position: isDevtoolsPosition(position) ? position : "bottom-right",
+    position: isDevtoolsPosition(position) ? position : "bottom-center",
     panelShortcut: normalizeShortcut(devtools?.panelShortcut, "Ctrl+Shift+D"),
     visibilityShortcut: normalizeShortcut(devtools?.visibilityShortcut, "Ctrl+Shift+H"),
     ai: {

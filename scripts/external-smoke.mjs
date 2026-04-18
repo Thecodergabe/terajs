@@ -12,6 +12,7 @@ const packagesRoot = join(repoRoot, "packages");
 const cliEntry = join(repoRoot, "packages", "cli", "dist", "index.js");
 const appName = "terajs-smoke-app";
 const npmExecPath = process.env.npm_execpath;
+const appFacadePackage = "@terajs/app";
 
 const skipBuild = process.argv.includes("--skip-build");
 const keepArtifacts = process.argv.includes("--keep-artifacts");
@@ -97,7 +98,7 @@ async function collectTerajsPackages() {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     if (
       typeof manifest.name === "string"
-      && (manifest.name === "terajs" || manifest.name.startsWith("@terajs/"))
+      && (manifest.name === appFacadePackage || manifest.name.startsWith("@terajs/"))
     ) {
       packages.push({
         name: manifest.name,
@@ -141,15 +142,15 @@ async function rewriteScaffoldPackage(appRoot, tarballs) {
   const packagePath = join(appRoot, "package.json");
   const manifest = JSON.parse(await readFile(packagePath, "utf8"));
 
-  const terajsTarball = tarballs.get("terajs");
+  const appFacadeTarball = tarballs.get(appFacadePackage);
 
-  if (!terajsTarball) {
-    throw new Error("Required tarball for terajs is missing.");
+  if (!appFacadeTarball) {
+    throw new Error(`Required tarball for ${appFacadePackage} is missing.`);
   }
 
   manifest.dependencies = {
     ...(manifest.dependencies ?? {}),
-    terajs: toFileSpecifier(appRoot, terajsTarball)
+    [appFacadePackage]: toFileSpecifier(appRoot, appFacadeTarball)
   };
 
   if (manifest.dependencies && typeof manifest.dependencies === "object") {

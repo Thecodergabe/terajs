@@ -1,6 +1,6 @@
 {
   "name": "@terajs/router-manifest",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,11 +12,11 @@
     }
   },
   "dependencies": {
-    "@terajs/router": "^0.0.1",
-    "@terajs/sfc": "^0.0.1",
-    "@terajs/shared": "^0.0.1"
+    "@terajs/router": "^1.0.0",
+    "@terajs/sfc": "^1.0.0",
+    "@terajs/shared": "^1.0.0"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": "https://github.com/Thecodergabe/terajs",
   "publishConfig": {
     "access": "public"

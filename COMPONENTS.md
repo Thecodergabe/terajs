@@ -1,358 +1,223 @@
-```md
 # Terajs Component System
 
-Status note (April 2026): This guide describes component philosophy and patterns. For exact shipped APIs and signatures, use API_REFERENCE.md.
+Status note (April 2026): this guide explains the component model and authoring patterns. For exact signatures and canonical exported symbols, use `API_REFERENCE.md`.
 
-Terajs components are lightweight functions built on fine‑grained reactivity. Components run once; templates update automatically when reactive values change. This makes Terajs predictable, fast, and easy to reason about.
+Terajs components are the unit where rendering, routing, metadata, and runtime behavior meet. They are not just paint functions.
 
-Terajs encourages a simple structure inside `.tsx` files:
+For the shipped web-first surface, there are two primary authored styles:
 
-- Props  
-- Logic (state, computed, effects, handlers)  
-- Template (JSX)  
-- Styles (optional, scoped)  
+- `.tera` single-file components for templates, route pages, layouts, metadata, and route-local behavior
+- TSX/JSX components for explicit programmatic composition on top of the same runtime and renderer contracts
 
-This structure is recommended, not enforced.
+## 1. Start with `.tera` for route-facing work
 
----
+Most Terajs apps should begin with `.tera` components because the format keeps the route-facing surface cohesive.
 
-## 1. Component Anatomy
+```tera
+<template>
+  <section>
+    <h1>{{ title() }}</h1>
+    <p>{{ summary() }}</p>
+  </section>
+</template>
 
-A typical Terajs component:
+<script>
+import { signal } from "@terajs/app";
+
+const title = signal("Counter workspace");
+const summary = signal("A small page with explicit state and metadata.");
+</script>
+
+<meta>
+  title: Counter workspace
+  description: Small Terajs component example.
+</meta>
+
+<route>
+  path: /examples/counter-workspace
+
+</route>
+
+<ai>
+  summary: Intro component example for Terajs docs
+  audience: developers
+  keywords: components, sfc, metadata
+</ai>
+```
+
+Structured blocks are part of the shipped component surface:
+
+- `<template>`: declarative markup compiled to IR
+- `<script>`: component logic and imports
+- `<style>`: component styling
+- `<meta>`: route and document metadata
+- `<ai>`: structured AI and tooling context
+- `<route>`: route configuration overrides
+
+## 2. TSX/JSX remains available for explicit composition
+
+Terajs also supports function components built on the same runtime.
 
 ```tsx
-export interface ExampleProps {
-  value: number;
-}
+import { component, signal } from "@terajs/app";
 
-export function Example(props: ExampleProps) {
-  const count = state(props.value);
+export const Counter = component(
+  { name: "Counter" },
+  ({ initialCount = 0 }: { initialCount?: number }) => {
+    const count = signal(initialCount);
 
-  return () => (
-    <div>{count.get()}</div>
-  );
-}
-```
-
-Key ideas:
-
-- Components execute once  
-- The returned function is the template  
-- Signals update the DOM/native views directly  
-- No VDOM, no diffing, no re‑rendering  
-
----
-
-## 2. Props
-
-Props are defined using TypeScript interfaces:
-
-```ts
-export interface ButtonProps {
-  label: string;
-  disabled?: boolean;
-}
-```
-
-Usage:
-
-```tsx
-<Button label="Save" disabled />
-```
-
-Props are:
-
-- fully typed  
-- inferred automatically  
-- immutable  
-- SSR‑safe  
-
----
-
-## 3. Logic Section
-
-The logic section contains:
-
-- state  
-- computed values  
-- effects  
-- event handlers  
-- async operations  
-
-Example:
-
-```ts
-const count = state(0);
-const double = computed(() => count.get() * 2);
-
-function increment() {
-  count.set(count.get() + 1);
-}
-```
-
-Logic runs once and never re‑runs on updates.
-
----
-
-## 4. Template Section
-
-The template is a function returning JSX:
-
-```tsx
-return () => (
-  <button onClick={increment}>
-    Count: {count.get()}
-  </button>
+    return () => (
+      <button onClick={() => count.set(count() + 1)}>
+        Count: {count()}
+      </button>
+    );
+  }
 );
 ```
 
-Template rules:
+The file extension is not the important part. The runtime model is:
 
-- should be pure  
-- should only read reactive values  
-- should avoid heavy computations  
-- runs only when needed  
+- components execute once
+- reactive reads drive targeted updates
+- renderer work happens at the binding level instead of through a VDOM rerender loop
 
-Terajs updates only the parts of the UI that depend on reactive reads.
+## 3. Components can carry application meaning
 
----
+Terajs components are more than reusable view fragments.
 
-## 5. Styles (Optional)
+Depending on the authored style, a component can carry:
 
-Components may export scoped styles:
+- local state and lifecycle
+- template or render behavior
+- route configuration
+- document metadata
+- AI and diagnostics context that tooling can inspect
+- layout participation in the route tree
 
-```ts
-export const styles = `
-  button {
-    padding: 8px;
-    border-radius: 6px;
-  }
-`;
-```
+That is why route pages, layouts, and feature components all fit into the same component model.
 
-Terajs will:
+## 4. Reactivity is explicit
 
-- generate a unique class for the component  
-- scope the styles at runtime  
-- apply the class to the component root  
+Terajs components are built on explicit reactive primitives.
 
-Supports:
-
-- global CSS  
-- Tailwind  
-- CSS modules  
-- design systems  
-
----
-
-## 6. Child Components & Composition
-
-Composition is straightforward:
-
-```tsx
-import { Button } from "./Button";
-
-export function Toolbar() {
-  return () => (
-    <div>
-      <Button label="Save" />
-      <Button label="Cancel" />
-    </div>
-  );
-}
-```
-
-No registration, no boilerplate, no magic.
-
----
-
-## 7. Async Components
-
-Terajs supports async components via:
-
-```ts
-const User = lazy(() => import("./User"));
-```
-
-Behavior:
-
-- loads component asynchronously  
-- works in SSR (server awaits the component)  
-- hydrates normally on the client  
-- no Suspense boundaries  
-- no waterfalls  
-
----
-
-## 8. Lifecycle & Cleanup
-
-Terajs supports cleanup via:
-
-```ts
-effect(() => {
-  const id = setInterval(() => console.log("tick"), 1000);
-
-  onCleanup(() => clearInterval(id));
-});
-```
-
-Cleanup runs:
-
-- before the effect re‑runs  
-- when the component unmounts  
-- when the watcher stops  
-
-Effects do not run on the server.
-
----
-
-## 9. SSR Behavior
-
-Terajs follows a simple rule:
-
-> If it works on the client, it works on the server — except DOM operations and effects.
-
-SSR guarantees:
-
-- components can be async  
-- logic runs once  
-- effects are skipped  
-- hydration is deterministic  
-- no VDOM diffing  
-- no hydration mismatch traps  
-
----
-
-## 10. Multi‑File Components (Optional)
-
-Terajs supports splitting large components:
-
-```
-UserCard/
-  UserCard.tsx
-  UserCard.logic.ts
-  UserCard.template.tsx
-  UserCard.styles.css
-```
-
-This is optional and not enforced.
-
----
-
-## 11. Interoperability
-
-Terajs components work with:
-
-- any DOM‑based UI library  
-- any CSS framework  
-- Web Components  
-- JSX‑based design systems  
-- native renderers (packages/renderer-ios, packages/renderer-android)  
-- canvas renderers (packages/renderer-canvas)  
-
-Terajs does not impose a custom component universe.
-
----
-
-## 12. Reactivity: Deep vs Shallow Watching
-
-Terajs uses fine‑grained, explicit dependency tracking.
-
-- **Shallow watching is the default**  
-- **Deep watching is not supported**  
-- **Effects track exactly what they read**  
-- **Nested objects should use nested signals**  
+- `signal(...)` for callable reactive values
+- `state(...)` for explicit getter/setter state
+- `computed(...)` for derived values
+- `effect(...)` for side effects
+- `onCleanup(...)` and lifecycle hooks for mount/unmount behavior
 
 Example:
 
 ```ts
-const user = {
-  name: state("Gabriel"),
-  age: state(30),
-};
+import { computed, signal } from "@terajs/app";
+
+const count = signal(1);
+const doubled = computed(() => count() * 2);
+```
+
+This keeps dependencies visible and makes it easier for the runtime and DevTools to explain what updated and why.
+
+## 5. Lifecycle and cleanup
+
+Lifecycle hooks live in the runtime layer, not in adapter-specific wrappers.
+
+```ts
+import { effect, onCleanup, onMounted } from "@terajs/app";
+
+onMounted(() => {
+  console.log("mounted");
+});
 
 effect(() => {
-  console.log(user.name.get()); // tracks only "name"
+  const timer = setInterval(() => console.log("tick"), 1000);
+  onCleanup(() => clearInterval(timer));
 });
 ```
 
-This keeps reactivity predictable, fast, and SSR‑safe.
+Effects do not run on the server, and cleanup stays part of the same runtime contract across authored component styles.
 
----
+## 6. Route pages and layouts are still components
 
-## 13. Slots (Default, Named, Scoped)
+The route system is component-driven.
 
-Terajs supports flexible slot patterns using JSX functions.
+- page files are components
+- `layout.tera` files are components
+- route metadata is component-adjacent
+- route loading follows component and route boundaries
 
-### Default Slot
+The shipped surface supports route and module-level async loading, but a standalone public `lazy(...)` helper is not part of the current API.
 
-```tsx
-export function Card(props) {
-  return () => (
-    <div class="card">
-      {props.children?.()}
-    </div>
-  );
-}
+## 7. Metadata and AI are part of the component model
+
+Terajs components can carry structured `meta`, `ai`, and `route` data.
+
+That enables:
+
+- document head updates during route transitions
+- AI-friendly semantic hints close to the component that owns them
+- DevTools inspection of route, metadata, and AI context
+- SSR metadata and route state reuse without scraping arbitrary DOM
+
+The `<ai>` block is parsed as instructional metadata only. It is not executable code.
+
+## 8. Composition stays direct
+
+Composition does not require framework ceremony.
+
+For `.tera` SFCs, configured component directories are auto-imported so route files can stay small.
+
+```text
+src/components/FancyButton.tera
 ```
 
-### Named Slots
+Once `src/components` is configured in `autoImportDirs`, you can use `<FancyButton />` directly inside another SFC.
 
-```tsx
-export interface ModalProps {
-  header?: () => JSX.Element;
-  footer?: () => JSX.Element;
-  children?: () => JSX.Element;
-}
-```
+For TSX/JSX or explicit module composition, normal imports still work.
 
-### Scoped Slots
+## 9. Interop is real, but it stays at the seams
 
-```tsx
-<List
-  items={users}
-  item={user => <UserCard user={user} />}
-/>
-```
+Terajs ships first-party React and Vue wrappers because mixed stacks are real.
 
-Slots are fully reactive and SSR‑safe.
+- `@terajs/adapter-react` mounts Terajs components inside React trees through `TerajsWrapper`
+- `@terajs/adapter-vue` mounts Terajs components inside Vue through `TerajsDirective` and `mountTerajs`
 
----
+Those wrappers are integration seams, not the center of the component model. Terajs core does not adopt React or Vue as its internal mental model.
 
-## 14. Portals (Teleporting Content)
+## 10. Web Components are supported too
 
-Terajs includes a `<Portal>` primitive for rendering content outside the normal hierarchy.
+For browser-native composition, `@terajs/app` also exposes `defineCustomElement(...)` through the web renderer surface.
 
-Example:
+That makes it possible to ship Terajs components across framework boundaries without forcing React-specific or Vue-specific wrapper usage.
 
-```tsx
-<Portal to="body">
-  <Modal>...</Modal>
-</Portal>
-```
+## 11. SSR and hydration behavior
 
-Behavior:
+The same component model works on server and client with the usual SSR constraints:
 
-- web: mounts into DOM node  
-- native: mounts into overlay layer  
-- canvas: draws into higher z‑index layer  
-- server: renders inline  
+- effects do not run on the server
+- hydration expects matching markup and can emit diagnostics when server and client diverge
+- route components, layouts, and feature components all sit on top of the same runtime contracts
 
-Used for modals, popovers, tooltips, dropdowns, and overlays.
+The goal is consistency, not separate component models per environment.
 
----
+## 12. Keep files small and responsibility-owned
 
-## 15. Philosophy Summary
+Terajs is strongest when route files and components stay tight.
+
+- keep routes focused on route-specific behavior
+- move shared content or configuration into local modules
+- use wrappers and adapters only where an integration boundary actually exists
+- avoid turning one route or one component into the entire application model
+
+That keeps the compiler, runtime, route tree, and DevTools easier to reason about.
+
+## 13. Summary
 
 Terajs components are:
 
-- simple  
-- fast  
-- predictable  
-- SSR‑safe  
-- flexible  
-- cross‑platform  
-- easy to read and maintain  
+- renderer-aware without being renderer-bound
+- route-capable without needing a separate component model
+- metadata-aware without leaking tooling concerns into app code
+- explicit in their reactivity and lifecycle behavior
+- compatible with mixed stacks through adapters at the seams
 
-Terajs provides a recommended pattern without restricting how developers build their components.
-```
+That combination is what makes the Terajs component model different from a generic view-function story.

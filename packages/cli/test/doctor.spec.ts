@@ -16,7 +16,7 @@ describe("cli doctor", () => {
           name: "doctor-ok",
           private: true,
           dependencies: {
-            "terajs": "*"
+            "@terajs/app": "*"
           },
           devDependencies: {
             "vite": "*"
@@ -39,7 +39,7 @@ describe("cli doctor", () => {
 
     expect(report.ok).toBe(true);
     expect(report.checks.every((check) => check.ok)).toBe(true);
-    expect(report.checks.some((check) => check.id === "dep:terajs" && check.ok)).toBe(true);
+    expect(report.checks.some((check) => check.id === "dep:app-facade" && check.ok)).toBe(true);
 
     const text = formatDoctorReport(report);
     expect(text).toContain("Doctor summary: setup is ready for development.");

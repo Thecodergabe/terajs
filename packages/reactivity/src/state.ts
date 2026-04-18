@@ -5,7 +5,8 @@ import { Debug } from "@terajs/shared";
 
 /**
  * Creates a reactive state container (Signal).
- * * @template T - The type of the value being tracked.
+ *
+ * @template T - The type of the value being tracked.
  * @param value - The initial value of the state.
  * @returns An object providing `get` and `set` accessors.
  */
@@ -25,7 +26,7 @@ export function state<T>(value: T) {
     return {
         /**
          * Retrieves the current value and performs dependency tracking.
-         * * If called within a reactive context (like an effect or computed),
+         * If called within a reactive context (like an effect or computed),
          * the active effect is registered as a subscriber to this state.
          */
         get: (): T => {
@@ -53,7 +54,8 @@ export function state<T>(value: T) {
 
         /**
          * Updates the value and notifies all subscribers.
-         * * @param newValue - The new value to store.
+         *
+         * @param newValue - The new value to store.
          * @note Uses `Object.is` to bail out if the value hasn't actually changed,
          * preventing redundant computations and side effects.
          */

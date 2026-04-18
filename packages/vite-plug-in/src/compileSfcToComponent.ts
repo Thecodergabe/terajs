@@ -3,6 +3,7 @@ import {
   compileTemplateFromSFC,
   type ParsedSFC
 } from "@terajs/sfc";
+import { annotateRuntimeDebugNames } from "./annotateRuntimeDebugNames.js";
 
 export function compileSfcToComponent(sfc: ParsedSFC): string {
   const scriptSource =
@@ -10,13 +11,19 @@ export function compileSfcToComponent(sfc: ParsedSFC): string {
       ? sfc.script
       : sfc.script?.content ?? "";
 
-  const script = compileScript(scriptSource);
+  const script = compileScript(annotateRuntimeDebugNames(scriptSource));
   const ir = compileTemplateFromSFC(sfc);
   ir.hasAsyncResource = script.hasAsyncResource;
   const name = inferComponentName(sfc.filePath);
+  const importedBindingMap = script.importedBindings.length > 0
+    ? `{
+${script.importedBindings.map((binding) => `  ${JSON.stringify(binding)}: typeof ${binding} !== "undefined" ? ${binding} : undefined`).join(",\n")}
+}`
+    : "{}";
+  const exposedBindings = JSON.stringify(script.exposed);
 
   return `
-import { component, applyHMRUpdate, renderIRModuleToFragment } from "terajs";
+import { component, applyHMRUpdate, renderIRModuleToFragment } from "@terajs/app";
 
 ${script.setupCode}
 
@@ -49,6 +56,34 @@ function normalizeSlots(input) {
   return slots;
 }
 
+function pickBindings(names, source) {
+  const next = {};
+
+  if (!source || typeof source !== "object") {
+    return next;
+  }
+
+  for (const name of names) {
+    if (Object.prototype.hasOwnProperty.call(source, name)) {
+      next[name] = source[name];
+    }
+  }
+
+  return next;
+}
+
+function createComponentRegistry(ctx) {
+  const autoImports = typeof TerajsAutoImports === "object" && TerajsAutoImports
+    ? TerajsAutoImports
+    : {};
+
+  return {
+    ...autoImports,
+    ...${importedBindingMap},
+    ...pickBindings(${exposedBindings}, ctx)
+  };
+}
+
 export let ir = ${JSON.stringify(ir, null, 2)};
 
 export { __ssfc };
@@ -65,7 +100,13 @@ const Comp = component(
     const slots = normalizeSlots(props);
     const emit = () => {};
     const ctx = __ssfc({ props: componentProps, slots, emit });
-    return () => renderIRModuleToFragment(ir, { ...ctx, props: componentProps, slots, emit });
+    return () => renderIRModuleToFragment(ir, {
+      ...ctx,
+      props: componentProps,
+      slots,
+      emit,
+      __components: createComponentRegistry(ctx)
+    });
   }
 );
 

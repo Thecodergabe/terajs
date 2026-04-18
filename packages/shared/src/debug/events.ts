@@ -6,6 +6,7 @@
 
 // Import the graph logic to satisfy the proxy method
 import { addDependency as addGraphEdge } from "./dependencyGraph.js";
+import { recordDebugHistory } from "./history.js";
 
 /* -------------------------------------------------------------------------- */
 /*                               Event Taxonomy                               */
@@ -90,6 +91,7 @@ export type DebugEventType =
     | "ir:render:text"
     | "ir:render:interp"
     | "ir:render:element"
+    | "ir:render:component"
     | "ir:render:portal"
     | "ir:render:slot"
     | "ir:render:if"
@@ -156,14 +158,16 @@ export const Debug = {
 
     emit<TType extends DebugEventType>(type: TType, payload: any): void {
         const hook = getGlobalDevtoolsHook();
-        
-        if (handlers.size === 0 && !hook) return;
 
         const event: DebugEvent<TType> = {
             type,
             timestamp: Date.now(),
             payload,
         };
+
+        recordDebugHistory(event);
+
+        if (handlers.size === 0 && !hook) return;
 
         for (const handler of handlers) {
             try {

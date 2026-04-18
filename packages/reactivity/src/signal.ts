@@ -34,6 +34,14 @@ function registerActiveSignal<T>(sig: Signal<T>): void {
   signalFinalizer.register(sig, ref);
 }
 
+/**
+ * Returns the currently live, debug-registered signals.
+ *
+ * Signals are tracked through weak references, so entries for collected
+ * signals are removed as the registry is traversed.
+ *
+ * @returns A snapshot of active signals that still have live references.
+ */
 export function getActiveSignals(): Signal<unknown>[] {
   const active: Signal<unknown>[] = [];
 
@@ -94,16 +102,6 @@ export function signal<T>(
     column: options?.column
   });
 
-  // Register in the global reactive registry
-  registerReactiveInstance(meta, { scope, instance });
-
-  // Emit creation event
-  emitDebug({
-    type: "reactive:created",
-    timestamp: Date.now(),
-    meta
-  });
-
   const sig = function () {
     // Track dependency if inside an effect
     if (currentEffect) {
@@ -137,12 +135,10 @@ export function signal<T>(
     registerActiveSignal(sig);
   }
 
-  // Track initial value
-  updateReactiveValue(meta.rid, value);
-
   /**
    * Updates the signal's value and notifies all dependents.
-   * * @param next - The new value to set.
+    *
+    * @param next - The new value to set.
    */
   sig.set = (next: T) => {
     const prev = sig._value;
@@ -165,13 +161,31 @@ export function signal<T>(
     // Trigger effects
     const subs = Array.from(sig._dep);
     for (const eff of subs) {
-      scheduleEffect(eff);
+      if (eff.scheduler) {
+        eff.scheduler();
+      } else {
+        scheduleEffect(eff);
+      }
     }
   };
 
+  registerReactiveInstance(meta, { scope, instance }, {
+    setValue: (next) => sig.set(next as T)
+  });
+
+  // Track the initial value once the debug registry can mutate the signal.
+  updateReactiveValue(meta.rid, value);
+
+  emitDebug({
+    type: "reactive:created",
+    timestamp: Date.now(),
+    meta
+  });
+
   /**
    * Updates the signal's value using a transformation function.
-   * * @param fn - A function that takes the current value and returns a new one.
+    *
+    * @param fn - A function that takes the current value and returns a new one.
    */
   sig.update = (fn) => sig.set(fn(sig._value));
 

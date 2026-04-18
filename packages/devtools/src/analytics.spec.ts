@@ -86,7 +86,8 @@ describe("devtools analytics", () => {
       { type: "queue:conflict", timestamp: 1300, payload: { id: "2", decision: "replace" } },
       { type: "queue:retry", timestamp: 1400, payload: { id: "2" } },
       { type: "queue:fail", timestamp: 1600, payload: { id: "2" } },
-      { type: "queue:drained", timestamp: 1800, payload: { flushed: 1 } }
+      { type: "queue:flush", timestamp: 1750, payload: { flushed: 1, retried: 1, failed: 1, skipped: 0, pending: 0 } },
+      { type: "queue:drained", timestamp: 1800, payload: { flushed: 1, failed: 1 } }
     ];
 
     const metrics = computePerformanceMetrics(events, 2000);
@@ -95,6 +96,35 @@ describe("devtools analytics", () => {
     expect(metrics.queueConflicts).toBe(1);
     expect(metrics.queueRetried).toBe(1);
     expect(metrics.queueFailed).toBe(1);
+    expect(metrics.queueFlushed).toBe(1);
+    expect(metrics.queueDepthEstimate).toBe(0);
+  });
+
+  it("uses queue flush payload counts for partial flushes", () => {
+    const events: DevtoolsEventLike[] = [
+      { type: "queue:enqueue", timestamp: 1000, payload: { id: "1" } },
+      { type: "queue:enqueue", timestamp: 1100, payload: { id: "2" } },
+      { type: "queue:enqueue", timestamp: 1200, payload: { id: "3" } },
+      { type: "queue:flush", timestamp: 1300, payload: { flushed: 2, retried: 0, failed: 0, skipped: 0, pending: 1 } }
+    ];
+
+    const metrics = computePerformanceMetrics(events, 2000);
+
+    expect(metrics.queueEnqueued).toBe(3);
+    expect(metrics.queueFlushed).toBe(2);
+    expect(metrics.queueDepthEstimate).toBe(1);
+  });
+
+  it("falls back to queue drained payloads when flush events are absent", () => {
+    const events: DevtoolsEventLike[] = [
+      { type: "queue:enqueue", timestamp: 1000, payload: { id: "1" } },
+      { type: "queue:enqueue", timestamp: 1100, payload: { id: "2" } },
+      { type: "queue:fail", timestamp: 1200, payload: { id: "2" } },
+      { type: "queue:drained", timestamp: 1300, payload: { flushed: 1, failed: 1 } }
+    ];
+
+    const metrics = computePerformanceMetrics(events, 2000);
+
     expect(metrics.queueFlushed).toBe(1);
     expect(metrics.queueDepthEstimate).toBe(0);
   });

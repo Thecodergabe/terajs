@@ -27,6 +27,13 @@ import { Debug } from "@terajs/shared";
 import { renderAst } from "./astToJsx.js";
 import type { ASTNode } from "@terajs/renderer";
 
+const COMPONENT_SCOPE_ATTR = "data-terajs-component-scope";
+const COMPONENT_INSTANCE_ATTR = "data-terajs-component-instance";
+
+type InspectableComponentElement = Element & {
+    __terajsComponentContext?: ComponentContext;
+};
+
 /**
  * A framework component.
  * It may return either:
@@ -106,7 +113,21 @@ export function renderComponent(
         node = template(out);
     }
     else {
-        throw new Error("Invalid component return value.");
+        const componentName = describeComponentName(component);
+        const returnType = describeReturnValue(out);
+
+        Debug.emit("error:renderer", {
+            message: "Invalid component return value.",
+            component: componentName,
+            returnType,
+            value: out
+        });
+
+        throw new Error(`Invalid component return value for ${componentName} (${returnType}).`);
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+        attachComponentIdentity(node, ctx);
     }
 
     // Restore previous context AFTER template() has run
@@ -119,6 +140,78 @@ export function renderComponent(
     });
 
     return { node, ctx };
+}
+
+function describeComponentName(component: FrameworkComponent): string {
+    return typeof component === "function" && component.name
+        ? component.name
+        : "anonymous component";
+}
+
+function describeReturnValue(value: unknown): string {
+    if (value === null) {
+        return "null";
+    }
+
+    if (value === undefined) {
+        return "undefined";
+    }
+
+    if (value instanceof Node) {
+        return value.nodeName;
+    }
+
+    if (typeof value === "function") {
+        return "function";
+    }
+
+    if (typeof value === "object") {
+        const constructorName = (value as { constructor?: { name?: string } }).constructor?.name;
+        return constructorName ? `object:${constructorName}` : "object";
+    }
+
+    return typeof value;
+}
+
+function attachComponentIdentity(node: Node, ctx: ComponentContext): void {
+    if (
+        !ctx.name
+        || ctx.name === "Unknown"
+        || !Number.isFinite(ctx.instance)
+        || ctx.instance <= 0
+    ) {
+        return;
+    }
+
+    const scope = String(ctx.name);
+    const instance = String(ctx.instance);
+
+    if (node instanceof Element) {
+        applyComponentIdentity(node, scope, instance, ctx);
+        return;
+    }
+
+    if (node instanceof DocumentFragment) {
+        for (const child of Array.from(node.childNodes)) {
+            if (!(child instanceof Element)) {
+                continue;
+            }
+
+            applyComponentIdentity(child, scope, instance, ctx);
+        }
+    }
+}
+
+function applyComponentIdentity(node: Element, scope: string, instance: string, ctx: ComponentContext): void {
+    const element = node as InspectableComponentElement;
+
+    if (element.hasAttribute(COMPONENT_SCOPE_ATTR) || element.hasAttribute(COMPONENT_INSTANCE_ATTR) || element.__terajsComponentContext) {
+        return;
+    }
+
+    element.setAttribute(COMPONENT_SCOPE_ATTR, scope);
+    element.setAttribute(COMPONENT_INSTANCE_ATTR, instance);
+    element.__terajsComponentContext = ctx;
 }
 
 /**

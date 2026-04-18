@@ -1,101 +1,54 @@
-# Terajs Reactivity System
+# @terajs/reactivity
 
-Terajs's reactivity system is fine-grained, fast, and designed for DX. It powers all state, computed, and effect logic in Terajs apps.
+Fine-grained reactive primitives for Terajs.
 
----
+Most application code can import these APIs through `@terajs/app`, but this package is the canonical leaf package for signals, effects, computed values, and DX helpers.
 
-## Core Concepts
+## Core surface
 
-### 1. Signals
-A signal is a reactive value. It tracks reads and notifies dependents on change.
+- `signal(initialValue, options?)`: callable reactive accessor with `.set(...)` and `.update(...)`
+- `state(initialValue)`: explicit `.get()` / `.set()` state container
+- `computed(fn, options?)`: lazy derived value with `.get()`
+- `effect(fn)`: tracked side effect
+- `reactive(object)`, `ref(value)`, `model(...)`
+- DX helpers: `watch(...)`, `watchEffect(...)`, `onEffectCleanup(...)`, `dispose(...)`, `contract(...)`
+- memo helpers: `memo(...)`, `markStatic(...)`, `shallowRef(...)`
+- runtime mode helpers: `isServer()`, `setRuntimeMode(...)`
+
+## `signal(...)` vs `state(...)`
+
+Terajs ships both forms on purpose:
+
+- `signal(...)` is a callable accessor and is the common app-facing primitive
+- `state(...)` is an explicit getter/setter container used where that shape is clearer or already established
 
 ```ts
-import { signal } from '@terajs/reactivity';
+import { computed, effect, signal, state } from "@terajs/reactivity";
 
 const count = signal(0);
+const legacyCount = state(0);
+const doubled = computed(() => count() * 2);
 
-console.log(count()); // 0
+effect(() => {
+  console.log(count(), legacyCount.get(), doubled.get());
+});
+
 count.set(1);
-console.log(count()); // 1
+legacyCount.set(1);
 ```
 
-### 2. Effects
-An effect runs a function whenever its dependencies change.
+## Observability and DevTools
 
-```ts
-import { effect } from '@terajs/reactivity';
+The reactivity package is wired into the shared debug core.
 
-effect(() => {
-  console.log('Count is', count());
-});
+- signals register reactive metadata
+- computed values register ownership and recomputation events
+- effects participate in the dependency graph
+- DevTools can inspect graph state and runtime updates without app-specific logging glue
 
-count.set(2); // logs: Count is 2
-```
+## Notes
 
-### 3. Computed
-A computed is a lazily-evaluated, cached derived value.
-
-```ts
-import { computed } from '@terajs/reactivity';
-
-const double = computed(() => count() * 2);
-console.log(double.get()); // 4 if count is 2
-```
-
-### 4. Reactive Objects
-Deeply reactive objects, where each property is a signal.
-
-```ts
-import { reactive } from '@terajs/reactivity';
-
-const user = reactive({ name: 'Gabriel', age: 42 });
-effect(() => console.log(user.name));
-user.name = 'Bro'; // triggers effect
-```
-
----
-
-## Advanced
-
-- **Ref**: For mutable references.
-- **State**: For simple stateful values.
-- **Watch/WatchEffect**: For side effects and subscriptions.
-- **Cleanup/Dispose**: For effect cleanup and resource management.
-
----
-
-## Debugging & DevTools
-- All signals, effects, and computed values emit debug events for live inspection in Terajs DevTools.
-- The dependency graph is visualized in the devtools overlay.
-
----
-
-## Example: Todo List
-
-```ts
-import { signal, effect } from '@terajs/reactivity';
-
-const todos = signal(['Learn Terajs']);
-effect(() => {
-  console.log('Todos:', todos());
-});
-todos.set([...todos(), 'Build something cool']);
-```
-
----
-
-## API Reference
-- `signal<T>(value: T): Signal<T>`
-- `effect(fn: () => void): void`
-- `computed<T>(fn: () => T): Computed<T>`
-- `reactive<T extends object>(obj: T): T`
-- `ref<T>(value: T): Ref<T>`
-- `state<T>(value: T): State<T>`
-- `watch(fn, options?)`
-- `watchEffect(fn, options?)`
-- `dispose(fn)`
-
----
-
-See the source for more advanced patterns and DX utilities.
+- `computed(...)` currently returns an object with `.get()`, not a callable accessor.
+- `signal(...)` can carry metadata options such as `scope`, `instance`, `key`, and source location for diagnostics.
+- For app-level docs, prefer the `@terajs/app` import path unless you are deliberately working at the leaf-package level.
 

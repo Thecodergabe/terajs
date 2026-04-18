@@ -1,6 +1,6 @@
 {
   "name": "@terajs/devtools",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "main": "./dist/overlay.js",
   "types": "./dist/overlay.d.ts",
@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@terajs/reactivity": "^1.0.0",
-    "@terajs/shared": "^0.0.1",
-    "@terajs/adapter-ai": "^0.0.1"
+    "@terajs/shared": "^1.0.0",
+    "@terajs/adapter-ai": "^1.0.0"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": "https://github.com/Thecodergabe/terajs",
   "publishConfig": {
     "access": "public"

@@ -14,7 +14,7 @@ vi.mock("./config", () => ({
   getDevtoolsConfig: () => ({
     enabled: true,
     startOpen: false,
-    position: "bottom-right",
+    position: "bottom-center",
     panelShortcut: "Ctrl+Shift+D",
     visibilityShortcut: "Ctrl+Shift+H",
     ai: {
@@ -110,6 +110,20 @@ describe("Terajs Vite Plugin (integration)", () => {
     throw new Error("Expected Vite configureServer hook to be defined.");
   }
 
+  function requireIndexHtmlTransform(
+    hook: Plugin["transformIndexHtml"]
+  ): (html: string | { raw: string }, ctx?: unknown) => unknown {
+    if (typeof hook === "function") {
+      return hook as unknown as (html: string | { raw: string }, ctx?: unknown) => unknown;
+    }
+
+    if (hook && typeof hook === "object" && "handler" in hook && typeof hook.handler === "function") {
+      return hook.handler as unknown as (html: string | { raw: string }, ctx?: unknown) => unknown;
+    }
+
+    throw new Error("Expected transformIndexHtml hook to be defined.");
+  }
+
   it("mounts a dev middleware for server function requests", async () => {
     setRuntimeMode("server");
     const getGreeting = server(async (name: string) => `hello ${name}`, { id: "getGreeting" });
@@ -123,9 +137,9 @@ describe("Terajs Vite Plugin (integration)", () => {
       middlewares: { use }
     } as any);
 
-    expect(use).toHaveBeenCalledTimes(1);
+    expect(use).toHaveBeenCalledTimes(2);
 
-    const middleware = use.mock.calls[0][0] as (req: any, res: any, next: () => void) => Promise<void>;
+    const middleware = use.mock.calls[1][0] as (req: any, res: any, next: () => void) => Promise<void>;
     const req = Readable.from([JSON.stringify({ id: "getGreeting", args: ["Ada"] })]) as any;
     req.method = "POST";
     req.url = "/_terajs/server";
@@ -158,7 +172,7 @@ describe("Terajs Vite Plugin (integration)", () => {
       middlewares: { use }
     } as any);
 
-    const middleware = use.mock.calls[0][0] as (req: any, res: any, next: () => void) => Promise<void>;
+    const middleware = use.mock.calls[1][0] as (req: any, res: any, next: () => void) => Promise<void>;
     const req = Readable.from([]) as any;
     req.method = "GET";
     req.url = "/app";
@@ -170,6 +184,57 @@ describe("Terajs Vite Plugin (integration)", () => {
     await middleware(req, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves the devtools IDE bridge manifest from a same-origin dev route", async () => {
+    const plugin = terajsPlugin();
+    const use = vi.fn();
+    const configureServer = requireServerHook(plugin.configureServer);
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((input) => {
+      return String(input).includes("node_modules") && String(input).includes("devtools-bridge.json");
+    });
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      if (String(input).includes("devtools-bridge.json")) {
+        return JSON.stringify({
+          version: 1,
+          session: "http://127.0.0.1:4040/live/token",
+          ai: "http://127.0.0.1:4040/ai/token",
+          reveal: "http://127.0.0.1:4040/reveal/token",
+          updatedAt: 1713120000000
+        });
+      }
+
+      return "";
+    });
+
+    configureServer({
+      middlewares: { use }
+    } as any);
+
+    const middleware = use.mock.calls[0][0] as (req: any, res: any, next: () => void) => void;
+    const req = Readable.from([]) as any;
+    req.method = "GET";
+    req.url = "/_terajs/devtools/bridge";
+    req.headers = { host: "localhost:5173" };
+
+    const res = createResponseCollector();
+    const next = vi.fn();
+    middleware(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(res.headers.get("Content-Type")).toBe("application/json;charset=UTF-8");
+    expect(res.readJson()).toEqual({
+      version: 1,
+      session: "http://127.0.0.1:4040/live/token",
+      ai: "http://127.0.0.1:4040/ai/token",
+      reveal: "http://127.0.0.1:4040/reveal/token",
+      updatedAt: 1713120000000
+    });
+
+    existsSpy.mockRestore();
+    readSpy.mockRestore();
   });
 
   it("emits sfc:load when loading a .tera file", () => {
@@ -465,13 +530,101 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("export function bootstrapTerajsApp()");
   });
 
+  it("resolves app facade runtime imports to /@fs specifiers in dev mode", () => {
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("/@fs/");
+    expect(code).toContain("mountDevtoolsOverlay");
+    expect(code).toContain("autoAttachVsCodeDevtoolsBridge");
+    expect(code).toContain("/_terajs/devtools/bridge");
+  });
+
+  it("keeps bare app facade imports in build mode virtual modules", () => {
+    const plugin = terajsPlugin();
+    const configResolved = plugin.configResolved as ((config: any) => void);
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    configResolved({ command: "build" });
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("from '@terajs/app';");
+    expect(code).toContain("import('@terajs/app/devtools')");
+    expect(code).not.toContain("autoAttachVsCodeDevtoolsBridge");
+  });
+
+  it("loads virtual app module when the id carries query suffixes", () => {
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+
+    const code = load("\0virtual:terajs-app?t=171");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("export function bootstrapTerajsApp()");
+  });
+
+  it("returns a JavaScript error module when virtual app generation fails", async () => {
+    const configModule = await import("./config");
+    const syncSpy = vi.spyOn(configModule, "getSyncHubConfig").mockReturnValue({
+      type: "invalid-transport",
+      url: "https://example.invalid/hub"
+    } as any);
+
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const code = load("\0virtual:terajs-app");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("__TERAJS_VIRTUAL_MODULE_ERROR__");
+    expect(code).toContain("Unsupported sync.hub.type: invalid-transport");
+
+    syncSpy.mockRestore();
+  });
+
+  it("returns a JavaScript error module when loading a .tera file fails", () => {
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((input) => {
+      if (String(input).endsWith("Broken.tera")) {
+        throw new Error("ENOENT: missing Broken.tera");
+      }
+
+      return "<template />";
+    });
+
+    const code = load("Broken.tera?import");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("__TERAJS_VIRTUAL_MODULE_ERROR__");
+    expect(code).toContain("ENOENT: missing Broken.tera");
+
+    readSpy.mockRestore();
+  });
+
+  it("generates routes module even when route directories are missing", async () => {
+    const configModule = await import("./config");
+    const routesSpy = vi.spyOn(configModule, "getConfiguredRoutes").mockReturnValue([] as any);
+    const plugin = terajsPlugin();
+    const load = requireHook<[string], unknown>(plugin.load);
+    const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
+
+    const code = load("\0virtual:terajs-routes");
+
+    expect(typeof code).toBe("string");
+    expect(code).toContain("const routeSources = [");
+    expect(code).toContain("buildRouteManifest(routeSources, { routeConfigs })");
+
+    existsSpy.mockRestore();
+    routesSpy.mockRestore();
+  });
+
   it("injects a bootstrap module when index.html has no module script", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -488,11 +641,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
   it("injects bootstrap when only the Vite client module script exists", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -511,11 +660,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
   it("injects bootstrap when helper module scripts are marked as bootstrap-ignored", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -536,11 +681,7 @@ describe("Terajs Vite Plugin (integration)", () => {
   it("injects virtual app id in build mode", () => {
     const plugin = terajsPlugin();
     const configResolved = plugin.configResolved as ((config: any) => void);
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     configResolved({ command: "build" });
     const html = transform(`<!doctype html>
@@ -558,11 +699,7 @@ describe("Terajs Vite Plugin (integration)", () => {
 
   it("does not inject bootstrap when a module script already exists", () => {
     const plugin = terajsPlugin();
-    const transform = plugin.transformIndexHtml;
-
-    if (typeof transform !== "function") {
-      throw new Error("Expected transformIndexHtml hook to be defined.");
-    }
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
 
     const html = transform(`<!doctype html>
 <html lang="en">
@@ -575,5 +712,17 @@ describe("Terajs Vite Plugin (integration)", () => {
 
     expect(typeof html).toBe("string");
     expect(html).not.toContain("bootstrapTerajsApp");
+  });
+
+  it("passes through non-string html payloads without throwing", () => {
+    const plugin = terajsPlugin();
+    const transform = requireIndexHtmlTransform(plugin.transformIndexHtml);
+
+    const payload = {
+      raw: "html"
+    } as any;
+
+    const result = transform(payload);
+    expect(result).toBe(payload);
   });
 });

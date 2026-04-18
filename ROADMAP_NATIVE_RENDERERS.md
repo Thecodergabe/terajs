@@ -1,5 +1,7 @@
 # Terajs Native Renderer Roadmap
 
+Status note (April 2026): this document is directional. Native renderer work is not part of the shipped web-first launch surface. Use `README.md` and `API_REFERENCE.md` for current application-facing behavior.
+
 This document outlines the plan for building production-ready native renderers for Terajs (iOS, Android, and beyond).
 
 ---
@@ -11,7 +13,7 @@ This document outlines the plan for building production-ready native renderers f
 ## 2. JS-to-Native Bridge
 - Use JavaScriptCore (iOS/Android) to run Terajs’s JS runtime in the native app.
 - Expose native APIs to JS for view management and event handling.
-- Serialize tree diffs/commands from JS to native, and events from native to JS.
+- Serialize renderer operations and view commands from JS to native, and events from native to JS.
 
 ## 3. Native Host App
 - Swift/SwiftUI app for iOS, Kotlin/Jetpack Compose for Android.
@@ -19,7 +21,7 @@ This document outlines the plan for building production-ready native renderers f
 - Receives commands from JS to create/update/destroy views.
 
 ## 4. Renderer Implementation
-- Walk the Terajs component tree in JS, diff changes, and send minimal updates to native.
+- Walk Terajs runtime output in JS and send minimal renderer operations to native.
 - Map Terajs elements to native primitives (VStack/Column, Text, Button, etc.).
 - Handle props, events, and state sync.
 

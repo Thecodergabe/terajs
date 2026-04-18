@@ -1,32 +1,190 @@
 # Terajs API Reference
 
-This reference describes the **current public surface** used by web-first Terajs apps.
+This reference describes the current shipped public surface for web-first Terajs applications and the public leaf packages they build on.
 
 Release scope reflected here:
+- `@terajs/app`
+- `@terajs/app/vite`
+- `@terajs/app/devtools`
 - `@terajs/reactivity`
 - `@terajs/runtime`
-- `@terajs/renderer-web`
 - `@terajs/router`
+- `@terajs/router-manifest`
+- `@terajs/renderer`
+- `@terajs/renderer-web`
 - `@terajs/renderer-ssr`
+- `@terajs/devtools`
+- `@terajs/vite-plugin`
+- `@terajs/sfc`
+- `@terajs/compiler`
+- `@terajs/shared`
+- `@terajs/ui`
+- `@terajs/adapter-ai`
+- `@terajs/adapter-react`
+- `@terajs/adapter-vue`
+- `@terajs/hub-signalr`
+- `@terajs/hub-socketio`
+- `@terajs/hub-websockets`
 
----
+This file is intentionally launch-scoped. Directional renderer work, Kit-level ideas, and future-native plans belong in the roadmap and vision docs.
 
-# 1. Reactivity (`@terajs/reactivity`)
+## 0. App Entry Surface (`@terajs/app`)
 
-## 1.1 `signal(initialValue)`
+### 0.1 Main facade
+
+`@terajs/app` is the default app-facing entrypoint.
+
+It re-exports the main web-first surface from:
+- `@terajs/reactivity`
+- `@terajs/runtime`
+- `@terajs/router`
+- selected `@terajs/renderer-web` exports
+
+It also re-exports route-manifest helpers:
+- `buildRouteManifest(...)`
+- `RouteConfigInput`
+- `RouteManifestOptions`
+- `RouteSourceInput`
+
+### 0.2 Build integration
+
+- `@terajs/app/vite` re-exports the default Terajs Vite plugin.
+- `TerajsVitePluginOptions` is available from `@terajs/app/vite`.
+
+### 0.3 DevTools app-facing path
+
+`@terajs/app/devtools` re-exports the public DevTools overlay and bridge helpers:
+
+- overlay controls: `mountDevtoolsApp(...)`, `mountDevtoolsOverlay(...)`, `toggleDevtoolsOverlay()`, `toggleDevtoolsVisibility()`, `unmountDevtoolsOverlay()`
+- browser bridge helpers: `getDevtoolsBridge()`, `readDevtoolsBridgeSession(instanceId?)`, `waitForDevtoolsBridge(options?)`, `subscribeToDevtoolsBridge(listener, options?)`
+- bridge events: `DEVTOOLS_BRIDGE_READY_EVENT`, `DEVTOOLS_BRIDGE_UPDATE_EVENT`, `DEVTOOLS_BRIDGE_DISPOSE_EVENT`
+- bridge types: `DevtoolsBridgeSnapshot`, `DevtoolsBridgeSessionExport`, `DevtoolsBridgeEventDetail`, `DevtoolsBridgeEventRecord`, `DevtoolsBridgeInstanceSummary`, `DevtoolsBridgeTabName`, `DevtoolsGlobalBridge`, `SubscribeToDevtoolsBridgeOptions`, `WaitForDevtoolsBridgeOptions`
+- development-only VS Code bridge helpers: `autoAttachVsCodeDevtoolsBridge(options?)`, `stopAutoAttachVsCodeDevtoolsBridge()`, `DevtoolsIdeAutoAttachOptions`, `DevtoolsIdeBridgeManifest`
+
+The browser global bridge surface is structured and imperative rather than DOM-based:
+
+- `listInstances()`
+- `getSnapshot(instanceId?)`
+- `exportSession(instanceId?)`
+- `setActiveInstance(instanceId)`
+- `focusTab(tab, instanceId?)`
+- `selectComponent(scope, instance, instanceId?)`
+- `reveal(instanceId?)`
+
+`DevtoolsBridgeTabName` currently includes:
+
+- `Components`
+- `AI Diagnostics`
+- `Signals`
+- `Meta`
+- `Issues`
+- `Logs`
+- `Timeline`
+- `Router`
+- `Queue`
+- `Performance`
+- `Sanity Check`
+- `Settings`
+
+The VS Code auto-attach helper is development-only. It polls the same-origin `/_terajs/devtools/bridge` route, which mirrors the extension's workspace cache manifest at `node_modules/.cache/terajs/devtools-bridge.json`, and is a no-op in production builds.
+
+## 1. SFC and Route Metadata Contracts
+
+### 1.1 `.tera` block model
+
+The shipped SFC block model supports:
+
+- `<template>`
+- `<script>`
+- `<style>`
+- `<meta>`
+- `<ai>`
+- `<route>`
+
+`<ai>` is part of the shipped surface. It is parsed as instructional metadata only and is not executable code.
+
+### 1.2 `parseSFC(source, filePath)` (`@terajs/sfc`)
+
+`parseSFC(...)` returns a `ParsedSFC` with these fields:
+
+- `filePath`
+- `template`
+- `script`
+- `style`
+- `meta`
+- optional `ai`
+- `routeOverride`
+
+### 1.3 `<meta>` / `MetaConfig`
+
+`MetaConfig` is the typed metadata contract carried through SFC parsing, route definitions, client metadata updates, and SSR.
+
+Common fields include:
+
+- `title`
+- `description`
+- `keywords`
+- `aiSummary`
+- `aiKeywords`
+- `aiAltText`
+- `schema`
+- `analytics`
+- `performance`
+- `a11y`
+- `i18n`
+
+### 1.4 `<route>` / `RouteOverride`
+
+`RouteOverride` is the typed route override contract parsed from `<route>` blocks.
+
+Supported override fields are:
+
+- `path`
+- `layout`
+- `mountTarget`
+- `middleware`
+- `prerender`
+- `hydrate`
+- `edge`
+
+### 1.5 `<ai>`
+
+The `<ai>` block is carried as an opaque object. Today that means:
+
+- SFC parsing preserves it on `ParsedSFC.ai`
+- route-manifest generation carries it onto `RouteDefinition.ai`
+- route metadata resolution merges it across layouts, route definitions, and page component carriers
+- DevTools can inspect it as structured runtime metadata
+
+### 1.6 Route-manifest helpers
+
+`buildRouteManifest(inputs, options?)` builds route definitions from `.tera` sources and route config overrides.
+
+It is responsible for:
+
+- file-based path inference
+- attaching ordered layout chains
+- preserving `<route>` overrides
+- carrying `meta` and `ai` from the parsed SFC into the route definition
+
+## 2. Reactivity (`@terajs/reactivity`)
+
+### 2.1 `signal(initialValue, options?)`
 
 Creates a callable signal accessor with mutation helpers.
 
 ```ts
 const count = signal(0);
-count();           // 0
-count.set(1);      // update
-count.update((n) => n + 1);
+count();
+count.set(1);
+count.update((value) => value + 1);
 ```
 
-## 1.2 `state(initialValue)`
+Signals also register reactive metadata used by diagnostics and DevTools.
 
-Creates a state container with explicit `get()` / `set()`.
+### 2.2 `state(initialValue)`
+
+Creates a state container with explicit `get()` / `set()` accessors.
 
 ```ts
 const count = state(0);
@@ -34,44 +192,37 @@ count.get();
 count.set(1);
 ```
 
-## 1.3 `computed(fn)`
+### 2.3 `computed(fn, options?)`
 
 Creates a lazy, memoized derived value.
 
 ```ts
-const doubled = computed(() => count.get() * 2);
+const doubled = computed(() => count() * 2);
 doubled.get();
 ```
 
-## 1.4 `effect(fn)`
+### 2.4 `effect(fn)`
 
 Runs `fn` reactively and returns a `ReactiveEffect` handle.
 
 ```ts
-const stopTarget = effect(() => {
+const handle = effect(() => {
   console.log(count());
 });
 ```
 
-## 1.5 Effect utilities
+### 2.5 DX and utility exports
 
-- `onEffectCleanup(fn)` registers cleanup for the current running effect.
-- `dispose(effectHandle)` disposes a reactive effect.
-- `watch(source, callback)` and `watchEffect(fn)` are available from the DX layer.
+- cleanup and disposal: `onEffectCleanup(fn)`, `dispose(effectHandle)`
+- watch layer: `watch(source, callback)`, `watchEffect(fn)`
+- additional primitives: `ref(...)`, `reactive(...)`, `model(...)`
+- memo helpers: `memo(...)`, `markStatic(...)`, `shallowRef(...)`
+- runtime mode helpers: `isServer()`, `setRuntimeMode(...)`
+- DX contract helper: `contract(...)`
 
-## 1.6 Other exports
+## 3. Runtime (`@terajs/runtime`)
 
-- `ref(...)`
-- `reactive(...)`
-- `model(...)`
-- `memo(...)`, `markStatic(...)`, `shallowRef(...)`
-- `isServer()`, `setRuntimeMode(...)`
-
----
-
-# 2. Runtime (`@terajs/runtime`)
-
-## 2.1 Component wrapper
+### 3.1 Component wrapper
 
 Use `component(options, setup)` to define Terajs components.
 
@@ -81,142 +232,313 @@ const App = component({ name: "App" }, () => () => {
 });
 ```
 
-## 2.2 Component cleanup
+`component(...)` can carry `meta`, `ai`, and `route` on the component wrapper for routing, metadata resolution, and tooling.
 
-`onCleanup(fn)` registers disposers owned by the active component/effect context.
+### 3.2 Lifecycle and cleanup
 
-## 2.3 Lifecycle hooks
-
-Current lifecycle hook names:
+- `onCleanup(fn)`
 - `onMounted(fn)`
 - `onUpdated(fn)`
 - `onUnmounted(fn)`
 
-## 2.4 Context / dependency injection
+### 3.3 Context / dependency injection
 
-Current context APIs are low-level and explicit:
+Current context APIs are explicit and low-level:
+
+- `createComponentContext()`
+- `getCurrentContext()`
+- `setCurrentContext(ctx)`
 - `provide(key, value)`
 - `inject(key, fallback?)`
 
-There is no `<Context.Provider>` component API in the runtime package today.
+Built-in runtime components include `Portal(props)` and `Suspense(props)`.
 
-## 2.5 Hydration resource helpers
+### 3.4 Async data and local-first runtime
+
+- `createAction(...)`
+- `createResource(...)`
+- `invalidateResources(keys)`
+- `registerResourceInvalidation(keys, handler)`
+- `createMutationQueue(options?)`
+- `createMutationQueueStorage(adapter, key?)`
+- `defaultMutationRetryPolicy`
+- `MutationConflictResolver` hooks (`replace`, `ignore`, `merge`)
+
+These are shipped local-first runtime primitives, not app-specific conventions.
+
+### 3.5 Hydration helpers
 
 - `setHydrationState(...)`
 - `getHydratedResource(key)`
 - `consumeHydratedResource(key)`
 - `scheduleHydration(mode, mount, element)`
 
-## 2.6 Server function APIs
+### 3.6 Validation
 
-Runtime exports include:
+- `createSchemaValidator(schema)`
+
+Associated public types include:
+
+- `ParseSchema`
+- `SafeParseSchema`
+- `ValidationIssue`
+- `ValidationResult`
+- `Validator`
+
+### 3.7 Server-function APIs
+
 - `server(...)`
 - `executeServerFunction(...)`
+- `executeServerFunctionCall(...)`
+- `executeServerFunctionCallWithMetadata(...)`
+- `setServerFunctionTransport(...)`
+- `getServerFunctionTransport()`
+- `hasServerFunction(id)`
 - `createFetchServerFunctionTransport(...)`
+- `createServerContextFromRequest(...)`
 - `createServerFunctionRequestHandler(...)`
+- `handleServerFunctionRequest(...)`
+- `readServerFunctionCall(...)`
 
-Use these for app-owned server boundaries, not as a replacement for your external API contracts.
+Use these for app-owned server boundaries. They do not replace external API design.
 
-## 2.7 Local-first foundation APIs
+### 3.8 Development / HMR
 
-- `createMutationQueue(options?)`
-- `createMutationQueueStorage(adapter, key?)`
-- `defaultMutationRetryPolicy`
-- `MutationConflictResolver` hooks (`replace`, `ignore`, `merge` decisions)
-- `createAction(...).runQueued(queueOptions, ...args)`
-- `createResource(...).mutate(value, { queue, serverCall, ... })`
+- `applyHMRUpdate(name, nextSetup, nextIR)`
+- `registerHMRComponent(handle)`
+- `unregisterHMRComponent(name)`
 
-These APIs provide queue contracts, retry hooks, and persistence-friendly mutation flows. Advanced conflict resolution remains a planned extension.
+## 4. Web Renderer (`@terajs/renderer-web`)
 
----
-
-# 3. Web Renderer (`@terajs/renderer-web`)
-
-## 3.1 Mounting
+### 4.1 Mounting and hydration
 
 - `mount(component, root, props?)`
 - `unmount(root)`
-
-## 3.2 Hydration
-
 - `hydrateRoot(component, root, props?)`
 - `readHydrationPayload()`
 
 Hydration uses in-place reconciliation when SSR DOM shape matches and falls back to replacement when it does not.
 
-## 3.3 JSX / template primitives
+### 4.2 JSX / template primitives
 
-- JSX runtime exports (`jsx`, `jsxs`, `Fragment`)
-- control-flow exports (`Switch`, `Match`, `Show`, `For`)
-- `Portal(...)`
+- JSX runtime exports: `jsx`, `jsxs`, `Fragment`
+- control-flow exports: `Switch`, `Match`, `Show`, `For`
+- portal primitive: `Portal(...)`
 
-## 3.4 Router-aware web primitives
+### 4.3 Route-aware web primitives
 
+- `createBrowserHistory(window?)`
 - `createRouteView(router, options?)`
 - `Link(props)`
+- `RoutePending(props)`
+- `useIsNavigating(router?)`
+- `usePendingTarget(router?)`
 
-## 3.5 Forms
+### 4.4 Metadata integration
+
+- `updateHead(meta, ai)`
+
+This is where resolved route `meta` and `ai` can feed browser head updates and diagnostics.
+
+### 4.5 Forms and helpers
 
 - `Form(props)`
 - `SubmitButton(props)`
 - `FormStatus(props)`
+- `formDataToObject(formData)`
 
----
+### 4.6 Error boundaries and custom elements
 
-# 4. Router (`@terajs/router`)
+- `withErrorBoundary(component, options)`
+- `defineCustomElement(name, component)`
 
-## 4.1 Core router APIs
+### 4.7 Low-level IR rendering
+
+- `renderIRModuleToFragment(ir, ctx)`
+
+## 5. Router (`@terajs/router`)
+
+### 5.1 Core router APIs
 
 - `createRouter(routes, options?)`
 - `createMemoryHistory(initialPath?)`
-- `createBrowserHistory(window?)`
 - `matchRoute(routes, target)`
 
-## 4.2 Loading and prefetch
+### 5.2 Loading and prefetch
 
 - `loadRouteMatch(match, options?)`
 - `prefetchRouteMatch(match)`
 - `prefetchRoute(router, target)`
 - `clearPrefetchedRouteMatches()`
+- `createRouteHydrationSnapshot(loaded)`
 
-## 4.3 Route metadata
+### 5.3 Route metadata resolution
 
-- `resolveLoadedRouteMetadata(...)`
-- `updateHead(meta, ai)`
+- `resolveLoadedRouteMetadata(loaded)`
 
----
+`resolveLoadedRouteMetadata(...)` merges `meta`, `ai`, and route carrier data from:
 
-# 5. SSR (`@terajs/renderer-ssr`)
+- ordered layouts
+- the route definition
+- the page component module
 
-## 5.1 String rendering
+It returns:
 
-- `renderToString(component, options?)`
+- `meta`
+- optional `ai`
+- normalized `route` information including layout ids
 
-## 5.2 Streaming rendering
+### 5.4 Route data resource keys
 
-- `renderToStream(component, options?)`
+- `getRouteDataResourceKey(routeId)`
+- `getRouteDataResourceKeys(routeIds)`
+- `ROUTE_DATA_RESOURCE_KEY`
 
-## 5.3 Route execution helpers
+## 6. SSR (`@terajs/renderer-ssr`)
 
-- `executeServerRoute(routeModule, options?)`
+### 6.1 String rendering
 
----
+- `renderToString(component, context?)`
 
-# 6. Notes on Stable vs Deferred
+### 6.2 Streaming rendering
 
-This API reference intentionally describes shipped web-first APIs.
+- `renderToStream(component, context?)`
 
-Deferred/non-goal for this release cycle:
+### 6.3 Route execution helpers
+
+- `executeServerRoute(options)`
+
+### 6.4 SSR types
+
+- `SSRContext`
+- `SSRHydrationHint`
+- `SSRResult`
+- `ExecuteServerRouteOptions`
+- `ExecuteServerRouteResult`
+- `SSRRouteModule`
+
+`SSRContext` and `SSRResult` both carry `meta`, `route`, optional `ai`, serialized resources, and route hydration state.
+
+## 7. Tooling and Leaf Packages
+
+### 7.1 `@terajs/devtools`
+
+The leaf-package entrypoint for the same DevTools surface exposed through `@terajs/app/devtools`.
+
+### 7.2 `@terajs/vite-plugin`
+
+The leaf-package entrypoint for:
+
+- `.tera` compilation
+- `virtual:terajs-auto-imports`
+- `virtual:terajs-routes`
+- `virtual:terajs-app`
+- route/layout/middleware discovery
+- dev-only tooling hooks and hub wiring
+
+### 7.3 `@terajs/sfc`
+
+Public exports include:
+
+- `parseSFC(...)`
+- `compileTemplate(...)`
+- `compileScript(...)`
+- SFC types and structured SFC errors
+
+### 7.4 `@terajs/compiler`
+
+Public exports include:
+
+- `parseTemplateToAst(...)`
+- `templateTokenizer`
+- IR generator/types exports
+- `rewriteScopedCss(...)`
+- `compileStyle(...)`
+- compiler-side SFC types
+
+### 7.5 `@terajs/shared`
+
+Shared exports include:
+
+- debug event APIs: `Debug`, `subscribeDebug(...)`, `emitDebug(...)`, `readDebugHistory()`
+- dependency graph APIs: `addDependency(...)`, `removeDependencyNode(...)`, `getDependencyGraphSnapshot()`, `getDependencyNode(...)`
+- `DevtoolsBridge` read-only graph helpers
+- metadata and registry types
+- `MetaConfig` and `RouteOverride`
+
+### 7.6 `@terajs/router-manifest`
+
+Public exports include:
+
+- `inferPathFromFile(filePath)`
+- `buildRouteFromSFC(parsedSfc)`
+- `buildRouteManifest(inputs, options?)`
+- `RouteConfigInput`
+- `RouteManifestOptions`
+- `RouteSourceInput`
+
+Use this package when you need direct route-manifest assembly outside the default Vite-plugin path.
+
+### 7.7 `@terajs/renderer`
+
+This is the neutral renderer-contract package used by current and future renderer implementations.
+
+Public exports include:
+
+- AST node types such as `ASTNode`, `ElementNode`, `TextNode`, `InterpolationNode`, `IfNode`, and `ForNode`
+- renderer contracts such as `RenderContext` and `Renderer`
+- template and component contracts such as `TemplateFn` and `FrameworkComponent`
+- mount and hydration contracts such as `MountAPI`, `MountOptions`, `HydrationAPI`, and `HydrationMode`
+- renderer error types such as `RendererError` and `UnsupportedNodeError`
+
+### 7.8 `@terajs/ui`
+
+`@terajs/ui` is a public but intentionally minimal package at this release.
+
+Its current role is to reserve the shared UI seam while runtime and renderer contracts stabilize. It does not currently replace `@terajs/renderer-web` for web primitives or `@terajs/devtools` for development overlays.
+
+### 7.9 `@terajs/adapter-ai`
+
+Public exports include:
+
+- `defineAIActions(schema)`
+- `captureStateSnapshot(signals?)`
+- `AIActionsSchema`
+- `AIActionsDefinition`
+- `AIStateSnapshot`
+
+`captureStateSnapshot(...)` emits a sanitized reactive-state snapshot intended for tooling and assistant-style integrations. Sensitive keys are filtered rather than blindly serialized.
+
+### 7.10 React and Vue adapters
+
+- `@terajs/adapter-react`: `TerajsWrapper`, `useTerajsResource(...)`
+- `@terajs/adapter-vue`: `TerajsDirective`, `mountTerajs(...)`, `useTerajsResource(...)`, `injectTerajsResource(...)`
+
+### 7.11 First-party hub adapters
+
+- `@terajs/hub-signalr`: `createSignalRHubTransport(...)`
+- `@terajs/hub-socketio`: `createSocketIoHubTransport(...)`
+- `@terajs/hub-websockets`: `createWebSocketHubTransport(...)`
+
+All three implement the runtime `ServerFunctionTransport` contract and expose connect/disconnect/subscription semantics plus `hub:*` diagnostics.
+
+## 8. Stable vs Directional Boundary
+
+This reference intentionally documents shipped web-first APIs.
+
+Still directional or intentionally outside this file:
+
 - native renderer implementation details
-- transitions/animation framework
-- expanded app-framework layer guarantees beyond current exports
+- animation / transition frameworks
+- broader Kit-level conventions beyond current exports
 
----
+## 9. Summary
 
-# 7. Philosophy Summary
+Terajs keeps the shipped surface explicit:
 
-Terajs keeps the runtime small and explicit:
 - fine-grained reactivity
-- deterministic updates
-- direct rendering paths
-- modular packages with clear boundaries
+- compiler-native rendering paths
+- route-first application structure
+- local-first runtime seams
+- structured metadata and AI context
+- modular packages with boundary-aware adapters

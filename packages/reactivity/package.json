@@ -13,11 +13,11 @@
     }
   },
   "dependencies": {
-    "@terajs/shared": "^0.0.1"
+    "@terajs/shared": "^1.0.0"
   },
   "publishConfig": {
     "access": "public"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": "https://github.com/Thecodergabe/terajs"
 }

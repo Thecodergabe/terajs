@@ -1,17 +1,17 @@
 import type { AIStateSnapshot } from "@terajs/adapter-ai";
+import { collectRecentAIDebugIssues, collectRecentCodeReferences, type AIDebugEventLike } from "./aiDebugContext.js";
+import type { SafeDocumentContext } from "./documentContext.js";
+import type { SafeDocumentDiagnostic } from "./documentContext.js";
 import type { SanityAlert, SanityMetrics } from "./sanity.js";
 
-export interface AIPromptEvent {
-  type: string;
-  timestamp: number;
-  payload?: Record<string, unknown>;
-  level?: "info" | "warn" | "error";
-}
+export interface AIPromptEvent extends AIDebugEventLike {}
 
 export interface AIPromptInput {
   snapshot: AIStateSnapshot;
   sanity: SanityMetrics;
   events: AIPromptEvent[];
+  document?: SafeDocumentContext | null;
+  documentDiagnostics?: SafeDocumentDiagnostic[];
 }
 
 /**
@@ -21,11 +21,14 @@ export interface AIPromptInput {
  * prioritized issues so AI-assisted triage can focus on root causes first.
  */
 export function buildAIPrompt(input: AIPromptInput): string {
-  const recentIssues = collectRecentIssues(input.events, 12);
+  const recentIssues = collectRecentAIDebugIssues(input.events, 12);
+  const codeReferences = collectRecentCodeReferences(input.events, 10);
   const critical = input.sanity.alerts.filter((alert) => alert.severity === "critical");
   const warnings = input.sanity.alerts.filter((alert) => alert.severity === "warning");
 
   const payload = {
+    document: input.document ?? undefined,
+    documentDiagnostics: input.documentDiagnostics ?? undefined,
     snapshot: input.snapshot,
     sanity: {
       activeEffects: input.sanity.activeEffects,
@@ -37,107 +40,24 @@ export function buildAIPrompt(input: AIPromptInput): string {
       criticalAlerts: critical.map(toAlertSummary),
       warningAlerts: warnings.map(toAlertSummary)
     },
-    recentIssues
+    recentIssues,
+    codeReferences
   };
 
   return [
     "Terajs AI Debug Prompt:",
     "",
     "Analyze this snapshot and sanity telemetry.",
+    "Use the safe document head summary to understand page intent, route context, and SEO metadata without assuming access to secrets or arbitrary DOM content.",
+    "Use the code references to point the developer to likely implementation files and lines when the events provide source locations.",
     "Prioritize root causes for runaway effects, listener leaks, and unstable update loops.",
     "Suggest concrete fixes and short verification steps.",
+    "Return JSON only, without markdown fences, using this shape:",
+    '{"summary":"...","likelyCauses":["..."],"codeReferences":[{"file":"src/example.ts","line":12,"column":4,"reason":"..."}],"nextChecks":["..."],"suggestedFixes":["..."]}',
+    "If a field is unknown, keep the summary concise and return an empty array for that field.",
     "",
     JSON.stringify(payload, null, 2)
   ].join("\n");
-}
-
-function collectRecentIssues(events: AIPromptEvent[], maxItems: number): Array<{
-  type: string;
-  level: "warn" | "error";
-  message: string;
-  timestamp: number;
-}> {
-  return events
-    .filter((event) => isIssueEvent(event))
-    .slice(-maxItems)
-    .map((event) => ({
-      type: event.type,
-      level: event.level === "error" || event.type.startsWith("error:") ? "error" : "warn",
-      message: summarizeIssue(event),
-      timestamp: event.timestamp
-    }));
-}
-
-function isIssueEvent(event: AIPromptEvent): boolean {
-  return (
-    event.level === "warn" ||
-    event.level === "error" ||
-    event.type.startsWith("error:") ||
-    event.type.includes("warn") ||
-    event.type.includes("hydration") ||
-    event.type === "hub:error" ||
-    event.type === "hub:disconnect" ||
-    event.type === "queue:fail" ||
-    event.type === "queue:conflict" ||
-    event.type === "queue:skip:missing-handler"
-  );
-}
-
-function summarizeIssue(event: AIPromptEvent): string {
-  const payload = event.payload;
-  if (!payload) {
-    return event.type;
-  }
-
-  if (event.type === "queue:fail") {
-    const type = readString(payload, "type") ?? "unknown";
-    const attempts = readNumber(payload, "attempts");
-    const error = readString(payload, "error") ?? "unknown error";
-    const attemptsSuffix = attempts === undefined
-      ? ""
-      : ` after ${attempts} attempt${attempts === 1 ? "" : "s"}`;
-
-    return `Queue mutation ${type} failed${attemptsSuffix}: ${error}`;
-  }
-
-  if (event.type === "queue:conflict") {
-    const type = readString(payload, "type") ?? "unknown";
-    const decision = readString(payload, "decision") ?? "replace";
-    return `Queue conflict for ${type} resolved as ${decision}`;
-  }
-
-  if (event.type === "queue:skip:missing-handler") {
-    const type = readString(payload, "type") ?? "unknown";
-    return `Queue handler missing for mutation type ${type}`;
-  }
-
-  if (event.type === "hub:error") {
-    const transport = readString(payload, "transport") ?? "hub";
-    const message = readString(payload, "message") ?? "unknown error";
-    return `Realtime ${transport} transport error: ${message}`;
-  }
-
-  if (event.type === "hub:disconnect") {
-    const transport = readString(payload, "transport") ?? "hub";
-    const reason = readString(payload, "reason") ?? "connection closed";
-    return `Realtime ${transport} disconnected: ${reason}`;
-  }
-
-  const message = payload.message;
-  if (typeof message === "string" && message.length > 0) {
-    return message;
-  }
-
-  const likelyCause = payload.likelyCause;
-  if (typeof likelyCause === "string" && likelyCause.length > 0) {
-    return likelyCause;
-  }
-
-  try {
-    return JSON.stringify(payload).slice(0, 220);
-  } catch {
-    return "[unserializable payload]";
-  }
 }
 
 function toAlertSummary(alert: SanityAlert): {
@@ -152,14 +72,4 @@ function toAlertSummary(alert: SanityAlert): {
     current: alert.current,
     threshold: alert.threshold
   };
-}
-
-function readString(payload: Record<string, unknown>, key: string): string | undefined {
-  const value = payload[key];
-  return typeof value === "string" ? value : undefined;
-}
-
-function readNumber(payload: Record<string, unknown>, key: string): number | undefined {
-  const value = payload[key];
-  return typeof value === "number" ? value : undefined;
 }
