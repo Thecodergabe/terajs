@@ -1,109 +1,41 @@
-# Terajs Vite Plugin
+# @terajs/vite-plugin
 
-This plugin enables Terajs SFC compilation, HMR, and auto-imports for your project.
+Vite integration for Terajs SFC compilation, route manifest generation, auto-bootstrap, and development-time tooling hooks.
 
-## Features
-- Compiles `.tera` Single-File Components
-- Hot Module Replacement (HMR) for SFCs
-- **Auto-imports**: All components in configured directories are available globally in SFCs (no manual imports needed)
-- Production route manifest support with hashed asset resolution from Vite `manifest.json`
+Most applications can import the same plugin through `@terajs/app/vite`. Use `@terajs/vite-plugin` directly when you want leaf-package control.
 
-## Usage
+## Install
 
-### 1. Install and configure in your Vite project
+```bash
+npm install @terajs/vite-plugin vite
+```
 
-```js
-// vite.config.js or vite.config.ts
-import terajsPlugin from '@terajs/app/vite';
+## Core responsibilities
 
-export default {
+- compile `.tera` single-file components
+- generate `virtual:terajs-auto-imports`
+- generate `virtual:terajs-routes`
+- generate `virtual:terajs-app` for config-driven bootstrap
+- discover pages, layouts, middleware, and route metadata
+- support no-main bootstrap flows when `index.html` does not provide a module entry
+- expose development-time hooks for DevTools live attach
+- auto-wire first-party realtime adapters from `sync.hub`
+
+## Basic usage
+
+```ts
+import { defineConfig } from "vite";
+import terajsPlugin from "@terajs/vite-plugin";
+
+export default defineConfig({
   plugins: [terajsPlugin()]
-};
+});
 ```
-
-If you prefer leaf-node packages, you can still import from `@terajs/vite-plugin` directly.
-
-### 2. Auto-imports
-
-By default, all `.tera` files in `packages/devtools/src/components` are auto-imported and available in your SFCs.
-
-#### Example
-Suppose you have:
-
-```
-packages/devtools/src/components/FancyButton.tera
-```
-
-You can use `<FancyButton />` in any SFC without importing it.
-
-#### Customizing auto-import directories
-
-Create a `terajs.config.js` in your project root:
-
-```js
-module.exports = {
-  autoImportDirs: [
-    'packages/devtools/src/components',
-    'src/components', // add your own
-  ]
-};
-```
-
-### 3. File-based routes
-
-The plugin also exposes a virtual route manifest module:
-
-```ts
-import routes from 'virtual:terajs-routes';
-```
-
-It scans `src/pages` for `.tera` files by default (or your configured `routeDirs`), preserves `<route>` metadata, and attaches any discovered `layout.tera` files as an ordered layout chain.
-
-Route priority order:
-
-1. `<route>` block inside the component
-2. `routes` overrides in `terajs.config.cjs`
-3. inferred path from the page file location
-
-Supported route conventions:
-
-```txt
-src/pages/
-  layout.tera
-  index.tera
-  docs/
-    layout.tera
-    [slug].tera
-```
-
-This produces a manifest that already includes:
-- inferred paths like `/docs/:slug`
-- file-based layout wrappers from outermost to innermost
-- `<route>` overrides for path, mountTarget, middleware, hydration, prerender, and edge hints
-- lazy component loaders for each route
-- production-ready hashed asset lookup when Vite emits `manifest.json`
-
-### 4. Zero-config app bootstrap
-
-For the easiest app entry, you can skip creating `src/main.ts`.
-If `index.html` has no module script entry, the plugin auto-injects app bootstrap and mounts to `#app`.
-
-You can still bootstrap manually when desired:
-
-```ts
-import { bootstrapTerajsApp } from "virtual:terajs-app";
-
-bootstrapTerajsApp();
-```
-
-The plugin builds this app module from:
-
-- `virtual:terajs-routes`
-- router defaults in `terajs.config.cjs`
 
 ```js
 module.exports = {
   routeDirs: ["src/pages"],
+  autoImportDirs: ["src/components"],
   router: {
     rootTarget: "app",
     middlewareDir: "src/middleware",
@@ -113,24 +45,58 @@ module.exports = {
 };
 ```
 
-Middleware files in `router.middlewareDir` are auto-registered:
+## File-based routes
 
-- `src/middleware/auth.ts` -> middleware key `auth`
-- `src/middleware/admin/audit.ts` -> middleware key `admin/audit`
-- `src/middleware/telemetry.global.ts` -> global middleware key `telemetry` (prepended to all routes)
+The plugin scans `routeDirs` for `.tera` pages and exposes the result through `virtual:terajs-routes`.
 
-When route navigation resolves a `mountTarget` (from route config or `<route>` block), the app view mounts into that target id. If the target element is missing, Terajs auto-creates it.
+```ts
+import routes from "virtual:terajs-routes";
+```
 
-### 5. Realtime sync hub
+The generated manifest includes:
 
-You can enable realtime server push and transport-backed server actions through `sync.hub`.
+- inferred file-based paths such as `/docs/:slug`
+- ordered `layout.tera` chains from outermost to innermost
+- preserved `<route>` overrides
+- lazy component loaders
+- production asset resolution when Vite emits `manifest.json`
+
+Route priority resolves in this order:
+
+1. `<route>` block inside the component
+2. explicit route overrides in `terajs.config.cjs`
+3. inferred path from the page file location
+
+## Auto-bootstrap
+
+If `index.html` has no module entry script, the plugin can generate and inject the Terajs app bootstrap automatically through `virtual:terajs-app`.
+
+```ts
+import { bootstrapTerajsApp } from "virtual:terajs-app";
+
+bootstrapTerajsApp();
+```
+
+That virtual module is built from your discovered routes plus router config.
+
+## Middleware discovery
+
+Middleware files under `router.middlewareDir` are registered automatically.
+
+- `src/middleware/auth.ts` becomes `auth`
+- `src/middleware/admin/audit.ts` becomes `admin/audit`
+- `*.global.ts` files are prepended as global middleware
+
+## Realtime transport wiring
+
+You can opt into realtime hub support through `sync.hub`.
 
 ```js
 module.exports = {
   sync: {
     hub: {
-      type: "signalr",
-      url: "https://api.myapp.com/chat-hub",
+      type: "socket.io",
+      url: "https://api.example.com/live",
       autoConnect: true,
       retryPolicy: "exponential"
     }
@@ -138,99 +104,17 @@ module.exports = {
 };
 ```
 
-Install the adapter(s) for your selected `sync.hub.type`:
+First-party adapters currently supported by the plugin:
 
-```bash
-npm install @terajs/hub-signalr @microsoft/signalr
-npm install @terajs/hub-socketio socket.io-client
-npm install @terajs/hub-websockets
-```
+- `signalr`
+- `socket.io`
+- `websockets`
 
-RC status:
+Install the matching adapter package for the selected transport.
 
-- `signalr`: implemented and auto-wired by the plugin when `sync.hub.type` is `signalr`.
-- `socket.io`: implemented and auto-wired by the plugin when `sync.hub.type` is `socket.io`.
-- `websockets`: implemented and auto-wired by the plugin when `sync.hub.type` is `websockets`.
+## Notes
 
-Custom adapters are still supported. Implement `ServerFunctionTransport` (`invoke(call)`) and emit `hub:*` debug events so DevTools can show realtime health and diagnostics.
-
-### 6. Canonical App Shell
-
-Terajs apps can mount a single opinionated shell around the route graph.
-
-```html
-<template>
-  <div class="terajs-app">
-    <RouterView />
-
-    <Portal target="#terajs-modals" />
-  </div>
-</template>
-
-<script>
-  import { routes } from 'virtual:terajs-routes';
-  import { createRouter } from '@terajs/router';
-
-  export const router = createRouter(routes);
-</script>
-
-<style>
-  #terajs-modals {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    pointer-events: none;
-  }
-</style>
-```
-
-This shell keeps the route graph, nested layouts, and portal layer aligned across dev and production.
-
-### 7. Devtools Overlay
-
-In development, Terajs DevTools is available by default and mounts as a floating FAB overlay.
-Default interactions:
-
-- `Ctrl+Shift+D`: open/close the DevTools panel
-- `Ctrl+Shift+H`: hide/show the overlay shell
-
-You can customize behavior in `terajs.config.cjs`:
-
-```js
-module.exports = {
-  devtools: {
-    enabled: true,
-    startOpen: false,
-    position: "bottom-center", // bottom-left | bottom-right | bottom-center
-    panelShortcut: "Ctrl+Shift+D",
-    visibilityShortcut: "Ctrl+Shift+H",
-    ai: {
-      enabled: true,
-      endpoint: "", // optional HTTP endpoint for assistant responses
-      model: "terajs-assistant",
-      timeoutMs: 12000
-    }
-  }
-};
-```
-
-When no `devtools.ai.endpoint` is set, DevTools still generates prompt context and can use a global assistant hook (`window.__TERAJS_AI_ASSISTANT__`) if present.
-
----
-
-## Testing
-
-Run Vitest tests:
-
-```
-npx vitest run
-```
-
----
-
-## Advanced
-- The plugin injects `virtual:terajs-auto-imports` for auto-imports.
-- The plugin injects `virtual:terajs-routes` for file-based route manifests.
-- The plugin injects `virtual:terajs-app` for config-driven app bootstrapping.
-- You can extend or override the plugin for custom workflows.
+- `virtual:terajs-auto-imports`, `virtual:terajs-routes`, and `virtual:terajs-app` are the main virtual modules exposed by the plugin.
+- Custom transports remain possible through the runtime server-function transport contract.
+- App-facing docs should usually reference `@terajs/app/vite` first.
 

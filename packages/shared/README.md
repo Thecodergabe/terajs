@@ -1,60 +1,41 @@
-# Terajs Shared Package
+# @terajs/shared
 
-This package provides all shared types, debug/event systems, and the dependency graph for Terajs's runtime and devtools.
+Neutral shared contracts for Terajs debugging, graph inspection, metadata, route types, hydration helpers, and component context plumbing.
 
----
+This is a core package. Most app code should not depend on it directly unless you are building tooling, diagnostics, or framework-level integrations.
 
-## Features
-- Central event bus for all runtime and debug events
-- Fine-grained dependency graph for signals, effects, and computed values
-- Metadata and registry for all reactive and component instances
-- Devtools bridge for safe, read-only graph access
+## Core areas
 
----
+- debug events: `Debug`, `subscribeDebug(...)`, `emitDebug(...)`, `readDebugHistory()`, `clearDebugHistory()`
+- metadata helpers: `createReactiveMetadata(...)` and related debug/registry types
+- dependency graph: `addDependency(...)`, `removeDependencyNode(...)`, `getDependencyNode(...)`, `getDependencyGraphSnapshot()`
+- DevTools graph bridge: `DevtoolsBridge.getGraph()`, `getNode(...)`, `getDependencies(...)`, `getDependents(...)`, `traceUpdate(...)`
+- shared route and metadata types: `MetaConfig`, `RouteOverride`
+- shared component-context and hydration types
 
-## Usage Example
+## Debug event example
 
 ```ts
-import { Debug } from '@terajs/shared';
+import { Debug } from "@terajs/shared";
 
-Debug.on(event => {
-  console.log('Debug event:', event);
+Debug.emit("hub:connect", {
+  transport: "signalr",
+  url: "https://api.example.com/live"
 });
-
-Debug.emit('signal:create', { key: 'count' });
 ```
 
----
-
-## Dependency Graph
+## Dependency graph example
 
 ```ts
-import { addDependency, getDependencyGraphSnapshot } from '@terajs/shared';
+import { addDependency, getDependencyGraphSnapshot } from "@terajs/shared";
 
-addDependency('A', 'B');
+addDependency("Counter#1.effect#1", "Counter#1.ref#1");
 const graph = getDependencyGraphSnapshot();
 ```
 
----
+## Notes
 
-## Devtools Bridge
-
-```ts
-import { DevtoolsBridge } from '@terajs/shared';
-
-const graph = DevtoolsBridge.getGraph();
-```
-
----
-
-## API Reference
-- `Debug.on(handler)`
-- `Debug.emit(type, payload)`
-- `addDependency(from, to)`
-- `getDependencyGraphSnapshot()`
-- `DevtoolsBridge.getGraph()`
-
----
-
-See the devtools and reactivity docs for more on live inspection and debugging.
+- DevTools should use the exported `DevtoolsBridge` instead of reaching into internal graph files.
+- `MetaConfig` and `RouteOverride` are the shared contracts behind `<meta>` and `<route>` parsing.
+- The runtime, reactivity, router, and tooling layers all depend on this package to stay aligned on diagnostics and shared types.
 

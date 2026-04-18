@@ -2,7 +2,7 @@
 
 Routing primitives for Terajs applications.
 
-This package provides route matching, navigation state, history adapters, route prefetching, and route data loading contracts.
+This package provides route matching, navigation state, in-memory history, route prefetching, route data loading contracts, and merged route metadata resolution.
 
 ## Install
 
@@ -12,15 +12,19 @@ npm install @terajs/router
 
 ## Core APIs
 
-- `createRouter(routes, options)`
-- `createMemoryHistory(initialPath)`
-- `createMemoryHistory(initialPath)`
+- `createRouter(routes, options?)`
+- `createMemoryHistory(initialPath?)`
+- `matchRoute(routes, target)`
+- `loadRouteMatch(match, options?)`
+- `prefetchRouteMatch(match)`
+- `prefetchRoute(router, target)`
+- `clearPrefetchedRouteMatches()`
+- `createRouteHydrationSnapshot(loaded)`
+- `resolveLoadedRouteMetadata(loaded)`
+- `getRouteDataResourceKey(routeId)`
+- `getRouteDataResourceKeys(routeIds)`
 
 Browser history integration lives in `@terajs/renderer-web` and the top-level `@terajs/app` package.
-- `matchRoute(routes, target)`
-- `loadRouteMatch(match, options)`
-- `prefetchRoute(router, target)`
-- `createRouteHydrationSnapshot(loaded)`
 
 ## Minimal Example
 
@@ -48,6 +52,22 @@ const router = createRouter(
 
 await router.start();
 ```
+
+## Metadata and AI resolution
+
+`resolveLoadedRouteMetadata(...)` merges route-facing metadata from three places:
+
+- outer-to-inner layout components
+- the route definition itself
+- the loaded page component module
+
+That merged result includes:
+
+- `meta`
+- optional `ai`
+- normalized `route` information including layout ids
+
+This is the contract used by head updates, SSR metadata output, and DevTools route/meta/AI inspection.
 
 ## Notes
 

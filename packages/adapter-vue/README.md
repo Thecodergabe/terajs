@@ -2,11 +2,20 @@
 
 Vue interoperability adapter for mounting Terajs components inside Vue applications.
 
+This package exists for real mixed-stack integration without turning the Terajs core into a Vue-shaped architecture.
+
 ## Installation
 
 ```bash
 npm install @terajs/adapter-vue @terajs/runtime @terajs/renderer-web @terajs/reactivity vue
 ```
+
+## Primary surface
+
+- `TerajsDirective`: Vue directive for declarative mounting
+- `mountTerajs(...)`: programmatic mount helper
+- `useTerajsResource(resource)`: Vue composable bridge for Terajs resources
+- `injectTerajsResource(resource)`: alias for dependency-injection-oriented naming
 
 ## Usage
 
@@ -44,15 +53,7 @@ const dispose = mountTerajs(root, Counter, { initialCount: 1 });
 // dispose();
 ```
 
-## API
-
-- `TerajsDirective`: Vue directive that mounts and updates a Terajs component.
-- `mountTerajs`: programmatic mount helper returning a disposer.
-- `TerajsVueBinding`: binding payload shape for directive usage.
-- `useTerajsResource(resource)`: Vue composable bridge for reading Terajs resource state and calling `mutate`/`refetch`.
-- `injectTerajsResource(resource)`: alias of `useTerajsResource` for dependency-injection style naming.
-
-## Auto-Bridge Resource Composable
+## Bridging Terajs resources into Vue
 
 ```ts
 import { useTerajsResource } from "@terajs/adapter-vue";
@@ -76,3 +77,4 @@ export default {
 
 - This adapter currently targets client-side mounting.
 - Use adapters at integration seams while keeping runtime contracts Terajs-native.
+- For full Terajs apps, prefer `@terajs/app` as the main entrypoint and keep Vue integration boundary-owned.

@@ -1,5 +1,6 @@
-```md
 # Terajs Renderer Architecture
+
+Status note (April 2026): this document describes renderer contracts and longer-range renderer direction. The shipped launch surface is web-first. Use `README.md` and `API_REFERENCE.md` for current application-facing behavior.
 
 Terajs Core is intentionally renderer‑agnostic. It provides reactivity, component execution, and template evaluation — but it does not know anything about the DOM, native UI systems, or canvas drawing APIs.
 
@@ -267,19 +268,31 @@ A renderer goes through:
 
 ## 8. Custom Renderers
 
-Terajs allows developers to create custom renderers:
+Terajs allows developers to implement custom renderers against the renderer interface:
 
 ```ts
-import { createRenderer } from "@terajs/renderer";
+import type { RenderContext, Renderer } from "@terajs/renderer";
 
-export const myRenderer = createRenderer({
-  createElement,
-  createText,
-  insert,
-  remove,
-  setProp,
-  addEvent,
-});
+export const myRenderer: Renderer = {
+  renderElement(node, ctx: RenderContext) {
+    return createElement(node, ctx);
+  },
+  renderText(node, ctx: RenderContext) {
+    return createText(node, ctx);
+  },
+  renderInterpolation(node, ctx: RenderContext) {
+    return renderInterpolation(node, ctx);
+  },
+  renderIf(node, ctx: RenderContext) {
+    return renderIf(node, ctx);
+  },
+  renderFor(node, ctx: RenderContext) {
+    return renderFor(node, ctx);
+  },
+  renderNode(node, ctx: RenderContext) {
+    return renderNode(node, ctx);
+  }
+};
 ```
 
 Use cases:
@@ -331,4 +344,3 @@ Renderers handle output.
 Terajs Kit provides structure.
 
 Together, they form a complete, scalable UI ecosystem.
-```

@@ -1,110 +1,218 @@
-# **Terajs**
+# Terajs
 
-Terajs is a UI framework built on **fine-grained reactivity**, a **compiler-powered template system**, and a **developer-first philosophy**.
-It focuses on predictable updates, direct DOM rendering, and modular package boundaries.
+Terajs is a compiler-native UI framework for route-first, local-first web applications.
 
-Terajs is:
+It combines fine-grained reactivity, direct DOM bindings from compiler output, a renderer-agnostic core, and first-party diagnostics. The web-first launch surface centers on `@terajs/app`, while lower-level packages remain public for teams that want tighter control over the stack.
 
-- **TypeScript-first, but TypeScript-optional**
-- **style-agnostic**
-- **platform-agnostic**
-- **DX-driven**
-- **debuggable by design**
-- **AI-ready and meta-aware**
+Status note (April 2026): this README is intended to be the release-facing overview of the full shipped Terajs surface. If you only read one file before evaluating the release, read this one. Use `API_REFERENCE.md` for canonical API signatures and exact exported symbols. Use `VISION.md` and the roadmap documents for directional work.
 
-Terajs's goal is simple:
+## How to read the root docs
 
-> **Provide structure without restricting creativity.**
+The root docs should not feel partial or force you into package-level archaeology.
 
----
+- `README.md`: the full launch overview, feature map, and package map
+- `API_REFERENCE.md`: the canonical shipped API surface and public package reference
+- `COMPONENTS.md`: the component model, `.tera` block system, TSX/JSX authoring, and integration seams
+- `Core_Philosophy.md`: architecture rules and package-boundary rationale
+- the other root docs: release tracking, style guidance, vision, roadmaps, brand/legal, and directional design notes
 
-# Features
+Not every root markdown file should repeat every feature verbatim. The release rule is simpler: `README.md` and `API_REFERENCE.md` must make the full shipped product obvious, and the other root docs must deepen specific areas instead of hiding them.
 
-## **Fine-grained reactivity**
-Terajs uses explicit, dependency-tracked signals:
+## Why Terajs
 
-- `signal()` for reactive values
-- `computed()` for derived values
-- `effect()` for side effects
-- deterministic updates
-- no VDOM
-- no diffing
-- no component re-renders
+Terajs is strongest where these pieces reinforce each other:
 
-Signals update the DOM directly.
+- **Compiler-native rendering:** templates compile to IR and bind directly to DOM updates. No VDOM diff loop.
+- **Route-first application model:** `.tera` pages, layout chains, route metadata, and middleware are assembled through the Vite pipeline instead of scattered through app glue.
+- **Local-first runtime primitives:** actions, resources, invalidation, mutation queues, retry policy, and conflict handling live in the runtime rather than in ad hoc app utilities.
+- **Transport choice without forking your app model:** first-party SignalR, Socket.IO, and WebSockets adapters all plug into the same server-function transport contract.
+- **Integrated diagnostics:** DevTools can inspect components, router activity, queue health, performance, and structured AI/debug context, with an optional live bridge into the companion VS Code tooling.
+- **Framework-agnostic core:** neutral packages stay neutral, while React and Vue wrappers exist as integration seams rather than as design centers.
 
----
+## Start with `@terajs/app`
 
-## **Single-File Components (SFC)**
+For most apps, the default entrypoint is the app-facing facade package.
 
-Terajs components use a clean, declarative format:
-
-```
-<template>
-<script>
-<style>
-<meta>
-<ai>      <- supported metadata block
-<route>
+```bash
+npm install @terajs/app vite
 ```
 
-Everything a component needs lives in one place.
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import terajsPlugin from "@terajs/app/vite";
 
----
-
-## **Auto-imports & DevTools**
-
-- All `.tera` files in `src/components` (or configured dirs) are globally available in SFCs - no manual imports needed.
-- DevTools overlay: live inspection of components, signals, effects, logs, issues, performance, and sanity checks.
-- In development, DevTools is available by default as a floating FAB overlay with keyboard toggles.
-- In development, DevTools can also mirror a sanitized live session into the companion VS Code tooling through a same-origin bridge. Production builds do not expose that bridge.
-
-## **Single entry + leaf packages**
-
-Terajs supports two complementary usage modes:
-
-- **Default app path:** install `@terajs/app` and use `@terajs/app/vite` in your Vite config.
-- **Advanced path:** import leaf packages directly under `@terajs/*` when you need tighter control.
-
-This keeps first-time setup simple while preserving modular architecture boundaries.
-
-### Example: Using auto-imported components
-
-Suppose you have:
-
+export default defineConfig({
+  plugins: [terajsPlugin()]
+});
 ```
-src/components/FancyButton.tera
-```
-
-You can use `<FancyButton />` in any SFC without importing it.
-
-### DevTools defaults and overrides
-
-By default, DevTools is enabled in development and starts collapsed as a FAB in the bottom-center corner.
-Generated starter apps intentionally pin `devtools.enabled: false` in `terajs.config.cjs` so each app opts in explicitly; remove that override to use the development default.
-You can override this in `terajs.config.cjs`:
 
 ```js
+// terajs.config.cjs
 module.exports = {
-  devtools: {
-    enabled: true,
-    startOpen: false,
-    position: "bottom-center",
-    panelShortcut: "Ctrl+Shift+D",
-    visibilityShortcut: "Ctrl+Shift+H"
+  autoImportDirs: ["src/components"],
+  routeDirs: ["src/pages"],
+  router: {
+    rootTarget: "app",
+    middlewareDir: "src/middleware",
+    applyMeta: true,
+    keepPreviousDuringLoading: true
   }
 };
 ```
 
-### VS Code live attach in development
+```tera
+<template>
+  <section>
+    <h1>{{ title() }}</h1>
+    <p>{{ summary() }}</p>
+  </section>
+</template>
 
-Terajs DevTools exposes a development-only VS Code pairing path built around structured session export and a same-origin manifest route, not DOM scraping.
+<script>
+import { signal } from "@terajs/app";
 
-- The companion VS Code extension writes localhost receiver metadata into `node_modules/.cache/terajs/devtools-bridge.json` for Terajs workspace roots.
-- The Vite plugin mirrors that metadata through the same-origin `/_terajs/devtools/bridge` route during development, and `autoAttachVsCodeDevtoolsBridge()` polls that route with `no-store` caching.
-- When a manifest is present, the browser streams `bridge.exportSession()` payloads to the extension's localhost receiver, installs the attached VS Code AI bridge, and enables `Open VS Code Live Session` and `Ask VS Code AI` in the overlay.
-- The exported session includes structured snapshots, recent event records, code references, and allowlisted document-head context.
-- Production builds do not install the auto-attach helper or serve the bridge manifest route.
+const title = signal("Hello Terajs");
+const summary = signal("Route-first apps with compiler-native rendering.");
+</script>
+
+<meta>
+  title: Hello Terajs
+  description: First page for a Terajs app.
+</meta>
+
+<ai>
+  summary: Home page for the Terajs launch example
+  audience: developers
+  keywords: terajs, docs, local-first, devtools
+</ai>
+
+<route>
+  path: /
+</route>
+```
+
+If `index.html` contains `#app` and no module entry script, the plugin can auto-bootstrap the app through `virtual:terajs-app`. The same build surface also exposes `virtual:terajs-auto-imports` and `virtual:terajs-routes` for route-aware application assembly.
+
+## Full shipped release surface
+
+### 1. App entry and build integration
+
+The release starts with three app-facing paths:
+
+- `@terajs/app`: the main web-first facade
+- `@terajs/app/vite`: the default Vite integration
+- `@terajs/app/devtools`: the app-facing DevTools and bridge path
+
+The build layer currently ships:
+
+- `.tera` compilation
+- route, layout, and middleware discovery
+- component auto-import directory support
+- virtual modules for auto imports, routes, and app bootstrap
+- auto-bootstrap when an app uses `#app` without a separate module entry script
+- direct route-manifest helpers through `@terajs/router-manifest` when you need that layer explicitly
+
+### 2. Component authoring and route files
+
+Terajs supports both authored component styles that exist in the repo today:
+
+- `.tera` single-file components for route-facing work
+- TSX/JSX components for explicit programmatic composition
+
+The shipped `.tera` block model includes:
+
+- `<template>`
+- `<script>`
+- `<style>`
+- `<meta>`
+- `<ai>`
+- `<route>`
+
+Those blocks are real runtime and tooling inputs, not documentation-only ideas. `meta`, `ai`, and `route` are preserved through parsing, route-manifest generation, metadata resolution, SSR, and DevTools inspection.
+
+### 3. Reactivity and runtime contracts
+
+The app-facing surface includes fine-grained reactivity and runtime primitives for real application work:
+
+- `signal(...)`, `state(...)`, `computed(...)`, `effect(...)`, `watch(...)`, and related helpers
+- `component(...)` for Terajs-native components
+- lifecycle hooks such as `onMounted(...)`, `onUpdated(...)`, `onUnmounted(...)`, and `onCleanup(...)`
+- context and dependency injection through `provide(...)` and `inject(...)`
+- async data and mutation primitives through `createResource(...)`, `createAction(...)`, and invalidation helpers
+- durable mutation queues and retry/conflict handling through `createMutationQueue(...)`, queue storage, and `MutationConflictResolver`
+- validation through `createSchemaValidator(...)`
+- server-function transport contracts and helpers for app-owned server boundaries
+
+### 4. Routing, metadata, and browser primitives
+
+The route layer is part of the runtime story, not bolted on beside it.
+
+- file-based routes and ordered layout chains
+- middleware discovery through the configured middleware directory
+- metadata resolution that merges `meta`, `ai`, and route carrier data from layouts, route definitions, and page modules
+- browser-aware route helpers such as `createBrowserHistory(...)`, `createRouteView(...)`, `Link(...)`, `RoutePending(...)`, and pending-state hooks
+- forms and submit helpers through `Form(...)`, `SubmitButton(...)`, `FormStatus(...)`, and `formDataToObject(...)`
+- error boundaries and browser-native custom elements through `withErrorBoundary(...)` and `defineCustomElement(...)`
+
+### 5. SSR, hydration, and server functions
+
+The shipped web-first surface includes both client and server paths:
+
+- `@terajs/renderer-ssr` for string and stream rendering
+- route execution helpers for SSR route modules
+- hydration helpers in runtime plus `hydrateRoot(...)` in the web renderer
+- server-function helpers such as `server(...)`, `executeServerFunction(...)`, request handlers, and fetch-based or custom transports
+
+SSR results carry route state, metadata, optional AI context, and serialized resource data so client hydration and diagnostics can reuse structured state instead of reconstructing it from DOM guesses.
+
+### 6. Local-first runtime and realtime transport
+
+Local-first behavior is a shipped framework concern in Terajs, not an app-specific add-on.
+
+- actions, resources, invalidation, and durable mutation queues are part of the runtime
+- retries, queue lifecycle, and conflict-resolution decisions are structured rather than ad hoc
+- queued mutation lifecycle and hub transport events feed directly into DevTools diagnostics
+
+The current first-party realtime adapters are:
+
+- `@terajs/hub-signalr`
+- `@terajs/hub-socketio`
+- `@terajs/hub-websockets`
+
+All three plug into the same runtime `ServerFunctionTransport` contract. The internal CLI (`@terajs/cli`, currently private) can scaffold hub-ready apps with `tera init <name> --hub <signalr|socket.io|websockets> [--hub-url <url>]`.
+
+Example realtime config:
+
+```js
+module.exports = {
+  sync: {
+    hub: {
+      type: "socket.io",
+      url: "https://api.example.com/live",
+      autoConnect: true,
+      retryPolicy: "exponential"
+    }
+  }
+};
+```
+
+### 7. DevTools and the VS Code bridge
+
+Terajs DevTools is part of the shipped app story, not an afterthought.
+
+The overlay can inspect:
+
+- mounted components and drill-down state
+- signals and effect activity
+- issues and logs
+- router transitions and load timing
+- queue lifecycle metrics
+- performance summaries
+- AI diagnostics context assembled from structured runtime data
+- live bridge sessions for the companion VS Code tooling
+
+In development, you can also attach DevTools to the companion VS Code extension through a same-origin bridge.
 
 ```ts
 import {
@@ -116,354 +224,120 @@ mountDevtoolsOverlay();
 autoAttachVsCodeDevtoolsBridge();
 ```
 
-When the companion VS Code tooling is available, the DevTools overlay can:
+That bridge is development-only. Production builds do not expose the bridge manifest route or auto-attach helper.
 
-- open the mirrored live session in VS Code
-- send the current sanitized debugging bundle to VS Code AI
-- copy the same debugging prompt for manual pairing
+### 8. Interop and lower-level public packages
 
-### Customizing auto-imports
+Terajs exposes a wider public package graph than the three app-facing entrypoints.
 
-Add a `terajs.config.js` to your project root:
+- `@terajs/adapter-react`: mount Terajs components inside React trees and bridge Terajs resources into React hooks
+- `@terajs/adapter-vue`: mount Terajs components inside Vue applications and bridge resources into Vue composables and directives
+- `@terajs/adapter-ai`: define structured AI action schemas and capture sanitized reactive state snapshots for tooling or assistants
+- `@terajs/renderer`: platform-agnostic renderer interfaces, AST contracts, mount/hydration interfaces, and renderer errors
+- `@terajs/router-manifest`: infer file paths, build routes from parsed SFCs, and assemble route manifests directly
+- `@terajs/compiler`: template parsing, AST, IR, and style compilation primitives
+- `@terajs/sfc`: `.tera` parser and compiler helpers
+- `@terajs/shared`: shared metadata, debug-event, and dependency-graph contracts
+- `@terajs/devtools`: the same DevTools surface exposed through `@terajs/app/devtools`
+- `@terajs/vite-plugin`: the same Vite integration exposed through `@terajs/app/vite`
+- `@terajs/ui`: a public but intentionally minimal shared-UI seam reserved for future stable framework UI primitives
 
-```js
-module.exports = {
-  autoImportDirs: [
-    'src/components',
-    'packages/devtools/src/components',
-  ]
-};
-```
+### 9. Directional work already in the repo
 
----
+Some Terajs work is present in-repo today but is not part of the shipped web-first launch center:
 
-## **Compiler-powered templates**
+- `packages/renderer-ios`: experimental stub work for SwiftUI-backed native rendering
+- `packages/renderer-android`: experimental stub work for Compose-backed native rendering
+- `ROADMAP_NATIVE_RENDERERS.md`, `RENDERER_ARCHITECHTURE.md`, and `terajs_kit.md`: directional docs for where the framework can expand after the web-first release surface
 
-Terajs includes a full template pipeline:
+Those areas are important, but this README keeps them clearly separated from the current release surface.
 
-- tokenizer
-- parser
-- AST transforms
-- IR generation
-- optimized codegen
-- SSR-aware output
-- hydration hints
-
-Templates compile into direct DOM operations bound to signals.
-
----
-
-## **Component-driven routing & metadata**
-
-Terajs components can define:
-
-- route configuration
-- SEO metadata
-- AI metadata
-- layouts
-- nested routes
-
-Routing is flexible, not prescriptive.
-
----
-
-## **SSR support**
-
-Terajs's SSR model:
-
-- components run once
-- effects do not run on the server
-- deterministic hydration
-- no hydration mismatch traps
-- hydration logs for debugging
-
-Streaming SSR is supported through `@terajs/renderer-ssr`.
-
-For applications that need server-owned logic, Terajs can also expose an optional app server boundary for route loaders and server functions.
-
-That boundary is meant for:
-
-- database access
-- auth and session checks
-- cookie-aware personalization
-- trusted mutations
-- secret-bearing backend calls
-
-It is not meant to replace direct API clients or formal service contracts. If your app already talks to a versioned backend through OpenAPI, Kiota, REST, or GraphQL, that remains a valid client boundary.
-
-Terajs's role is the app-layer boundary between the UI and server-owned logic, not a replacement for external API design.
-
----
-
-## **Current web app primitives**
-
-The web stack now has the main pieces needed for a real site build:
-
-- route loading with `createRouteView(...)`
-- route-shell loading states with `keepPreviousDuringLoading` and `pending`
-- router-aware links with prefetch and pending state via `Link(...)`
-- enhanced forms via `Form(...)`
-- mutation helpers via `SubmitButton(...)` and `FormStatus(...)`
-- route data revalidation via keyed invalidation
-
-### Example: Web route shell + enhanced form
-
-```ts
-import { createRouter, createMemoryHistory, getRouteDataResourceKey } from "@terajs/router";
-import { invalidateResources } from "@terajs/runtime";
-import {
-  createRouteView,
-  Form,
-  FormStatus,
-  Link,
-  SubmitButton
-} from "@terajs/renderer-web";
-
-let profileName = "Ada";
-
-const router = createRouter([
-  {
-    id: "home",
-    path: "/",
-    filePath: "/pages/index.tera",
-    layout: null,
-    middleware: [],
-    prerender: true,
-    hydrate: "eager",
-    edge: false,
-    meta: {},
-    layouts: [],
-    component: async () => ({
-      default: () => Link({ to: "/settings", children: "Settings" })
-    })
-  },
-  {
-    id: "settings",
-    path: "/settings",
-    filePath: "/pages/settings.tera",
-    layout: null,
-    middleware: [],
-    prerender: true,
-    hydrate: "eager",
-    edge: false,
-    meta: { title: "Settings" },
-    layouts: [],
-    component: async () => ({
-      default: ({ data }) => Form({
-        action: async ({ values }) => {
-          profileName = String(values.name);
-          await invalidateResources(getRouteDataResourceKey("settings"));
-          return "saved";
-        },
-        children: [
-          document.createTextNode(`Profile: ${data.name}`),
-          Object.assign(document.createElement("input"), { name: "name", value: data.name }),
-          SubmitButton({ children: "Save" }),
-          FormStatus({ idle: "idle", pending: "saving" })
-        ]
-      }),
-      load: async () => ({ name: profileName })
-    })
-  }
-], {
-  history: createMemoryHistory("/")
-});
-
-const App = createRouteView(router, {
-  loading: ({ match }) => document.createTextNode(`loading:${match.fullPath}`),
-  pending: ({ match }) => document.createTextNode(`shell:${match.fullPath}`),
-  keepPreviousDuringLoading: true
-});
-```
-
-This is the current center of gravity for Terajs on the web: route-driven loading, trusted mutations, and reactive UI primitives without bringing in a VDOM layer.
-
-### Local-first foundation (current)
-
-The current release includes a local-first baseline:
-
-- resource persistence via `createResource(..., { persistent: key })`
-- mutation queue contracts via `createMutationQueue(...)`
-- queue-aware action execution via `createAction(...).runQueued(...)`
-- queue-aware enhanced forms via `Form({ queue, ... })`
-
-This is a foundation layer. Advanced sync conflict strategies and multi-device merge policies are still planned.
-
-### Realtime sync hub status (RC)
-
-- First-party adapters are available for `signalr`, `socket.io`, and `websockets`.
-- All adapters share the same runtime transport contract and emit `hub:*` events for devtools.
-- Custom transports remain supported through `setServerFunctionTransport(...)` when apps need bespoke protocols.
-
----
-
-## **Style-agnostic**
-
-Terajs does not enforce or prefer any styling approach.
-
-Use:
-
-- Tailwind
-- UnoCSS
-- CSS Modules
-- SCSS
-- Styled Components
-- Vanilla CSS
-- Inline styles
-- Design systems
-
-Scoped styles are optional and require no build step.
-
----
-
-## **Platform-agnostic**
-
-Terajs Core is renderer-agnostic.
-
-Planned renderers:
-
-- **packages/renderer-web** - DOM
-- **packages/renderer-ios** and **packages/renderer-android** - native renderers
-- **packages/renderer-canvas** - Canvas/WebGL/Skia
-- **packages/renderer-ssr** - server output
-- **packages/renderer-terminal** - terminal UIs
-
-Write once, render anywhere.
-
----
-
-## **Developer experience**
-
-Terajs is built for humans:
-
-- predictable reactivity
-- simple mental model
-- readable stack traces
-- clear error messages
-- fast HMR
-- template -> IR -> DOM mapping
-- devtools hooks and overlay tooling
-
-Debugging is a first-class feature.
-
----
-
-# Example Component
-
-```tera
-<template>
-  <button class="root" @click="increment">
-    Count: {{ count }}
-  </button>
-</template>
-
-<script>
-  export let initial = 0
-
-  const count = signal(initial)
-
-  function increment() {
-    count.set(count() + 1)
-  }
-</script>
-
-<style scoped>
-  .root {
-    padding: 8px;
-  }
-</style>
-
-<meta>
-{
-  "title": "Counter",
-  "description": "A simple counter component",
-  "keywords": ["counter", "example", "terajs"],
-  "og:title": "Terajs Counter Example",
-  "og:description": "A minimal counter component built with Terajs"
-}
-</meta>
-
-<ai>
-{
-  "summary": "A simple interactive counter component that demonstrates Terajs's fine-grained reactivity.",
-  "intent": "Demonstrate reactive UI updates",
-  "entities": ["counter", "button", "signal"],
-  "audience": "developers learning Terajs"
-}
-</ai>
-
-<route>
-{
-  "path": "/counter",
-  "layout": "default"
-}
-</route>
-```
-
-> **Note:**
-> The `<ai>` block is parsed and available in the metadata pipeline.
-> Advanced AI tooling on top of that metadata remains an evolving area.
-
----
-
-# Monorepo Structure
-
-```
-packages/
-  terajs/          -> single app-facing facade package (@terajs/app)
-  compiler/        -> template compiler (AST -> IR -> codegen)
-  reactivity/      -> fine-grained reactive system
-  renderer/        -> platform-agnostic renderer core
-  renderer-web/    -> DOM renderer + JSX runtime
-  renderer-ssr/    -> server renderer
-  runtime/         -> hydration, scheduling, lifecycle
-  router/          -> component-driven routing
-  sfc/             -> .tera single-file component parser
-  shared/          -> shared utilities
-  ui/              -> optional UI primitives
-```
-
-Terajs Core stays minimal.
-The `@terajs/app` package provides convention-first defaults while leaf packages stay available for advanced use.
-
----
-
-# Roadmap (Short Version)
-
-- [x] Fine-grained reactivity
-- [x] JSX runtime
-- [x] IR renderer
-- [x] SSR renderer
-- [x] Hydration
-- [x] Routing
-- [x] Metadata system
-- [x] Template compiler
-- [x] **AI metadata block (`<ai>`)**
-- [x] Streaming SSR
-- [ ] Virtualized lists
-- [x] Portal primitives
-- [x] Devtools
-- [ ] Terajs Kit (meta-framework)
-- [ ] Native renderer
-- [ ] Canvas renderer
-
-Full roadmap is in `ROADMAP.md`.
-
----
-
-# Philosophy Summary
-
-Terajs aims to be:
-
-- simple
-- fast
-- predictable
-- flexible
-- platform-agnostic
-- scalable from small apps to enterprise systems
-- TypeScript-first, but JS-friendly
-- debuggable by design
-
-Terajs gives developers **power, not rules**.
+## Framework-agnostic core, not compatibility theater
+
+Terajs is framework-agnostic at the architecture level, not just in slogans.
+
+- Core packages such as `shared`, `reactivity`, `runtime`, `compiler`, `router`, and `sfc` stay neutral.
+- Environment-specific behavior lives in adapters and renderers such as `renderer-web`, `renderer-ssr`, and the Vite plugin.
+- React and Vue wrappers exist to let Terajs participate in mixed stacks without making React or Vue the center of the core design.
+
+That is why the project can ship wrappers like `@terajs/adapter-react` and `@terajs/adapter-vue` while still keeping the main runtime model Terajs-native.
+
+## Package map
+
+The current repo is easiest to understand in four groups.
+
+### App-facing and launch-centered
+
+- `@terajs/app`
+- `@terajs/app/vite`
+- `@terajs/app/devtools`
+- `@terajs/reactivity`
+- `@terajs/runtime`
+- `@terajs/router`
+- `@terajs/renderer-web`
+- `@terajs/renderer-ssr`
+
+### Lower-level public packages
+
+- `@terajs/renderer`
+- `@terajs/router-manifest`
+- `@terajs/compiler`
+- `@terajs/sfc`
+- `@terajs/shared`
+- `@terajs/devtools`
+- `@terajs/vite-plugin`
+- `@terajs/adapter-ai`
+- `@terajs/adapter-react`
+- `@terajs/adapter-vue`
+- `@terajs/hub-signalr`
+- `@terajs/hub-socketio`
+- `@terajs/hub-websockets`
+- `@terajs/ui`
+
+### Internal tooling
+
+- `@terajs/cli` is currently private and used for Terajs development and external smoke validation.
+
+### Directional repo work
+
+- `packages/renderer-ios`
+- `packages/renderer-android`
+
+## Documentation map
+
+- Release-critical root docs:
+- `README.md`: full launch overview, feature map, and package map
+- `API_REFERENCE.md`: canonical shipped API surface and public package reference
+- `COMPONENTS.md`: component model, SFC blocks, TSX/JSX, metadata, AI, route carriers, and interop seams
+- `Core_Philosophy.md`: architecture principles and package-boundary rationale
+- `CHANGELOG.md`: shipped release changes and status notes
+- `RELEASE_CANDIDATE_CHECKLIST.md`: release gating and hardening status
+
+- Deep dives and conventions:
+- `STYLE_GUIDE.md`: authoring conventions for components, styling, and project structure
+
+- Directional and planning docs:
+- `VISION.md`: long-range product vision
+- `ROADMAP.md`: broader roadmap and future-facing initiatives
+- `ROADMAP_NATIVE_RENDERERS.md`: native renderer direction
+- `RENDERER_ARCHITECHTURE.md`: renderer-contract and renderer-design notes
+- `terajs_kit.md`: Kit-level direction and ideas
+
+- Brand and legal:
+- `BRAND_GUIDELINES.md`: naming, voice, and visual direction
+- `BRAND_TOKENS.md`: design tokens used by current Terajs surfaces
+- `TRADEMARKS.md`: trademark rules
+- `LICENSE.md`: license terms
+
+- Package READMEs under `packages/*`: leaf-package guidance for direct package consumers
+
+## Direction without confusion
+
+Terajs keeps both launch realism and long-term ambition visible.
+
+- The shipped web-first surface is documented in `README.md` and `API_REFERENCE.md`.
+- Directional work remains visible in `VISION.md`, `ROADMAP.md`, and the renderer roadmap documents.
+
+That split is intentional: the release docs should be complete and concrete, while the vision and roadmap docs should keep sight of what Terajs is building toward.
 
 ---

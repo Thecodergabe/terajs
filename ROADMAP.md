@@ -71,11 +71,12 @@ Scoped styles are optional and require no build step.
 
 ## **5. Async Components**
 
-- `lazy(() => import(...))`  
+Status note: route and module-level async loading are shipped; a standalone public `lazy(...)` helper is not part of the current shipped API surface.
+
+- route and module-level async loading follow component and route boundaries
 - SSR‑friendly  
-- no Suspense boundaries  
 - predictable hydration  
-- async logic stays in the component, not the template  
+- async logic stays in the component or route module, not the template
 
 ---
 
@@ -126,14 +127,20 @@ This enables AI‑aware tooling and consistent SEO.
 
 ## **9. State Management**
 
-Terajs expands reactivity into global state:
+Terajs ships fine-grained reactivity plus explicit dependency injection today, with additional state convenience layers still directional.
 
-- `createStore()` for structured global state  
-- `createContext()` / `useContext()`  
-- derived stores  
-- async resources  
-- SSR‑safe hydration  
-- devtools support  
+Shipped today:
+
+- `signal()` and `state()` for local and shared state seams
+- `computed()` for derived state
+- `provide()` / `inject()` for dependency injection
+- `createResource()` and `createAction()` for async state
+- SSR‑safe hydration and DevTools support
+
+Directional / planned convenience layers:
+
+- higher-level structured store helpers
+- additional context ergonomics on top of the current runtime injection model
 
 ---
 

@@ -2,11 +2,18 @@
 
 React interoperability adapter for mounting Terajs components inside React trees.
 
+This package is for integration seams. Keep the core application model Terajs-native and use the adapter where React needs to host or compose Terajs UI.
+
 ## Installation
 
 ```bash
 npm install @terajs/adapter-react @terajs/runtime @terajs/renderer-web @terajs/reactivity react react-dom
 ```
+
+## Primary surface
+
+- `TerajsWrapper`: mounts a Terajs component inside a React component tree
+- `useTerajsResource(resource)`: mirrors a Terajs resource into React-friendly state and refresh helpers
 
 ## Usage
 
@@ -27,14 +34,7 @@ export function App() {
 }
 ```
 
-## API
-
-- `TerajsWrapper`: React component that mounts and unmounts a Terajs component.
-- `TerajsWrapperProps.component`: Terajs component to render.
-- `TerajsWrapperProps.props`: Optional props forwarded as Terajs signals.
-- `useTerajsResource(resource)`: React hook bridge for reading Terajs resource state and calling `mutate`/`refetch`.
-
-## Auto-Bridge Resource Hook
+## Bridging Terajs resources into React
 
 ```tsx
 import { useTerajsResource } from "@terajs/adapter-react";
@@ -61,4 +61,5 @@ function ProfileCard() {
 ## Notes
 
 - This adapter currently targets client-side mounting.
-- Keep wrapper usage focused on integration boundaries while core app logic stays Terajs-native.
+- Use it where React is the host framework, not as a reason to pull React concepts into Terajs core code.
+- For full Terajs apps, the main entrypoint is still `@terajs/app`.

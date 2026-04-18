@@ -2,10 +2,7 @@
 
 SignalR transport adapter for Terajs sync hub workflows.
 
-## Status
-
-- This is the first-party realtime adapter shipped for the current RC slice.
-- First-party `socket.io` and `websockets` adapters are also available and use the same runtime transport contract.
+This is a first-party realtime adapter. The `socket.io` and `websockets` packages use the same runtime transport contract and expose the same high-level transport shape.
 
 ## Install
 
@@ -34,4 +31,15 @@ hub.subscribe((message) => {
 setServerFunctionTransport(hub);
 ```
 
-The adapter emits `hub:*` debug events for devtools and diagnostics.
+## Transport shape
+
+The created transport implements the runtime `ServerFunctionTransport` contract and also exposes:
+
+- `connect()`
+- `disconnect()`
+- `isConnected()`
+- `subscribe(listener)`
+
+## Diagnostics
+
+The adapter emits structured `hub:*` debug events for DevTools and diagnostics, including connect, disconnect, push, sync-start, sync-complete, and error flows.

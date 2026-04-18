@@ -1,4 +1,3 @@
-```md
 # Terajs Kit
 
 Status note (April 2026): This document describes Kit-level architecture and planned direction. For shipped APIs and current behavior, use API_REFERENCE.md.
@@ -304,5 +303,3 @@ Terajs Kit is:
 
 Terajs Core = rendering engine.  
 Terajs Kit = full application framework.
-
-```
