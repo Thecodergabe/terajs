@@ -29,4 +29,30 @@ describe("attachIframeAreaEventBridge", () => {
     expect(input).toHaveBeenCalledTimes(1);
     expect(change).toHaveBeenCalledTimes(1);
   });
+
+  it("replaces previous iframe listeners instead of stacking duplicates", () => {
+    const frameDocument = document.implementation.createHTMLDocument("iframe-host");
+    const firstClick = vi.fn();
+    const secondClick = vi.fn();
+    const noop = vi.fn();
+
+    attachIframeAreaEventBridge(frameDocument, {
+      click: firstClick,
+      input: noop,
+      change: noop,
+    });
+
+    attachIframeAreaEventBridge(frameDocument, {
+      click: secondClick,
+      input: noop,
+      change: noop,
+    });
+
+    const button = frameDocument.createElement("button");
+    frameDocument.body.appendChild(button);
+    button.click();
+
+    expect(firstClick).toHaveBeenCalledTimes(0);
+    expect(secondClick).toHaveBeenCalledTimes(1);
+  });
 });

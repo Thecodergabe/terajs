@@ -566,6 +566,8 @@ describe("Terajs Vite Plugin (integration)", () => {
     expect(code).toContain("/@fs/");
     expect(code).toContain("mountDevtoolsOverlay");
     expect(code).toContain("autoAttachVsCodeDevtoolsBridge");
+    expect(code).toContain("document.getElementById('terajs-overlay-container')");
+    expect(code).toContain("globalThis.__TERAJS_DEVTOOLS_MOUNTED__ = false");
     expect(code).toContain("/_terajs/devtools/bridge");
   });
 

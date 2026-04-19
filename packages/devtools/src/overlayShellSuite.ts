@@ -28,6 +28,25 @@ export function registerOverlayShellSuite(): void {
     expect(shadowRoot?.textContent).not.toContain("UI will mount here");
   });
 
+  it("labels the floating devtools button as Tera Lens", () => {
+    mountDevtoolsOverlay();
+
+    const fab = document.getElementById("terajs-overlay-container")?.shadowRoot?.getElementById("terajs-devtools-fab") as HTMLButtonElement | null;
+    expect(fab?.textContent).toBe("Tera Lens");
+    expect(fab?.getAttribute("aria-label")).toBe("Toggle Tera Lens DevTools");
+  });
+
+  it("clears the global mounted flag when the overlay unmounts", () => {
+    const globalState = globalThis as typeof globalThis & { __TERAJS_DEVTOOLS_MOUNTED__?: boolean };
+
+    expect(globalState.__TERAJS_DEVTOOLS_MOUNTED__).toBeUndefined();
+    mountDevtoolsOverlay();
+    expect(globalState.__TERAJS_DEVTOOLS_MOUNTED__).toBe(true);
+
+    unmountDevtoolsOverlay();
+    expect(globalState.__TERAJS_DEVTOOLS_MOUNTED__).toBeUndefined();
+  });
+
   it("renders events from both debug channels", () => {
     mountDevtoolsOverlay();
 
@@ -147,6 +166,38 @@ export function registerOverlayShellSuite(): void {
     expect(iframeDocument).toContain("count");
     expect(iframeDocument).toContain("--tera-black: #05070f");
     expect(bridge?.getSnapshot()?.activeTab).toBe("Signals");
+  });
+
+  it("keeps the active iframe tab shell stable during live updates", async () => {
+    mountDevtoolsOverlay({ startOpen: true });
+
+    Debug.emit("signal:update", {
+      key: "count",
+      next: 1
+    });
+
+    const bridge = window.__TERAJS_DEVTOOLS_BRIDGE__;
+    expect(bridge?.focusTab("Signals")).toBe(true);
+
+    await flushMicrotasks();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const tabButton = shadowRoot?.querySelector('[data-tab="Signals"]') as HTMLButtonElement | null;
+    const iframe = shadowRoot?.querySelector('[data-devtools-iframe-area="Signals"]') as HTMLIFrameElement | null;
+
+    expect(tabButton).toBeTruthy();
+    expect(iframe).toBeTruthy();
+
+    Debug.emit("signal:update", {
+      key: "count",
+      next: 2
+    });
+
+    await flushMicrotasks();
+
+    expect(shadowRoot?.querySelector('[data-tab="Signals"]')).toBe(tabButton);
+    expect(shadowRoot?.querySelector('[data-devtools-iframe-area="Signals"]')).toBe(iframe);
+    expect(iframe?.getAttribute("srcdoc")).toContain("count");
   });
 
   it("hosts the Meta tab inside an iframe-backed panel", async () => {

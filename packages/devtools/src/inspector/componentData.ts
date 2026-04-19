@@ -35,11 +35,25 @@ export function collectMountedComponents(
       aiPreview: entry.aiPreview
     }));
 
-  if (fromRegistry.length > 0) {
-    return fromRegistry;
+  const fromDom = collectMountedComponentsFromDom();
+  if (fromRegistry.length === 0) {
+    return fromDom;
   }
 
-  return collectMountedComponentsFromDom();
+  const merged = new Map<string, MountedComponentEntry>();
+
+  for (const entry of fromRegistry) {
+    merged.set(entry.key, entry);
+  }
+
+  for (const entry of fromDom) {
+    if (!merged.has(entry.key)) {
+      merged.set(entry.key, entry);
+    }
+  }
+
+  return Array.from(merged.values())
+    .sort((left, right) => left.scope.localeCompare(right.scope) || left.instance - right.instance);
 }
 
 export function buildComponentTree(components: MountedComponentEntry[]): {

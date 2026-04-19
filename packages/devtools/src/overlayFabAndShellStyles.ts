@@ -33,9 +33,8 @@ export const overlayFabAndShellStyles = `
     font-family: "Space Grotesk", "Segoe UI", sans-serif;
     font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    min-width: 102px;
+    letter-spacing: 0.01em;
+    min-width: 118px;
     height: 42px;
     padding: 0 18px;
     cursor: pointer;

@@ -56,6 +56,8 @@ export interface DevtoolsIframeAreaEventBridge {
   change: EventListener;
 }
 
+const iframeEventBridgeRegistry = new WeakMap<Document, DevtoolsIframeAreaEventBridge>();
+
 export function renderIframeAreaHost(title: string): string {
   const escapedTitle = escapeHtml(title);
   return `
@@ -75,6 +77,18 @@ export function syncIframeAreaHost(root: HTMLElement, options: DevtoolsIframeAre
     .find((candidate) => candidate.dataset.devtoolsIframeArea === options.title);
 
   if (!iframe) {
+    return;
+  }
+
+  const existingDocument = iframe.contentDocument;
+  const existingRoot = existingDocument?.getElementById("terajs-devtools-root");
+  if (existingDocument && existingRoot) {
+    existingRoot.setAttribute("data-theme", options.theme);
+    existingRoot.innerHTML = options.markup;
+
+    if (options.eventBridge) {
+      attachIframeAreaEventBridge(existingDocument, options.eventBridge);
+    }
     return;
   }
 
@@ -99,9 +113,25 @@ export function attachIframeAreaEventBridge(
   frameDocument: Document,
   eventBridge: DevtoolsIframeAreaEventBridge
 ): void {
+  const existingBridge = iframeEventBridgeRegistry.get(frameDocument);
+  if (existingBridge) {
+    if (
+      existingBridge.click === eventBridge.click
+      && existingBridge.input === eventBridge.input
+      && existingBridge.change === eventBridge.change
+    ) {
+      return;
+    }
+
+    frameDocument.removeEventListener("click", existingBridge.click);
+    frameDocument.removeEventListener("input", existingBridge.input);
+    frameDocument.removeEventListener("change", existingBridge.change);
+  }
+
   frameDocument.addEventListener("click", eventBridge.click);
   frameDocument.addEventListener("input", eventBridge.input);
   frameDocument.addEventListener("change", eventBridge.change);
+  iframeEventBridgeRegistry.set(frameDocument, eventBridge);
 }
 
 function buildIframeAreaDocument(options: DevtoolsIframeAreaRenderOptions): string {

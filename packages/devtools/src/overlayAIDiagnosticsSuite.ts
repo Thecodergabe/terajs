@@ -64,6 +64,31 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     expect(documentPane?.textContent).toContain("Docs home page");
   });
 
+  it("keeps the AI tab shell stable when live diagnostics events arrive", async () => {
+    mountDevtoolsOverlay();
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const aiTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    aiTab?.click();
+
+    const originalTab = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+    const originalPanel = shadowRoot?.querySelector('.devtools-panel') as HTMLDivElement | null;
+
+    emitDebug({
+      type: "error:component",
+      timestamp: Date.now(),
+      payload: {
+        likelyCause: "Live diagnostics update"
+      }
+    } as any);
+
+    await flushMicrotasks();
+
+    expect(shadowRoot?.querySelector('[data-tab="AI Diagnostics"]')).toBe(originalTab);
+    expect(shadowRoot?.querySelector('.devtools-panel')).toBe(originalPanel);
+    expect(originalPanel?.textContent).toContain("Analysis Output");
+  });
+
   it("renders structured AI analysis from the VS Code bridge response", async () => {
     const bridge = vi.fn(async () => ({
       summary: "Counter updates are re-entering the same effect.",
@@ -204,9 +229,9 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
     const copyButton = shadowRoot?.querySelector('[data-action="copy-debugging-prompt"]') as HTMLButtonElement | null;
     expect(openSessionButton?.textContent).toContain("Open VS Code Live Session");
-    expect(extensionButton?.textContent).toContain("Ask VS Code AI");
+    expect(extensionButton?.textContent).toContain("Ask Copilot");
     expect(copyButton?.textContent).toContain("Copy Debugging Prompt");
-    expect(analysisPane?.textContent).toContain("The current sanitized session already streams into the attached extension.");
+    expect(analysisPane?.textContent).toContain("Ask Copilot sends the current sanitized bundle straight through the attached VS Code bridge.");
 
     openSessionButton?.click();
     await flushMicrotasks();
@@ -219,7 +244,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
 
     const busyButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
     const busyAnalysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
-    expect(busyButton?.textContent).toContain("Asking VS Code AI...");
+    expect(busyButton?.textContent).toContain("Asking Copilot...");
     expect(busyButton?.disabled).toBe(true);
     expect(busyButton?.getAttribute("aria-busy")).toBe("true");
     expect(busyAnalysisPane?.textContent).toContain("Waiting for the attached VS Code bridge to respond with the current sanitized diagnostics bundle...");
@@ -250,7 +275,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     expect(shadowRoot?.textContent).toContain("Structured response ready");
     const refreshedAnalysisPane = shadowRoot?.querySelector('[data-ai-active-section="analysis-output"]') as HTMLElement | null;
     const refreshedExtensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
-    expect(refreshedExtensionButton?.textContent).toContain("Ask VS Code AI");
+    expect(refreshedExtensionButton?.textContent).toContain("Ask Copilot");
     expect(refreshedExtensionButton?.disabled).toBe(false);
     expect(refreshedAnalysisPane?.textContent).toContain("The attached VS Code bridge reproduced the current runtime issue from the sanitized payload.");
 
@@ -341,7 +366,7 @@ export function registerOverlayAIDiagnosticsSuite(): void {
     const openSessionButton = shadowRoot?.querySelector('[data-action="open-vscode-session"]') as HTMLButtonElement | null;
     const extensionButton = shadowRoot?.querySelector('[data-action="ask-vscode-ai"]') as HTMLButtonElement | null;
     expect(openSessionButton?.textContent).toContain("Open VS Code Live Session");
-    expect(extensionButton?.textContent).toContain("Ask VS Code AI");
+    expect(extensionButton?.textContent).toContain("Ask Copilot");
     expect(fetchMock).toHaveBeenCalledWith("/_terajs/devtools/bridge", expect.objectContaining({ cache: "no-store" }));
     expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:4040/live/token", expect.objectContaining({ method: "POST" }));
 
@@ -469,6 +494,70 @@ export function registerOverlayAIDiagnosticsSuite(): void {
       await flushMicrotasks();
 
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("quarantines a failed live bridge until the manifest changes", async () => {
+    vi.useFakeTimers();
+
+    let manifestUpdatedAt = 1713120000000;
+    const fetchMock = vi.fn(async (input: unknown) => {
+      const url = String(input);
+
+      if (url === "/_terajs/devtools/bridge") {
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return JSON.stringify({
+              version: 1,
+              session: "http://127.0.0.1:4040/live/token",
+              ai: "http://127.0.0.1:4040/ai/token",
+              reveal: "http://127.0.0.1:4040/reveal/token",
+              updatedAt: manifestUpdatedAt
+            });
+          }
+        } as Response;
+      }
+
+      if (url === "http://127.0.0.1:4040/live/token") {
+        throw new Error("receiver offline");
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      mountDevtoolsOverlay();
+      autoAttachVsCodeDevtoolsBridge({ endpoint: "/_terajs/devtools/bridge", pollMs: 1000, fetchImpl: fetchMock as typeof fetch });
+
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+
+      window.dispatchEvent(new CustomEvent("terajs:devtools:bridge:update"));
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(2);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(2);
+
+      manifestUpdatedAt += 1000;
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await flushMicrotasks();
+
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/_terajs/devtools/bridge")).toHaveLength(3);
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "http://127.0.0.1:4040/live/token")).toHaveLength(4);
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();

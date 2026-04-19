@@ -80,6 +80,104 @@ export function registerOverlayComponentsSuite(): void {
     expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(false);
   });
 
+  it("releases stale tree hover preview when pointer tracking resumes on the page", () => {
+    const firstRoot = document.createElement("div");
+    firstRoot.setAttribute("data-terajs-component-scope", "Counter");
+    firstRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(firstRoot);
+
+    const secondRoot = document.createElement("div");
+    secondRoot.setAttribute("data-terajs-component-scope", "Panel");
+    secondRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(secondRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Panel",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    componentButton?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, composed: true }));
+
+    expect(firstRoot.classList.contains("terajs-devtools-hover-component")).toBe(true);
+    expect(secondRoot.classList.contains("terajs-devtools-hover-component")).toBe(false);
+
+    secondRoot.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, composed: true }));
+
+    expect(firstRoot.classList.contains("terajs-devtools-hover-component")).toBe(false);
+    expect(secondRoot.classList.contains("terajs-devtools-hover-component")).toBe(true);
+  });
+
+  it("clears tree hover preview when the pointer moves to a non-component overlay tab", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    const aiTabButton = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+
+    componentButton?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, composed: true }));
+
+    expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(true);
+
+    aiTabButton?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, composed: true }));
+
+    expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(false);
+  });
+
+  it("clears tree hover preview when overlay mouseover reaches a non-component control", () => {
+    const componentRoot = document.createElement("div");
+    componentRoot.setAttribute("data-terajs-component-scope", "Counter");
+    componentRoot.setAttribute("data-terajs-component-instance", "1");
+    document.body.appendChild(componentRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "Counter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const componentButton = shadowRoot?.querySelector('[data-component-key="Counter#1"]') as HTMLButtonElement | null;
+    const aiTabButton = shadowRoot?.querySelector('[data-tab="AI Diagnostics"]') as HTMLButtonElement | null;
+
+    componentButton?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, composed: true }));
+
+    expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(true);
+
+    aiTabButton?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, composed: true }));
+
+    expect(componentRoot.classList.contains("terajs-devtools-hover-component")).toBe(false);
+  });
+
   it("renders tree chevrons without duplicating instance ids in the left navigator", () => {
     const parentRoot = document.createElement("div");
     parentRoot.setAttribute("data-terajs-component-scope", "Layout");
@@ -190,6 +288,69 @@ export function registerOverlayComponentsSuite(): void {
     expect(layoutRow?.dataset.treeDepth).toBe("1");
     expect(indexRow?.dataset.treeDepth).toBe("2");
     expect(siteCodeWindowRow?.dataset.treeDepth).toBe("3");
+  });
+
+  it("merges DOM-marked components with a partial lifecycle registry", () => {
+    const appShellRoot = document.createElement("div");
+    appShellRoot.setAttribute("data-terajs-component-scope", "TerajsAppShell");
+    appShellRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const layoutRoot = document.createElement("div");
+    layoutRoot.setAttribute("data-terajs-component-scope", "layout");
+    layoutRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const siteHeaderRoot = document.createElement("header");
+    siteHeaderRoot.setAttribute("data-terajs-component-scope", "SiteHeader");
+    siteHeaderRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const pageRoot = document.createElement("main");
+    pageRoot.setAttribute("data-terajs-component-scope", "index");
+    pageRoot.setAttribute("data-terajs-component-instance", "1");
+
+    const siteFooterRoot = document.createElement("footer");
+    siteFooterRoot.setAttribute("data-terajs-component-scope", "SiteFooter");
+    siteFooterRoot.setAttribute("data-terajs-component-instance", "1");
+
+    layoutRoot.appendChild(siteHeaderRoot);
+    layoutRoot.appendChild(pageRoot);
+    layoutRoot.appendChild(siteFooterRoot);
+    appShellRoot.appendChild(layoutRoot);
+    document.body.appendChild(appShellRoot);
+
+    mountDevtoolsOverlay();
+    toggleDevtoolsOverlay();
+
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "layout",
+      instance: 1
+    });
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "SiteHeader",
+      instance: 1
+    });
+    emitDebug({
+      type: "component:mounted",
+      timestamp: Date.now(),
+      scope: "SiteFooter",
+      instance: 1
+    });
+
+    const shadowRoot = document.getElementById("terajs-overlay-container")?.shadowRoot;
+    const labels = Array.from(shadowRoot?.querySelectorAll(".component-tree-label") ?? []).map((node) => {
+      return node.textContent?.trim() ?? "";
+    }).filter(Boolean);
+
+    expect(labels.slice(0, 5)).toEqual([
+      "<TerajsAppShell />",
+      "<layout />",
+      "<SiteHeader />",
+      "<index />",
+      "<SiteFooter />"
+    ]);
   });
 
   it("toggles component selection off when the selected row is clicked again", () => {

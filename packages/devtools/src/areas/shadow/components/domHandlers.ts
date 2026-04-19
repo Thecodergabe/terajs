@@ -92,6 +92,7 @@ export function createShadowComponentsHoverHandlers(
 
     const hovered = readHoveredComponent(target);
     if (!hovered) {
+      notifyComponentHover(null, null);
       return;
     }
 

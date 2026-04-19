@@ -39,11 +39,14 @@ interface NormalizedAutoAttachOptions {
 
 let activeCleanup: (() => void) | null = null;
 let activeSignature: string | null = null;
+let activeManifestUpdatedAt = 0;
 let pollHandle: number | null = null;
 let polling = false;
 let activeOptions: NormalizedAutoAttachOptions | null = null;
 let activeMode: DevtoolsIdeBridgeMode = "discovering";
 let refreshRequested = false;
+let failedSignature: string | null = null;
+let failedManifestUpdatedAt = 0;
 
 export function autoAttachVsCodeDevtoolsBridge(
   options: DevtoolsIdeAutoAttachOptions = {}
@@ -69,8 +72,11 @@ export function stopAutoAttachVsCodeDevtoolsBridge(): void {
   clearBridgeManifestSync();
   activeOptions = null;
   activeSignature = null;
+  activeManifestUpdatedAt = 0;
   activeMode = "discovering";
   refreshRequested = false;
+  failedSignature = null;
+  failedManifestUpdatedAt = 0;
   polling = false;
   activeCleanup?.();
   activeCleanup = null;
@@ -110,7 +116,19 @@ async function syncBridgeManifest(): Promise<void> {
     }
 
     const nextSignature = `${manifest.session}|${manifest.ai}|${manifest.reveal ?? ""}`;
-    const shouldInstall = nextSignature !== activeSignature || activeMode === "recovering" || !activeCleanup;
+    if (nextSignature === failedSignature && manifest.updatedAt <= failedManifestUpdatedAt) {
+      uninstallActiveBridge();
+      activeMode = "recovering";
+      scheduleBridgeManifestSync(activeOptions.pollMs);
+      return;
+    }
+
+    if (nextSignature !== failedSignature || manifest.updatedAt > failedManifestUpdatedAt) {
+      failedSignature = null;
+      failedManifestUpdatedAt = 0;
+    }
+
+    const shouldInstall = nextSignature !== activeSignature || !activeCleanup;
     if (!shouldInstall) {
       activeMode = "attached";
       return;
@@ -118,6 +136,7 @@ async function syncBridgeManifest(): Promise<void> {
 
     installBridge(manifest, activeOptions.fetchImpl, requestBridgeRecovery);
     activeSignature = nextSignature;
+    activeManifestUpdatedAt = manifest.updatedAt;
     activeMode = "attached";
   } finally {
     polling = false;
@@ -158,13 +177,19 @@ function requestBridgeRecovery(): void {
     return;
   }
 
+  if (activeSignature) {
+    failedSignature = activeSignature;
+    failedManifestUpdatedAt = activeManifestUpdatedAt;
+  }
+
+  uninstallActiveBridge();
   activeMode = "recovering";
-  refreshRequested = true;
+  refreshRequested = false;
   if (polling) {
     return;
   }
 
-  void syncBridgeManifest();
+  scheduleBridgeManifestSync(activeOptions.pollMs);
 }
 
 async function readBridgeManifest(
@@ -405,6 +430,7 @@ function uninstallActiveBridge(): void {
   activeCleanup?.();
   activeCleanup = null;
   activeSignature = null;
+  activeManifestUpdatedAt = 0;
 }
 
 function shouldRecoverBridgeFromStatus(status: number): boolean {

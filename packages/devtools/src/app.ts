@@ -394,12 +394,33 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
     }
   };
 
-  const shouldRenderAfterEvent = (aiLikelyCauseChanged: boolean) => {
-    if (state.activeTab === "AI Diagnostics" && !aiLikelyCauseChanged) {
-      return false;
+  const patchActiveStandardTab = () => {
+    updateHeaderEventCount();
+
+    const documentContext = readDocumentContext();
+    if (state.activeTab === "AI Diagnostics") {
+      const panel = root.querySelector<HTMLElement>(".devtools-panel");
+      if (!panel) {
+        render();
+        return;
+      }
+
+      panel.innerHTML = renderShadowAIArea(state, documentContext);
+      devtoolsBridge?.sync();
+      return;
     }
 
-    return true;
+    if (resolveDevtoolsAreaHostKind(state.activeTab) === "iframe") {
+      syncIframeAreaHost(root, {
+        title: state.activeTab,
+        theme: state.theme,
+        markup: renderIframePanelContent(state, documentContext)
+      });
+      devtoolsBridge?.sync();
+      return;
+    }
+
+    render();
   };
 
   const eventAffectsComponentTree = (event: DevtoolsEvent) => {
@@ -511,13 +532,12 @@ export function mountDevtoolsApp(root: HTMLElement, options: DevtoolsAppOptions 
       return;
     }
 
-    if (!shouldRenderAfterEvent(aiLikelyCauseChanged)) {
-      updateHeaderEventCount();
-      devtoolsBridge?.sync();
+    if (state.activeTab === "AI Diagnostics" && !aiLikelyCauseChanged && state.aiStatus === "idle") {
+      patchActiveStandardTab();
       return;
     }
 
-    render();
+    patchActiveStandardTab();
   };
 
   const unsubDebug = Debug.on(appendEvent);

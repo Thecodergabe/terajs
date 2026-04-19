@@ -139,15 +139,15 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
   const extensionBridgeStatusLabel = canQueryExtensionAssistant
     ? "VS Code bridge ready"
     : "VS Code bridge not attached";
-  const extensionActionLabel = vscodeRequestPending ? "Asking VS Code AI..." : "Ask VS Code AI";
+  const extensionActionLabel = vscodeRequestPending ? "Asking Copilot..." : "Ask Copilot";
   const debuggingPromptHint = canRevealExtensionSession
-    ? "Open the mirrored VS Code live session, ask the attached bridge to analyze the current sanitized bundle, or copy the same debugging prompt for manual pairing."
+    ? "Ask Copilot sends the current sanitized bundle straight through the attached VS Code bridge. Open VS Code Live Session only reveals the mirrored session, and Copy Debugging Prompt gives you the same payload for manual use."
     : canQueryExtensionAssistant
-    ? "Ask VS Code AI sends the current sanitized bundle through the attached extension bridge, and Copy Debugging Prompt gives you the same payload for manual pairing."
+    ? "Ask Copilot sends the current sanitized bundle directly through the attached extension bridge, and Copy Debugging Prompt gives you the same payload for manual use."
     : "Copy Debugging Prompt packages the current sanitized bundle so you can paste it into your own agent, ticket, or debugging chat while you attach the VS Code bridge.";
   const extensionActionHint = canRevealExtensionSession
-    ? "The current sanitized session already streams into the attached extension. Open VS Code Live Session reveals that mirrored panel; Ask VS Code AI is only needed when you want a response rendered back in DevTools."
-    : "Ask VS Code AI sends the same sanitized diagnostics bundle through the attached extension bridge.";
+    ? "Ask Copilot sends the current sanitized diagnostics bundle straight through the attached extension and returns the response in DevTools. Open VS Code Live Session is only for viewing the mirrored session."
+    : "Ask Copilot sends the same sanitized diagnostics bundle straight through the attached extension bridge.";
   const analysisSummary = state.aiStructuredResponse
     ? "Structured response ready"
     : state.aiResponse
@@ -192,12 +192,12 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
     assistantOutputMarkup = `
       <div class="ai-diagnostics-section-block">
         <div class="panel-title is-cyan">Debugging prompt ready</div>
-        <div class="muted-text">${escapeHtml(canQueryExtensionAssistant ? "The current session bundle is ready for VS Code AI or manual agent pairing." : "The current session bundle is ready to copy into your own agent or debugging chat.")}</div>
+        <div class="muted-text">${escapeHtml(canQueryExtensionAssistant ? "The current session bundle is ready to send to the attached Copilot bridge or to copy for manual use." : "The current session bundle is ready to copy into your own agent or debugging chat.")}</div>
       </div>
     `;
   } else {
     assistantOutputMarkup = `
-      <div class="empty-state">${escapeHtml(canQueryExtensionAssistant ? "Ask VS Code AI or copy the debugging prompt to capture the active runtime state." : "Copy the debugging prompt to package the current runtime evidence for an external assistant.")}</div>
+      <div class="empty-state">${escapeHtml(canQueryExtensionAssistant ? "Ask Copilot or copy the debugging prompt to capture the active runtime state." : "Copy the debugging prompt to package the current runtime evidence for an external assistant.")}</div>
     `;
   }
 
@@ -503,7 +503,7 @@ export function renderAIDiagnosticsPanel(state: AIDiagnosticsStateLike): string 
           <div class="panel-title is-purple">Debugging prompt payload</div>
           ${state.aiPrompt
             ? `<pre class="ai-prompt">${escapeHtml(state.aiPrompt)}</pre>`
-            : `<div class="empty-state">Use Copy Debugging Prompt or Ask VS Code AI to assemble the current diagnostics bundle.</div>`}
+            : `<div class="empty-state">Use Copy Debugging Prompt or Ask Copilot to assemble the current diagnostics bundle.</div>`}
         </div>
       `;
       break;

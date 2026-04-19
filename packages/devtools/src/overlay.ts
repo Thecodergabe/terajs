@@ -59,6 +59,18 @@ export {
 
 const DEVTOOLS_LAYOUT_PREFERENCES_EVENT = "terajs:devtools:layout-preferences";
 
+function devtoolsMountedFlagHost(): typeof globalThis & { __TERAJS_DEVTOOLS_MOUNTED__?: boolean } {
+  return globalThis as typeof globalThis & { __TERAJS_DEVTOOLS_MOUNTED__?: boolean };
+}
+
+function markOverlayMounted(): void {
+  devtoolsMountedFlagHost().__TERAJS_DEVTOOLS_MOUNTED__ = true;
+}
+
+function clearOverlayMountedFlag(): void {
+  delete devtoolsMountedFlagHost().__TERAJS_DEVTOOLS_MOUNTED__;
+}
+
 let overlayEl: HTMLDivElement | null = null;
 let cleanupOverlay: (() => void) | null = null;
 let keyListener: ((event: KeyboardEvent) => void) | null = null;
@@ -172,7 +184,11 @@ function applyOverlayVisibility(): void {
  */
 export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
   if (process.env.NODE_ENV === "production") return;
-  if (typeof document === "undefined" || overlayEl) return;
+  if (typeof document === "undefined") return;
+  if (overlayEl && !overlayEl.isConnected) {
+    unmountDevtoolsOverlay();
+  }
+  if (overlayEl) return;
 
   activeOptions = applyPersistedOverlayOptions(normalizeOverlayOptions(options), options);
   panelVisible = activeOptions.startOpen;
@@ -194,11 +210,12 @@ export function mountDevtoolsOverlay(options?: DevtoolsOverlayOptions): void {
       <div id="terajs-devtools-panel" class="overlay-frame is-hidden">
         <div id="terajs-devtools-root"></div>
       </div>
-      <button id="terajs-devtools-fab" class="devtools-fab" type="button" aria-expanded="false" aria-label="Toggle Terajs DevTools">Terajs</button>
+      <button id="terajs-devtools-fab" class="devtools-fab" type="button" aria-expanded="false" aria-label="Toggle Tera Lens DevTools">Tera Lens</button>
     </div>
   `;
 
   document.body.appendChild(overlayEl);
+  markOverlayMounted();
   applyOverlayPosition(overlayEl, activeOptions.position);
   applyOverlayPanelSize(overlayEl, activeOptions.panelSize);
 
@@ -355,5 +372,6 @@ export function unmountDevtoolsOverlay(): void {
   panelVisible = false;
   overlayVisible = true;
   activeOptions = getDefaultOverlayOptions();
+  clearOverlayMountedFlag();
 }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5
+
+- Fixed DevTools connected-mode regressions that could remount active tabs, stack iframe listeners, and leave stale component hover highlights behind while live events were streaming.
+- Fixed the VS Code live bridge auto-attach path so stale manifest metadata no longer reattaches the same dead `/live/...` endpoint in a request loop after the receiver goes away.
+- Hardened DevTools component discovery so DOM markers and lifecycle registry data are merged instead of dropping page/layout nodes when only part of the tree reports lifecycle events.
+
 ## 1.0.0
 
 - Public Terajs release surface aligned to `1.0.0` across the publishable packages.

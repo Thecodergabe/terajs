@@ -16,6 +16,7 @@ describe("devtools overlay public entry", () => {
     delete (window as typeof window & { __TERAJS_AI_ASSISTANT__?: unknown }).__TERAJS_AI_ASSISTANT__;
     delete (window as typeof window & { __TERAJS_VSCODE_AI_ASSISTANT__?: unknown }).__TERAJS_VSCODE_AI_ASSISTANT__;
     delete (window as typeof window & { __TERAJS_DEVTOOLS_BRIDGE__?: unknown }).__TERAJS_DEVTOOLS_BRIDGE__;
+    delete (globalThis as typeof globalThis & { __TERAJS_DEVTOOLS_MOUNTED__?: boolean }).__TERAJS_DEVTOOLS_MOUNTED__;
     ensureTestStorage().removeItem(OVERLAY_PREFERENCES_STORAGE_KEY);
     document.head.querySelectorAll('[data-devtools-doc-test="true"]').forEach((node) => node.remove());
     document.title = "";

@@ -433,7 +433,7 @@ export function resolveAIProviderDetails(state: AIDiagnosticsStateLike): AIProvi
       hasEndpoint,
       hasExtensionBridge,
       activePath: state.aiAssistantEndpoint as string,
-      detail: "A configured assistant endpoint is available, while Ask VS Code AI sends the same sanitized payload through the attached local extension bridge.",
+      detail: "A configured assistant endpoint is available, while Ask Copilot sends the same sanitized payload directly through the attached local extension bridge.",
       builtInModel
     };
   }
@@ -457,7 +457,7 @@ export function resolveAIProviderDetails(state: AIDiagnosticsStateLike): AIProvi
       hasEndpoint,
       hasExtensionBridge,
       activePath: "window.__TERAJS_VSCODE_AI_ASSISTANT__",
-      detail: "The attached live extension can run the same sanitized diagnostics bundle through VS Code AI/Copilot, even when the page itself does not expose a hook or endpoint.",
+      detail: "The attached live extension can run the same sanitized diagnostics bundle directly through VS Code AI/Copilot, even when the page itself does not expose a hook or endpoint.",
       builtInModel
     };
   }

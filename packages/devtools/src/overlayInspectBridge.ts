@@ -5,6 +5,7 @@ const DEVTOOLS_COMPONENT_HOVER_EVENT = "terajs:devtools:component-hover";
 
 const COMPONENT_SCOPE_ATTR = "data-terajs-component-scope";
 const COMPONENT_INSTANCE_ATTR = "data-terajs-component-instance";
+const COMPONENT_TREE_KEY_ATTR = "data-component-key";
 
 const INSPECT_STYLE_ID = "terajs-devtools-inspect-style";
 const INSPECT_HOVER_CLASS = "terajs-devtools-hover-component";
@@ -145,6 +146,20 @@ body[data-terajs-inspect-mode="true"] [${COMPONENT_SCOPE_ATTR}] {
     return event.composedPath().includes(overlayEl);
   }
 
+  function isOverlayComponentTreeTarget(event: Event): boolean {
+    for (const entry of event.composedPath()) {
+      if (!(entry instanceof HTMLElement)) {
+        continue;
+      }
+
+      if (entry.hasAttribute(COMPONENT_TREE_KEY_ATTR)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   function escapeAttributeValue(value: string): string {
     const css = globalThis.CSS;
     if (css && typeof css.escape === "function") {
@@ -166,6 +181,7 @@ body[data-terajs-inspect-mode="true"] [${COMPONENT_SCOPE_ATTR}] {
     document.body?.toggleAttribute("data-terajs-inspect-mode", enabled);
 
     if (!enabled) {
+      treeHoverPreviewActive = false;
       clearHoverHighlight();
       clearSelectedHighlight();
     }
@@ -232,13 +248,20 @@ body[data-terajs-inspect-mode="true"] [${COMPONENT_SCOPE_ATTR}] {
     };
 
     pointerMoveListener = (event: PointerEvent) => {
-      if (!inspectModeEnabled || treeHoverPreviewActive) {
+      if (!inspectModeEnabled) {
         return;
       }
 
       if (isOverlayEventTarget(event)) {
-        setHoverHighlight(null);
+        if (!isOverlayComponentTreeTarget(event)) {
+          treeHoverPreviewActive = false;
+          setHoverHighlight(null);
+        }
         return;
+      }
+
+      if (treeHoverPreviewActive) {
+        treeHoverPreviewActive = false;
       }
 
       setHoverHighlight(findComponentElementFromTarget(event.target));
