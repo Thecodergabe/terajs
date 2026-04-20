@@ -43,16 +43,48 @@ jobs:
 
       - name: Describe Release Behavior
         run: |
-          echo "The Changesets action will open or update a version PR when release notes are pending."
-          echo "After that version PR is merged, run this workflow again to publish the packages."
+          echo "When release notes are pending, this workflow versions packages locally and opens or updates the version PR."
+          echo "After that version PR is merged, run this workflow again on main to publish the packages."
           echo "npm publish uses trusted publishing through GitHub Actions OIDC when the package settings on npm are configured for this workflow."
 
-      - name: Create Release Pull Request or Publish
-        uses: changesets/action@v1
+      - name: Version Packages
+        run: npm run version-packages
+
+      - name: Detect Version Diff
+        id: version_diff
+        shell: bash
+        run: |
+          if git diff --quiet --exit-code; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Or Update Version Pull Request
+        if: steps.version_diff.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
         with:
-          version: npm run version-packages
-          publish: npm run release:publish
-          commit: "chore: version packages"
-          title: "chore: version packages"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: changeset-release/${{ inputs.ref }}
+          base: ${{ inputs.ref }}
+          commit-message: chore: version packages
+          title: chore: version packages
+          body: |
+            This PR was opened by the Terajs release workflow.
+
+            It contains the version and lockfile updates generated from the committed Changesets files.
+
+            Merge this PR when the release is ready, then run the `Release` workflow again on `main` to publish the packages.
+          delete-branch: false
+
+      - name: Guard Publish Branch
+        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref != 'main'
+        run: |
+          echo "Refusing to publish from '${{ inputs.ref }}'. Run the Release workflow against 'main'."
+          exit 1
+
+      - name: Publish Packages
+        if: steps.version_diff.outputs.has_changes == 'false' && inputs.ref == 'main'
+        run: npm run release:publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
