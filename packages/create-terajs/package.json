@@ -1,6 +1,6 @@
 {
   "name": "create-terajs",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "npm create wrapper for scaffolding Terajs projects.",
   "author": "Terajs Labs",
   "license": "Apache-2.0",
@@ -29,7 +29,7 @@
     }
   },
   "dependencies": {
-    "@terajs/cli": "^1.0.5"
+    "@terajs/cli": "^1.0.6"
   },
   "publishConfig": {
     "access": "public"

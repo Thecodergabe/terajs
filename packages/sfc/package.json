@@ -1,6 +1,6 @@
 {
   "name": "@terajs/sfc",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -13,8 +13,8 @@
     }
   },
   "dependencies": {
-    "@terajs/compiler": "^1.0.0",
-    "@terajs/shared": "^1.0.0"
+    "@terajs/compiler": "^1.0.4",
+    "@terajs/shared": "^1.0.4"
   },
   "license": "Apache-2.0",
   "repository": {
