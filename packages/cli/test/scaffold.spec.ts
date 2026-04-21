@@ -112,7 +112,7 @@ describe("cli scaffoldProject", () => {
     expect(route).toContain("src/plugins/index.ts");
     expect(route).toContain("https://terajs.com/docs");
     expect(route).toContain("https://terajs.com/docs/quickstart");
-    expect(route).toContain("https://github.com/Thecodergabe/terajs");
+    expect(route).toContain("https://github.com/terajs/terajs");
     expect(route).not.toContain("Starter Pro Preview");
     expect(route).not.toContain("Starter overview");
     expect(route).not.toContain("This starter already has a second route.");

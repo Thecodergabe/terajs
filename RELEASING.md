@@ -8,12 +8,12 @@ The recommended release path is a manually triggered GitHub Actions workflow. Lo
 
 1. Sign in to npm and open the settings for each published `@terajs/*` package.
 2. Add a trusted publisher for GitHub Actions with:
-	- organization or user: the GitHub owner for this repo
+	- organization or user: `terajs`
 	- repository: `terajs`
 	- workflow filename: `release.yml`
 3. Leave the built-in `GITHUB_TOKEN` alone; the workflow uses it to push the version branch and to publish through npm trusted publishing.
 
-Trusted publishing is strict about exact matches. The package settings on npm must match the GitHub owner, repository, and workflow filename exactly, and the package `repository.url` fields must point at this repository.
+Trusted publishing is strict about exact matches. The package settings on npm must match the GitHub organization or user, repository, and workflow filename exactly, and the package `repository.url` fields must point at `https://github.com/terajs/terajs`.
 
 Trusted publishing is configured on npm, not as a GitHub secret. Once it is enabled on the published packages, the workflow can publish without storing a long-lived npm token. The release workflow uses Node 24 and npm 11.5.1 or newer so the npm CLI can perform the OIDC exchange required by trusted publishing.
 

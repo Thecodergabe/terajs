@@ -2,7 +2,7 @@ type StarterHubType = "signalr" | "socket.io" | "websockets";
 
 const DOCS_URL = "https://terajs.com/docs";
 const QUICKSTART_URL = "https://terajs.com/docs/quickstart";
-const GITHUB_URL = "https://github.com/Thecodergabe/terajs";
+const GITHUB_URL = "https://github.com/terajs/terajs";
 
 export function createStarterHero(): string {
   return `<template>

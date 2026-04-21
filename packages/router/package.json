@@ -17,7 +17,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Thecodergabe/terajs.git"
+    "url": "git+https://github.com/terajs/terajs.git"
   },
   "publishConfig": {
     "access": "public"
