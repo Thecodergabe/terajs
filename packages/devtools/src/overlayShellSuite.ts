@@ -82,25 +82,25 @@ export function registerOverlayShellSuite(): void {
     expect(shadowRoot?.textContent).toContain("LandingPage");
   });
 
-  it("toggles panel visibility from the fab without remounting a second host", () => {
+  it("starts open by default and toggles panel visibility from the fab without remounting a second host", () => {
     mountDevtoolsOverlay();
 
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
-    expect(panel?.classList.contains("is-hidden")).toBe(true);
-
-    toggleDevtoolsOverlay();
     expect(panel?.classList.contains("is-hidden")).toBe(false);
 
     toggleDevtoolsOverlay();
     expect(panel?.classList.contains("is-hidden")).toBe(true);
+
+    toggleDevtoolsOverlay();
+    expect(panel?.classList.contains("is-hidden")).toBe(false);
 
     mountDevtoolsOverlay();
     expect(document.querySelectorAll("#terajs-overlay-container")).toHaveLength(1);
   });
 
   it("exposes an IDE bridge for snapshots and overlay control", () => {
-    mountDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: false });
 
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
@@ -450,19 +450,19 @@ export function registerOverlayShellSuite(): void {
   });
 
   it("supports keyboard shortcuts for panel and visibility controls", () => {
-    mountDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: false });
 
     const host = document.getElementById("terajs-overlay-container") as HTMLDivElement | null;
     const panel = host?.shadowRoot?.getElementById("terajs-devtools-panel") as HTMLDivElement | null;
     expect(panel?.classList.contains("is-hidden")).toBe(true);
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "d", ctrlKey: true, shiftKey: true }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "d", altKey: true, shiftKey: true }));
     expect(panel?.classList.contains("is-hidden")).toBe(false);
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", ctrlKey: true, shiftKey: true }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", altKey: true, shiftKey: true }));
     expect(host?.style.display).toBe("none");
 
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", ctrlKey: true, shiftKey: true }));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "h", altKey: true, shiftKey: true }));
     expect(host?.style.display).toBe("block");
   });
 

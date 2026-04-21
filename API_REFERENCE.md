@@ -69,6 +69,8 @@ It also re-exports route-manifest helpers:
 - bridge types: `DevtoolsBridgeSnapshot`, `DevtoolsBridgeSessionExport`, `DevtoolsBridgeEventDetail`, `DevtoolsBridgeEventRecord`, `DevtoolsBridgeInstanceSummary`, `DevtoolsBridgeTabName`, `DevtoolsGlobalBridge`, `SubscribeToDevtoolsBridgeOptions`, `WaitForDevtoolsBridgeOptions`
 - development-only VS Code bridge helpers: `autoAttachVsCodeDevtoolsBridge(options?)`, `connectVsCodeDevtoolsBridge()`, `disconnectVsCodeDevtoolsBridge()`, `retryVsCodeDevtoolsBridgeConnection()`, `getDevtoolsIdeBridgeStatus()`, `stopAutoAttachVsCodeDevtoolsBridge()`, `DEVTOOLS_IDE_BRIDGE_STATUS_CHANGE_EVENT`, `DevtoolsIdeAutoAttachOptions`, `DevtoolsIdeBridgeManifest`, `DevtoolsIdeBridgeMode`, `DevtoolsIdeBridgeStatus`
 
+With the stock overlay defaults, DevTools mounts open in development, `Alt+Shift+D` toggles the panel, and `Alt+Shift+H` hides or restores the full shell. Apps can override those defaults through `devtools.startOpen`, `devtools.panelShortcut`, and `devtools.visibilityShortcut`.
+
 The browser global bridge surface is structured and imperative rather than DOM-based:
 
 - `listInstances()`

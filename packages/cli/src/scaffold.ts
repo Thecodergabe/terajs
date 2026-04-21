@@ -118,11 +118,11 @@ function createTerajsConfig(hubType?: ScaffoldHubType, hubUrl = ""): string {
   autoImportDirs: ["src/components"],
   routeDirs: ["src/pages"],
   devtools: {
-    enabled: false,
-    startOpen: false,
+    enabled: true,
+    startOpen: true,
     position: "bottom-center",
-    panelShortcut: "Ctrl+Shift+D",
-    visibilityShortcut: "Ctrl+Shift+H"
+    panelShortcut: "Alt+Shift+D",
+    visibilityShortcut: "Alt+Shift+H"
   },${syncSection}
   router: {
     rootTarget: "app",

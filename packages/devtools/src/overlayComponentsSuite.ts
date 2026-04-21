@@ -9,8 +9,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -27,8 +26,7 @@ export function registerOverlayComponentsSuite(): void {
   });
 
   it("keeps the components header search-only and hides the inspector until selection", () => {
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -59,8 +57,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -91,8 +88,7 @@ export function registerOverlayComponentsSuite(): void {
     secondRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(secondRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -126,8 +122,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -155,8 +150,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -189,8 +183,7 @@ export function registerOverlayComponentsSuite(): void {
     parentRoot.appendChild(childRoot);
     document.body.appendChild(parentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -247,8 +240,7 @@ export function registerOverlayComponentsSuite(): void {
     appShellRoot.appendChild(layoutRoot);
     document.body.appendChild(appShellRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -317,8 +309,7 @@ export function registerOverlayComponentsSuite(): void {
     appShellRoot.appendChild(layoutRoot);
     document.body.appendChild(appShellRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -359,8 +350,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -393,8 +383,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -464,8 +453,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -484,8 +472,7 @@ export function registerOverlayComponentsSuite(): void {
   });
 
   it("keeps mounted components visible after large event churn", () => {
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -505,8 +492,7 @@ export function registerOverlayComponentsSuite(): void {
   });
 
   it("updates the components header count without remounting tree rows for unrelated churn", () => {
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",
@@ -534,8 +520,7 @@ export function registerOverlayComponentsSuite(): void {
     componentRoot.setAttribute("data-terajs-component-instance", "1");
     document.body.appendChild(componentRoot);
 
-    mountDevtoolsOverlay();
-    toggleDevtoolsOverlay();
+    mountDevtoolsOverlay({ startOpen: true });
 
     emitDebug({
       type: "component:mounted",

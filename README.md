@@ -313,6 +313,8 @@ The overlay can inspect:
 - AI diagnostics context assembled from structured runtime data
 - live bridge sessions for the companion VS Code tooling
 
+When DevTools is enabled, the in-page overlay mounts open by default during development so the first local run immediately shows runtime state. `Alt+Shift+D` toggles the panel, and `Alt+Shift+H` hides or restores the full floating shell.
+
 In development, you can also discover the companion VS Code receiver through a same-origin bridge and then connect from the page when you are ready to stream the sanitized live session.
 
 ```ts

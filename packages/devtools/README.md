@@ -20,7 +20,7 @@ import {
   mountDevtoolsOverlay
 } from "@terajs/devtools";
 
-mountDevtoolsOverlay({ startOpen: false });
+mountDevtoolsOverlay();
 autoAttachVsCodeDevtoolsBridge();
 ```
 
@@ -35,6 +35,10 @@ The overlay supports layout and shell options such as:
 - `position`
 - `panelSize`
 - `persistPreferences`
+- `panelShortcut`
+- `visibilityShortcut`
+
+By default, the overlay opens immediately in development, `Alt+Shift+D` toggles the panel, and `Alt+Shift+H` hides or restores the full shell.
 
 Repeated calls reuse the existing overlay instead of creating duplicates.
 

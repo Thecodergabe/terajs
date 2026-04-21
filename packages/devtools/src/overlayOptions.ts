@@ -50,12 +50,12 @@ interface OverlayStorage {
 const OVERLAY_PREFERENCES_STORAGE_KEY = "terajs:devtools:overlay-preferences";
 
 const DEFAULT_OPTIONS: NormalizedOverlayOptions = {
-  startOpen: false,
+  startOpen: true,
   position: "bottom-center",
   panelSize: "normal",
   persistPreferences: true,
-  panelShortcut: "Ctrl+Shift+D",
-  visibilityShortcut: "Ctrl+Shift+H",
+  panelShortcut: "Alt+Shift+D",
+  visibilityShortcut: "Alt+Shift+H",
   ai: {
     enabled: true,
     endpoint: "",
