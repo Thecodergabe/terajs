@@ -4,6 +4,7 @@ import path from "path";
 export default defineConfig({
   test: {
     include: [
+      "scripts/**/*.spec.ts",
       "packages/**/*.{test,spec}.ts",
       "packages/**/*.{test,spec}.js",
       "packages/adapter-react/**/*.{test,spec}.tsx"

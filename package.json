@@ -21,8 +21,10 @@
     "audit:exports:strict": "node scripts/audit-exports.mjs --strict",
     "rc:check": "npm run typecheck && npx vitest run --maxWorkers=1 && npm run smoke:external -- --skip-build && npm run audit:exports:strict && npm run audit:docs",
     "release:status": "changeset status --verbose",
-    "version-packages": "changeset version && npm install --package-lock-only",
-    "release:publish": "npm run guard:publish-metadata && npm run build && changeset publish"
+    "version-packages": "changeset version && node scripts/sync-release-version.mjs && npm install --package-lock-only",
+    "release:tag": "node scripts/create-release-tag.mjs",
+    "release:tag:push": "node scripts/create-release-tag.mjs --push",
+    "release:publish": "npm run guard:publish-metadata && npm run build && changeset publish && npm run release:tag"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",

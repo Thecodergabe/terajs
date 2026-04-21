@@ -34,6 +34,8 @@ Flow:
 
 This keeps publishing explicit while removing the need to run `changeset version` and `changeset publish` by hand on a local machine.
 
+Terajs also maintains a repo-level release marker in the root `package.json`. The custom `version-packages` wrapper advances that root version on every publishable package release, keeps it at least as high as the highest public package version, and the publish workflow pushes a matching annotated repo tag like `v1.1.2` after npm publish succeeds.
+
 The release workflow already includes the GitHub Actions permission npm needs for OIDC: `id-token: write`.
 
 If you later enable `Allow GitHub Actions to create and approve pull requests` in GitHub repository settings, you can add automated PR creation back on top of this flow. It is not required for publishing.
@@ -63,16 +65,22 @@ npm run changeset
 npm run release:status
 ```
 
-3. Cut versions and refresh the workspace lockfile:
+3. Cut versions, sync the repo release version, and refresh the workspace lockfile:
 
 ```bash
 npm run version-packages
 ```
 
-4. Publish the release:
+4. Publish the release and create the local repo tag:
 
 ```bash
 npm run release:publish
+```
+
+5. Push the release tag once the publish succeeds:
+
+```bash
+npm run release:tag:push
 ```
 
 Use the local flow if GitHub Actions is unavailable or if you need to recover a release manually.
