@@ -40,8 +40,11 @@ const allowedRootDevDependencies = new Set([
   "@types/react-dom",
   "@types/vue",
   "jsdom",
+  "react",
+  "react-dom",
   "typescript",
-  "vitest"
+  "vitest",
+  "vue"
 ]);
 
 const allowedPackageExternalDependencies = new Map<string, Set<string>>([
