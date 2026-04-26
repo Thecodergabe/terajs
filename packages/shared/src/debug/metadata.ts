@@ -30,7 +30,7 @@ export function createReactiveMetadata(options: {
     line: options.line,
     column: options.column,
     createdAt: Date.now(),
-    composable: options.composable ?? getCurrentComposable() ?? undefined,
+    composable: getCurrentComposable() ?? options.composable ?? undefined,
     group: options.group
   };
 }
