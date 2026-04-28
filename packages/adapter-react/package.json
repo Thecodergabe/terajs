@@ -1,6 +1,6 @@
 {
   "name": "@terajs/adapter-react",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "React interoperability adapter for mounting Terajs components in React applications.",
   "author": "Terajs Labs",
   "type": "module",
@@ -32,9 +32,9 @@
     "react-dom": "^18.0.0"
   },
   "dependencies": {
-    "@terajs/reactivity": "^1.0.4",
-    "@terajs/renderer-web": "^1.0.4",
-    "@terajs/runtime": "^1.0.4"
+    "@terajs/reactivity": "^1.0.7",
+    "@terajs/renderer-web": "^1.0.7",
+    "@terajs/runtime": "^1.0.5"
   },
   "publishConfig": {
     "access": "public"

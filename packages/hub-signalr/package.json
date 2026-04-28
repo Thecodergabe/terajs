@@ -1,6 +1,6 @@
 {
   "name": "@terajs/hub-signalr",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,8 +12,8 @@
     }
   },
   "dependencies": {
-    "@terajs/runtime": "^1.0.4",
-    "@terajs/shared": "^1.0.4"
+    "@terajs/runtime": "^1.0.5",
+    "@terajs/shared": "^1.0.7"
   },
   "peerDependencies": {
     "@microsoft/signalr": "^8.0.0 || ^9.0.0"
