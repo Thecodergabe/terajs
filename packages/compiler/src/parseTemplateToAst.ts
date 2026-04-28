@@ -227,7 +227,6 @@ class ParserContext {
       }
     }
 
-
     return {
       type: "element",
       tag,

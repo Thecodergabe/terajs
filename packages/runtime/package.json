@@ -1,6 +1,6 @@
 {
   "name": "@terajs/runtime",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,9 +12,9 @@
     }
   },
   "dependencies": {
-    "@terajs/reactivity": "^1.0.4",
-    "@terajs/shared": "^1.0.4",
-    "@terajs/sfc": "^1.0.4"
+    "@terajs/reactivity": "^1.0.7",
+    "@terajs/shared": "^1.0.7",
+    "@terajs/sfc": "^1.0.6"
   },
   "license": "Apache-2.0",
   "repository": {
